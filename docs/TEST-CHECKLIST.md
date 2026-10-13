@@ -8,6 +8,8 @@
 |---|---|---:|---:|---:|---|
 | 本地单元、RLS/RPC、持久化、配置检查 | `pnpm test` | 23 | 0 | 0 | [unit-results.json](../test-results/unit-results.json)，PGlite/合成Auth |
 | 真实 PostgreSQL 多连接 | `pnpm test:concurrency` | 5 | 0 | 0 | [concurrency-results.json](../test-results/concurrency-results.json)，另复现旧漏洞1项 |
+| Linux GitHub Actions 单元/构建 | [运行 38361905537](https://github.com/czechiuu/plans/actions/runs/38361905537) | 23 | 0 | 0 | 安装、`pnpm test` 与 `pnpm build` 通过；deploy skipped |
+| Linux GitHub Actions 多连接并发 | 同一运行 | 5 | 0 | 0 | 修复回归通过，另按预期复现 001 基线漏洞 1 项 |
 | 未配置状态 | `pnpm test:browser:unconfigured` | 2 | 0 | 0 | [unconfigured-results.json](../test-results/unconfigured-results.json) |
 | 合成资料/内存接口界面 | `pnpm test:browser:mock` | 5 | 0 | 0 | [ui-mock-results.json](../test-results/ui-mock-results.json)，仅此类替换API |
 | 真实 Supabase API | `pnpm test:cloud` | 0 | 0 | 11 | [cloud-api-results.json](../test-results/cloud-api-results.json)，缺安全配置退出1 |
@@ -15,7 +17,7 @@
 | 实际注册/密码邮件、重置登录、邀请过期、物理删除 | 人工云端清单 | 0 | 0 | 5 | [人工门槛](../test-results/cloud-manual-gates.json) |
 | 两台真实物理设备 | 人工双设备流程 | 0 | 0 | 1组 | 同上，两个浏览器上下文不算两台设备 |
 
-23 项本地测试已包含 7 项回跳测试，不能再相加。构建通过，当前只显示未配置说明页。Linux PostgreSQL 分支已纳入 GitHub CI，结果见 STATUS.md；没有 Linux 执行证据前不能视作通过。原混合 `verify-browser.mjs` / `browser-results.json` 已移除。
+23 项本地测试已包含 7 项回跳测试，不能再相加；表中 Linux 项是同一组测试在另一环境的独立运行，也不能与本地相加。远端源码提交 `c03df47c5b44c2fe5a2bb4c7459234a239b63cfe` 的 51 个公开文件与本地上传内容哈希一致。Linux CI 构建通过，但 deploy skipped；当前没有已发布网页，Supabase 项目创建表单尚未提交。原混合 `verify-browser.mjs` / `browser-results.json` 已移除。
 
 浏览器两类本地测试先启动 `pnpm dev`；真实浏览器必须使用配置后的 production build/preview 或真实 HTTPS 部署页，不能使用 Vite 开发页。测试核对生产资源及预期 Supabase 主机，不替换 API。云测只读进程环境，不自动读取 `.env.local`；安全运行步骤见 [README](../README.md) 和 [云端验收清单](CLOUD-ACCEPTANCE.md)。自动脚本不得覆盖已记录的人工验收。
 
