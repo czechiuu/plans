@@ -10,12 +10,13 @@
 | 合成资料/内存 API 界面 | 5 | 0 | 0 | [ui-mock-results.json](../test-results/ui-mock-results.json)，只此类替换 API，截图带模拟水印 |
 | 云项目空库、001＋002、结构/ACL | 14 | 0 | 0 | [cloud-setup-results.json](../test-results/cloud-setup-results.json)；空库核对、事务迁移和与仓库一致的 LF 源 SQL 迁移历史 |
 | 真实云端匿名访问拒绝 | 8 | 0 | 0 | [cloud-anonymous-results.json](../test-results/cloud-anonymous-results.json)：7 张表和 `current_space_id`；没有已登录账号 |
-| 首次部署匿名网页 | 8 | 1 | 3 项未运行 | [deployment-results.json](../test-results/deployment-results.json)：唯一失败为 `/favicon.ico` 404，代码已修、构建通过，待重新部署及复测；3 项需账号或真机 |
+| 新版网页受影响回归 | 4 | 0 | 0 | [deployment-regression-results.json](../test-results/deployment-regression-results.json)：图标、手机登录页、刷新、控制台/资源；[新版手机截图](../test-results/deployed-mobile-login-verified.png)。未重跑首发全清单 |
+| 首发版匿名网页（历史） | 8 | 1 | 3 项未运行 | [deployment-results.json](../test-results/deployment-results.json)：旧版唯一失败为 `/favicon.ico` 404；新版已修复并通过受影响回归；3 项需账号或真机 |
 | 真实三账号 Supabase API | 0 | 0 | 11 | [cloud-api-results.json](../test-results/cloud-api-results.json)，已带项目公共配置重跑；缺 A/B/C 账号凭据和一次性测试确认标志 |
 | 真实构建页面＋Supabase | 0 | 0 | 7 | [cloud-browser-results.json](../test-results/cloud-browser-results.json)，已带项目公共配置和网页地址重跑；缺 A/B/C 账号凭据和一次性测试确认标志，不替换 API |
 | 真实邮件和两台物理设备 | 0 | 0 | 待做 | [云端](CLOUD-ACCEPTANCE.md)与[真机](DEVICE-ACCEPTANCE.md)清单 |
 
-[GitHub Pages 部署运行 38375922987](https://github.com/czechiuu/plans/actions/runs/38375922987) 的 test-build、deploy 均成功；实际地址为 [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)，源码 `605c8dad48cef31cbffa72d7056016dd0910f596`。首次部署检查的页面错误为图标 404，修复和复测尚未完成；上述 8 项匿名 API 拒绝不能替代三账号共享/隔离检查。Site URL 和两条精确 Redirect URL 已保存并回读，Custom SMTP 关闭，见 [Auth 配置回读](../test-results/cloud-auth-config-results.json)。
+[当前 GitHub Pages 运行 38378521147](https://github.com/czechiuu/plans/actions/runs/38378521147) 的 test-build、deploy 均成功；实际地址为 [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)，部署应用源码 `3ded57c825fa375564d389629dd990858ebf97cf`。首发图标 404 记录保留作历史，新版受影响回归 4 通过、0 失败，控制台、页面和资源错误均为 0、手机无水平溢出；未重跑首发全清单。上述 8 项匿名 API 拒绝不能替代三账号共享/隔离检查。Site URL 和两条精确 Redirect URL 已保存并回读，Custom SMTP 关闭，见 [Auth 配置回读](../test-results/cloud-auth-config-results.json)。
 
 本机 `.env.local` 已有两项 `VITE_` 公共配置且被 Git 忽略；新克隆须复制空白 `.env.example` 自行配置。再测“未配置页”须用 [README 命令](../README.md#本地运行与配置)启动另一个显式保留两项空值的 Vite 子进程；旧版 PowerShell 中设置空环境变量可能被当作删除，直接沿用已配置服务会使检查失真。模拟界面始终标“模拟”。云 API/云页面脚本只读进程环境，不自动加载 `.env.local`；真实页面需部署 URL 或已配置 production preview，不能用 dev 页。当前阻塞报告已带项目公共配置重跑，不能当作通过。
 
@@ -35,7 +36,7 @@
 | 10 | 食物估算草稿、确认、修正和不重复计数 | 未实现 |
 | 11 | 体重真实记录、缺失与少量样本 | 本地计算及模拟界面通过；三账号云端/真机未运行 |
 | 12 | 手机日程→计划→动画→记录全流程 | 第一阶段界面模拟通过；完整流程未实现 |
-| 13 | 前端、仓库、运行日志不泄漏 | 公共配置和本地私有路径已查；首次部署检查的公开资源与页面无私有资料发现，图标修复待重新部署复测；真实账号运行日志未验收 |
+| 13 | 前端、仓库、运行日志不泄漏 | 公共配置和本地私有路径已查；首发检查的公开资源与页面无私有资料发现，新版受影响回归无控制台/资源错误；真实账号运行日志未验收 |
 | 14 | 区分通过、失败、阻塞和模拟 | 本表分别报告；自动生成不可标通过 |
 
 真实邮箱确认/重置、A/B/C 权限与撤销、清除后的管理员计数以及双物理设备流程通过前，第一阶段仍非正式可用。私人健康档案不导入，第二阶段不开始。

@@ -29,13 +29,13 @@ pnpm build
 - `pnpm test:browser:mock` 使用合成资料和替换的内存 API，只验证界面；不能算真实 Supabase 通过。
 - `pnpm test:cloud` 与 `pnpm test:browser:cloud` 使用专用合成 A/B/C 账号和**进程环境**中的 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、三个 `TEST_*_EMAIL/PASSWORD`、`TEST_ACCOUNTS_ARE_DISPOSABLE=YES`；真实页面另用 `E2E_BASE_URL` 指向实际 HTTPS 网页或已配置的 production preview。脚本**不会自动读取 `.env.local`**，公共前端配置已存在不代表云测可运行；真实浏览器检查不能用 Vite dev 页。需要本机忽略文件时显式用 `node --env-file=.env.cloud-test scripts/verify-cloud.mjs` 或对应 cloud-browser 脚本，不提交文件或输出密码。
 
-截至本轮，本地 23 单元、5 并发、2 未配置页、5 模拟界面均通过；已带项目公共配置和网页地址重跑云端检查，真实 API 11 和真实页面 7 项目前只因缺 A/B/C 测试账号凭据及一次性测试账号确认标志而阻塞。云端 14 项结构/ACL 与 8 项匿名拒绝已通过；首次部署匿名页面检查 8 通过、1 失败（图标 404）、3 项需账号或真机未运行。图标代码已修、构建通过，仍待重新部署和复测。这些结果不能代替三账号授权和真机。详细分类及证据见 [测试清单](docs/TEST-CHECKLIST.md)。
+截至本轮，本地 23 单元、5 并发、2 未配置页、5 模拟界面均通过；已带项目公共配置和网页地址重跑云端检查，真实 API 11 和真实页面 7 项目前只因缺 A/B/C 测试账号凭据及一次性测试账号确认标志而阻塞。云端 14 项结构/ACL 与 8 项匿名拒绝已通过。首发图标 404 已修复，新版受影响网页回归 4 通过、0 失败；这次没有重跑首发全清单。这些结果不能代替三账号授权和真机。详细分类及证据见 [测试清单](docs/TEST-CHECKLIST.md)。
 
 ## 云端与部署
 
 Supabase 免费项目 `czechiuu's Project`（ref `wnzbtitlvteptkvwhavw`，ap-south-1 Mumbai/NANO）经空库核对后，在 SQL Editor 的事务中按序应用 [001](supabase/migrations/202610130001_initial.sql) 与 [002](supabase/migrations/202610130002_space_lock_order.sql)，并核对迁移历史、RLS 与 RPC 权限。已有库不得重跑 001，只能核实后增加补丁。公开构建使用项目 URL 与 publishable key，健康资料由 Auth 和数据库行级权限保护。
 
-GitHub Pages 通过 [手动运行 38375922987](https://github.com/czechiuu/plans/actions/runs/38375922987) 完成 test-build 与 deploy；当前部署源码 `605c8dad48cef31cbffa72d7056016dd0910f596`。本轮新增证据和文档还未形成新提交。网页部署成功不等于真实账号可用。Auth Site URL 已保存为实际网址，`/plans/` 与 `/plans/index.html` 两条精确 Redirect URL 已保存并回读确认，见 [配置回读报告](test-results/cloud-auth-config-results.json)。Custom SMTP 尚未开启；个人 QQ 邮箱 SMTP 已作为免费候选提出，待用户选择、配置和验证投递。保留 Confirm Email，不通过关闭确认或给测试邮箱组织权限绕过发信限制；新增服务及可能费用仍待确认。
+GitHub Pages 通过 [当前运行 38378521147](https://github.com/czechiuu/plans/actions/runs/38378521147) 完成 test-build 与 deploy；当前部署应用源码 `3ded57c825fa375564d389629dd990858ebf97cf`。最新纯证据与文档记录以后续 main 提交为准，它不改变该应用产物。网页部署成功不等于真实账号可用。Auth Site URL 已保存为实际网址，`/plans/` 与 `/plans/index.html` 两条精确 Redirect URL 已保存并回读确认，见 [配置回读报告](test-results/cloud-auth-config-results.json)。Custom SMTP 尚未开启；个人 QQ 邮箱 SMTP 已作为免费候选提出，待用户选择、配置和验证投递。保留 Confirm Email，不通过关闭确认或给测试邮箱组织权限绕过发信限制；新增服务及可能费用仍待确认。
 
 邮箱确认/重置、三账号共享与隔离、删除后数据库计数见 [云端验收](docs/CLOUD-ACCEPTANCE.md)；两台物理设备仅需 [5 步人工流程](docs/DEVICE-ACCEPTANCE.md)。这些通过前不要导入被 Git 忽略的 `private/` 真实档案。照片和 AI 未启用，资料不会发送到外部 AI。
 

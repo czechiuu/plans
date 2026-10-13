@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-10-13T09:47:15.952Z",
+  "scope": "published-regression-only",
+  "site": "https://czechiuu.github.io/plans/",
+  "source_sha_supplied": "3ded57c825fa375564d389629dd990858ebf97cf",
+  "deployment_run_supplied": "https://github.com/czechiuu/plans/actions/runs/38378521147",
+  "passed": 4,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "REGRESSION_FAVICON_LINK",
+      "status": "passed"
+    },
+    {
+      "id": "REGRESSION_MOBILE_LOGIN",
+      "status": "passed"
+    },
+    {
+      "id": "REGRESSION_REFRESH",
+      "status": "passed"
+    },
+    {
+      "id": "REGRESSION_CONSOLE_RESOURCES",
+      "status": "passed"
+    }
+  ],
+  "diagnostics": {
+    "console_errors": 0,
+    "page_errors": 0,
+    "resource_errors": []
+  },
+  "not_retested": [
+    "three-account authentication",
+    "cross-device persistence",
+    "real physical phones",
+    "first-release full static checklist"
+  ]
+}

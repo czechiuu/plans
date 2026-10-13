@@ -6,7 +6,7 @@
 |---|---|
 | 免费项目与数据库 | `czechiuu's Project`，组织 `czechiuu's Org`，ref `wnzbtitlvteptkvwhavw`，ap-south-1 Mumbai/NANO。确认初始 `public` 应用表和 Auth 用户均为空；SQL Editor 事务按顺序应用 `202610130001_initial.sql`、`202610130002_space_lock_order.sql`，迁移历史保存与仓库一致的 LF 规范化 SQL；14 项结构/ACL 检查通过。[报告](../test-results/cloud-setup-results.json) |
 | 匿名访问 | 公开密钥、无会话请求读取 7 张表及调用 `current_space_id`，8 项均被真实服务拒绝。[报告](../test-results/cloud-anonymous-results.json)；未测试已登录账号之间的 RLS |
-| 前端部署 | [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)，[Actions 运行 38375922987](https://github.com/czechiuu/plans/actions/runs/38375922987) 的 test-build/deploy 均成功；部署源提交 `605c8dad48cef31cbffa72d7056016dd0910f596`。首次[部署匿名页面检查](../test-results/deployment-results.json) 8 通过、1 失败（`/favicon.ico` 404）、3 项需账号或真机未运行；图标代码已修、构建通过，重新部署和复测待完成 |
+| 前端部署 | [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)，[当前 Actions 运行 38378521147](https://github.com/czechiuu/plans/actions/runs/38378521147) 的 test-build/deploy 均成功；部署应用源码 `3ded57c825fa375564d389629dd990858ebf97cf`。[新版受影响回归](../test-results/deployment-regression-results.json) 4 通过、0 失败，[手机截图](../test-results/deployed-mobile-login-verified.png)；首发[旧版检查](../test-results/deployment-results.json) 8 通过、1 失败（图标 404）、3 未运行，仅作历史，没有重跑首发全清单 |
 
 以后若发现差异，先核对迁移历史与实际 schema，只新增按序补丁；**不要重跑历史 001/002**。管理员 SQL Editor 的结构检查不替代普通账号通过应用读写的结果。
 
@@ -40,7 +40,7 @@ union all select 'members', count(*) from public.members where user_id in (selec
 | 剩余门槛 | 状态 | 脱敏证据 |
 |---|---|---|
 | 两条精确 Redirect URL | 已保存并回读 | 两条精确入口，无通配 |
-| 部署资源/匿名页面 | 首次 8 通过、1 失败、3 未运行；图标已修，待重新部署和复测 | [报告](../test-results/deployment-results.json) |
+| 部署资源/匿名页面 | 新版受影响回归 4 通过、0 失败；旧版 8 通过、1 失败、3 未运行为历史，首发全清单未重跑 | [新版报告](../test-results/deployment-regression-results.json)、[手机截图](../test-results/deployed-mobile-login-verified.png)、[旧版报告](../test-results/deployment-results.json) |
 | 可用邮件渠道、注册确认与重置全流程 | 未运行 | 待填 |
 | 三账号真实 API 11 项与页面 7 项 | 阻塞：无专用账号 | 待填 |
 | 邀请过期、清理后管理员计数、备份规则 | 未运行／备份未知 | 待填 |
