@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { PGlite } from '@electric-sql/pglite';
@@ -20,7 +20,10 @@ test('本地PostgreSQL写入后关闭重开仍保存，更正与删除持久化'
       create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
       grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
     await db.query('insert into auth.users(id) values($1)',[id]);
-    await db.exec(await readFile(new URL('../supabase/migrations/202610130001_initial.sql',import.meta.url),'utf8'));
+    const migrations = new URL('../supabase/migrations/',import.meta.url);
+    for (const file of (await readdir(migrations)).filter(name=>name.endsWith('.sql')).sort()) {
+      await db.exec(await readFile(new URL(file,migrations),'utf8'));
+    }
     await authenticate();
     await db.query("select public.create_space('Synthetic disk test','合成资料')");
     await db.query('select public.save_weight($1::jsonb)',[JSON.stringify({user_id:id,record_date:'2026-01-02',weight_kg:71.3})]);

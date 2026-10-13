@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-10-13T06:40:12.259Z",
+  "scope": "real-unconfigured-local",
+  "passed": 2,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "UNCONFIGURED_PAGE",
+      "status": "passed"
+    },
+    {
+      "id": "PRIVATE_PATH_DENIED",
+      "status": "passed"
+    }
+  ]
+}

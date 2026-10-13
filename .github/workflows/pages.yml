@@ -29,6 +29,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
+      - run: pnpm test:concurrency
       - run: node scripts/check-public-config.mjs --required
         if: github.event_name == 'workflow_dispatch'
       - run: pnpm build

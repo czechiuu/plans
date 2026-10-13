@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-10-13T06:51:17.362Z",
+  "scope": "real-build-real-supabase-browser",
+  "passed": 0,
+  "failed": 0,
+  "blocked": 7,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "E2E_CONFIG",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_REAL_BUILD",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_ACCOUNTS",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_PERSISTENCE",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_PARTNER",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_EXPORT",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_REOPEN",
+      "status": "blocked"
+    }
+  ]
+}

@@ -1,41 +1,92 @@
 # 项目状态
 
-更新时间：2026-10-13（Asia/Shanghai）。使用skills：sites:sites、ponytail、computer-use。
+更新时间：2026-10-13（Asia/Shanghai）。使用 ponytail、sites:sites、plugin-management。
 
-## 当前阶段
+## 当前结论
 
-第一阶段本地实现和验证完成，源码已上传 [czechiuu/plans](https://github.com/czechiuu/plans)，**Supabase尚未配置，网站尚未上线，不能标为正式可用**。后端已选择Supabase免费方案，用户已授权。没有连接外部AI，没有付费。实际初始档案仅保存在开发机器git忽略的private/，本人导入并确认后才能保存，不在仓库、网页代码、演示或测试数据中。
+第一阶段正在补齐云端验收准备。用户已确认 **尚未创建 Supabase 项目**；未配置云端、未部署网页、未执行真实邮件或两台物理设备验收。不能标为正式可用，不能导入两人的真实健康资料。第二阶段及 AI、照片、20:00 自动生成均未开始。
 
-## 阶段进展
+代码仓库：[czechiuu/plans](https://github.com/czechiuu/plans)。仓库地址不代表网站已发布。
 
-| 阶段 | 状态 | 范围 |
-|---|---|---|
-| 1 账号/空间/手动记录 | 本地完成；云端待验收 | Supabase登录接口、数据库RLS/RPC、私人资料/日程/体重、导出删除退出、手机界面 |
-| 2 具体计划/版本/动作 | 未实施 | 包含自然语言确认、规则校验、合法动画人工核对 |
-| 3 20:00后台任务 | 未实施 | 并发/重复/延迟/失败重试与一致发布 |
-| 4 照片/AI估算 | 未实施 | 私有图片、对应授权、草稿确认、去重 |
-| 5 真实手机/隐私/部署 | 未测试 | 真实云端及设备验收 |
+## 本轮版本核对
 
-## 已有验证
+- 审查基线和本轮开始时的远端 main 均为 `7a9fe5ec329235dfb88e65bfeb2f2f69b5afc4ea`。
+- 修改前本地 33 个公开项目文件的 Git blob hash 与该提交全部一致；两项审查问题当时均未修复。
+- 网站目录不是独立 Git checkout，父工作区无提交、无远端；使用逐文件比对保留现有内容。未新建分支或 worktree，未改科研计划。
 
-- `pnpm test`：16项通过、0项失败。含真实本地PostgreSQL权限/共享/邀请/冲突、磁盘关闭重开后写入/更正/删除持久化、上海日期、缺失体重平均和构建前拒绝私钥。Auth角色由合成fixture提供，不等于云端Auth。
-- `pnpm test:browser`：7项通过、0项失败，其中5项使用合成资料/模拟接口；实际未配置页和private目录403检查为真实本地行为。390px手机和1440px桌面，无横向溢出，测试宿主时区美国仍显示上海日期。
-- `pnpm build`：通过，构建未配置说明页面；部署流程缺公共配置会失败，不发布空后台。`env.local`私钥在构建前拒绝且不打印密钥。
-- 只读安全审核发现并修复3项：共享撤销后的错误信息探查、换成员继承旧授权、Supabase旧默认匿名函数执行ACL；对应回归通过。
-- 恢复密码事件先订阅后读取会话，避免初始化事件遗漏；上海邀请到期显示、减少动态效果、HTTP单行RPC响应已修正。
-- 合成界面截图与原始结果见 [测试清单](docs/TEST-CHECKLIST.md) 和 `test-results/`，不包含真实健康资料。
-- Git忽略两份真实档案与本地发布辅助脚本；源码/文档/测试/构建产物检查未发现初始健康数值或伤情原文。
-- 2026-10-13仓库上传：33个文件的远端Git blob hash逐一与本地上传内容一致，未包含private、node_modules、dist或真实健康资料；保留原占位提交历史，在既有main提交，没有新建分支/worktree。
-- [GitHub自动测试与构建](https://github.com/czechiuu/plans/actions/runs/38349448450)：源码提交4f64e311921433b024a085de0ee81681c77b994d对应运行成功；只执行测试/构建，未部署网页。此运行未执行浏览器或真实云端测试。
-- 真实Supabase Auth、跨设备持久化、邮件：未配置/未测试。
-- AI、照片、动作视频、定时任务：未实施，不能宣称通过。
+## 修复与验证进展
 
-## 待解决
+| 分类 | 通过 | 失败 | 未执行/阻塞 | 证据与边界 |
+|---|---:|---:|---:|---|
+| 密码回跳专项 | 7 | 0 | 0 | 旧逻辑 2 通过、5 失败；真实邮件仍未测 |
+| 完整本地单元/单连接数据库 | 23 | 0 | 0 | [独立报告](test-results/unit-results.json)，包含上面的 7 项回跳测试，不重复计数 |
+| 真实 PostgreSQL 多连接并发 | 5 | 0 | 0 | [独立报告](test-results/concurrency-results.json)，另成功复现 001 漏洞 1 项 |
+| 未配置浏览器 | 2 | 0 | 0 | [独立报告](test-results/unconfigured-results.json) |
+| 模拟接口界面 | 5 | 0 | 0 | [独立报告](test-results/ui-mock-results.json)，全部合成资料 |
+| 真实 Supabase API | 0 | 0 | 11 | [阻塞报告](test-results/cloud-api-results.json)，项目/账号未配置 |
+| 真实构建页面＋Supabase | 0 | 0 | 7 | [阻塞报告](test-results/cloud-browser-results.json)，没有替换 API |
+| 真实设备 | 0 | 0 | 1 组双设备流程 | 手机尺寸与浏览器上下文不算两台设备 |
 
-1. 仓库上传已完成，用户指定的公开仓库只含代码、文档和合成测试证据。源码推送只测试/构建，网页部署需配置后手动触发；仓库链接不等于已上线网站。
-2. 用户在Supabase控制台建立免费项目、部署迁移、配置公共URL/key及真实邮件/三个专用测试账号。密码与私钥走安全配置，不能贴聊天。
-3. 云端权限与真实两设备登录验收完成后才把第一阶段标为正式可用。自然语言、计划/动画、20:00任务、照片AI和完整手机流程随后按阶段实现。
+`pnpm build` 已通过，产物显示未配置说明。未运行真实注册收信、密码邮件、新密码登录、过期邀请云测及物理删除计数。缺配置脚本非零退出只是阻塞检测，不算云端通过。
 
-第一阶段限制：一次账号仅一个空间、一天一条日程/体重（支持编辑合并及纠错）、跨设备更新需手动刷新；清除/退出不删除Auth账号，服务商备份删除周期待云端确认。图片/饮食/运动生成未实施。
+密码恢复与注册确认共用实际页面 URL，保留路径、去掉查询和认证片段，未硬编码 `/plans/`。Vite 保持相对资源路径 `base: './'`。
 
-每次阶段性完成追加实际方法、通过/失败数量、未测试和模拟边界，不以页面打开作为完成。
+新增 `202610130002_space_lock_order.sql`，保留历史 001：邀请和退出在空间锁内重新验证身份；加入先锁空间再锁邀请，锁内重检邀请、容量与过期时间。等待旧空间的退出请求不能误清新空间。
+
+真实 PostgreSQL 17 回归以不同连接模拟退出持锁、邀请等待、退出提交；通过 `pg_stat_activity` 的 Lock 和 `pg_blocking_pids` 确认等待后才提交。原 001 确实让退出者生成邀请并被新人使用；002 阻止该行为。另覆盖同令牌竞争、满员竞争、加入/退出反向锁顺序和重复退出。测试客户端使用无 superuser/BYPASSRLS 的 authenticated 角色，RLS 开启；管理员只初始化独立合成库和观察锁。Windows 中文路径限制通过明确的英文临时运行目录解决，未替换成模拟。Linux 分支待远端 CI。
+
+浏览器测试已拆分为未配置、模拟界面、真实云端构建页面三类，分别运行与报告；原混合脚本及报告已移除。真实 API 脚本另行报告。公开报告只含用例编号和状态；私有证据位于忽略目录 `test-results/private/`。
+
+## 下一步需要用户操作或确认
+
+1. 用户已授权免费项目创建、001＋002 迁移及 GitHub Pages 发布，并已登录 Supabase。控制台核对原账号没有组织/项目，已创建 Personal 免费组织；plans 项目创建表单已准备，等待用户直接设置数据库密码并提交。已有授权不再重复询问。
+2. 安全配置两个前端公共变量；准备三个全新、专用、可清理的合成测试账号及可用邮件渠道。前端配置与云测进程环境分开，密码/SMTP/私钥不得贴聊天。
+3. 公共配置齐全后执行已获授权的 GitHub Pages 发布。使用实际返回的 HTTPS 地址配置 Site URL、Redirect URLs 并检查项目子路径资源。
+4. 执行真实 API/页面测试、邮件完整流程、删除后数据库计数和两台真实设备验收。具体操作与证据表见 [云端验收清单](docs/CLOUD-ACCEPTANCE.md)。
+
+跨设备需手动刷新。清除健康数据/退出空间不删除 Auth 账号；云端备份保留规则尚未核实。未接入手机推送或外部 AI，未付费。
+
+## 本轮修改文件
+
+新增或修改（包含合成测试证据）：
+
+```
+.github/workflows/pages.yml
+AGENTS.md
+CONTEXT.md
+docs/CLOUD-ACCEPTANCE.md
+docs/DATA-MODEL.md
+docs/TEST-CHECKLIST.md
+package.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+README.md
+scripts/test-helpers/browser.mjs
+scripts/test-helpers/cloud.mjs
+scripts/test-helpers/report.mjs
+scripts/verify-cloud-browser.mjs
+scripts/verify-cloud.mjs
+scripts/verify-concurrency.mjs
+scripts/verify-ui-mock.mjs
+scripts/verify-unconfigured.mjs
+scripts/with-local-postgres.mjs
+src/api.js
+src/auth-redirect.js
+STATUS.md
+supabase/migrations/202610130002_space_lock_order.sql
+test-results/cloud-api-results.json
+test-results/cloud-browser-results.json
+test-results/cloud-manual-gates.json
+test-results/concurrency-results.json
+test-results/mobile-dashboard-synthetic.png
+test-results/mobile-weight-synthetic.png
+test-results/ui-mock-results.json
+test-results/unconfigured-results.json
+test-results/unit-results.json
+tests/auth-redirect.test.js
+tests/database.test.js
+tests/persistence.test.js
+```
+
+删除旧混合入口和报告：`scripts/verify-browser.mjs`、`test-results/browser-results.json`。
+

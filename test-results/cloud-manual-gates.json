@@ -1,0 +1,33 @@
+{
+  "scope": "manual-real-account-and-device-evidence",
+  "passed": 0,
+  "failed": 0,
+  "blocked": 6,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "SIGNUP_CONFIRMATION_EMAIL",
+      "status": "blocked"
+    },
+    {
+      "id": "PASSWORD_RECOVERY_EMAIL",
+      "status": "blocked"
+    },
+    {
+      "id": "PASSWORD_RESET_NEW_PASSWORD",
+      "status": "blocked"
+    },
+    {
+      "id": "TWO_PHYSICAL_DEVICES",
+      "status": "blocked"
+    },
+    {
+      "id": "INVITE_EXPIRY",
+      "status": "blocked"
+    },
+    {
+      "id": "BACKEND_PHYSICAL_DELETION",
+      "status": "blocked"
+    }
+  ]
+}

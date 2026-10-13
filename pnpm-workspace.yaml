@@ -1,0 +1,5 @@
+# PostgreSQL's reviewed install script restores its bundled library symlinks.
+# Approval is limited to the exact test binary version, not all dependency scripts.
+allowBuilds:
+  '@embedded-postgres/windows-x64@17.10.0-beta.17': true
+  '@embedded-postgres/linux-x64@17.10.0-beta.17': true

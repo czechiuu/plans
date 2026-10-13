@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-10-13T06:40:29.744Z",
+  "scope": "synthetic-ui-memory-api",
+  "passed": 5,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "UI_AUTH_SPACE",
+      "status": "passed"
+    },
+    {
+      "id": "UI_SCHEDULE",
+      "status": "passed"
+    },
+    {
+      "id": "UI_WEIGHT_CONFLICT",
+      "status": "passed"
+    },
+    {
+      "id": "UI_IMPORT_LOGOUT",
+      "status": "passed"
+    },
+    {
+      "id": "UI_RECOVERY",
+      "status": "passed"
+    }
+  ]
+}

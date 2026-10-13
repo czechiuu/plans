@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { shanghaiDate, validateConfig } from './domain.js'
+import { authRedirectUrl } from './auth-redirect.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
@@ -47,12 +48,12 @@ export const api = {
   },
   async signIn(email, password) { await result(ready().auth.signInWithPassword({ email, password })) },
   async signUp(email, password) {
-    const data = await result(ready().auth.signUp({ email, password }))
+    const data = await result(ready().auth.signUp({ email, password, options: { emailRedirectTo: authRedirectUrl(window.location.href) } }))
     return { needsEmailConfirmation: !data.session }
   },
   async signOut() { await result(ready().auth.signOut()) },
   async resetPassword(email) {
-    const redirectTo = new URL(import.meta.env.BASE_URL || '/', window.location.origin).href
+    const redirectTo = authRedirectUrl(window.location.href)
     await result(ready().auth.resetPasswordForEmail(email, { redirectTo }))
   },
   async updatePassword(password) { await result(ready().auth.updateUser({ password })) },

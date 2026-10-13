@@ -1,0 +1,74 @@
+{
+  "checked_at_utc": "2026-10-13T06:56:41.092Z",
+  "database": "isolated local PostgreSQL 17",
+  "baseline": {
+    "status": "reproduced",
+    "evidence": {
+      "wait_event_type": "Lock",
+      "wait_event": "transactionid",
+      "blocker_confirmed": true,
+      "stale_member_invite_accepted": true
+    }
+  },
+  "fixed": {
+    "status": "passed",
+    "scenarios": {
+      "invite_after_leave": {
+        "status": "passed",
+        "evidence": {
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blocker_confirmed": true,
+          "stale_member_invite_accepted": false
+        }
+      },
+      "same_token": {
+        "status": "passed",
+        "evidence": {
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blocker_confirmed": true,
+          "rejected": true,
+          "member_count": 2
+        }
+      },
+      "full_space": {
+        "status": "passed",
+        "evidence": {
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blocker_confirmed": true,
+          "rejected": true,
+          "member_count": 2
+        }
+      },
+      "join_during_leave": {
+        "status": "passed",
+        "evidence": {
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blocker_confirmed": true,
+          "rejected": true,
+          "member_count": 0,
+          "deadlock": false
+        }
+      },
+      "double_leave": {
+        "status": "passed",
+        "evidence": {
+          "wait_event_type": "Lock",
+          "wait_event": "transactionid",
+          "blocker_confirmed": true,
+          "rejected": true,
+          "member_count": 1
+        }
+      }
+    }
+  },
+  "counts": {
+    "baseline_reproduced": 1,
+    "fixed_passed": 5,
+    "failed": 0
+  },
+  "passed": true
+}

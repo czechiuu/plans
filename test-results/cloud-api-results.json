@@ -1,0 +1,54 @@
+{
+  "generated_at": "2026-10-13T06:51:17.427Z",
+  "scope": "real-supabase-api",
+  "passed": 0,
+  "failed": 0,
+  "blocked": 11,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "API_ANON",
+      "status": "blocked"
+    },
+    {
+      "id": "API_ACCOUNTS",
+      "status": "blocked"
+    },
+    {
+      "id": "API_INVITES",
+      "status": "blocked"
+    },
+    {
+      "id": "API_ISOLATION",
+      "status": "blocked"
+    },
+    {
+      "id": "API_PRIVATE",
+      "status": "blocked"
+    },
+    {
+      "id": "API_SHARE_REVOKE",
+      "status": "blocked"
+    },
+    {
+      "id": "API_ROW_REVOKE",
+      "status": "blocked"
+    },
+    {
+      "id": "API_PARTNER_EDIT",
+      "status": "blocked"
+    },
+    {
+      "id": "API_CRUD_READBACK",
+      "status": "blocked"
+    },
+    {
+      "id": "API_ERASE",
+      "status": "blocked"
+    },
+    {
+      "id": "API_LEAVE_REJOIN",
+      "status": "blocked"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { readFile, readdir } from 'node:fs/promises'
 import { PGlite } from '@electric-sql/pglite'
 
 const ids = [
@@ -25,7 +25,10 @@ test('local PostgreSQL access and sharing contract', async t => {
       grant execute on function auth.uid() to authenticated,anon;
     `)
     for (const id of ids) await db.query('insert into auth.users(id) values($1)', [id])
-    await db.exec(await readFile(new URL('../supabase/migrations/202610130001_initial.sql', import.meta.url), 'utf8'))
+    const migrations = new URL('../supabase/migrations/', import.meta.url)
+    for (const file of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+      await db.exec(await readFile(new URL(file, migrations), 'utf8'))
+    }
 
     async function actor(index, sql, params = []) {
       await db.exec('reset role')
