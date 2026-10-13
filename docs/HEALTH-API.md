@@ -1,6 +1,6 @@
 # 健康功能后端接口（004，本地实现契约）
 
-此契约供前端对接；004、005 与三份 Edge Function 已由管理员部署生产，005 AI 供应商扩展见 [DEEPSEEK.md](DEEPSEEK.md)。本月预算已设置；首次合成探针因 Vault 与 Edge 的 cron secret 不一致返回 HTTP 401 `AUTH_REQUIRED`，尚未触发供应商调用，20:00 定时任务也尚未验收。所有日期为上海日 `YYYY-MM-DD`。仅两位固定账号可用。前端只持 Supabase publishable key 与本人 JWT，不接触 service_role 或 AI 密钥。所有新表客户端可按 RLS `select`，**不可直接 insert/update/delete**；写入走 RPC 或 Edge Function。未配置服务端 AI/Cron/照片时明确返回错误，不提供假结果。
+此契约供前端对接；004、005 与三份 Edge Function 已由管理员部署生产，005 AI 供应商扩展见 [DEEPSEEK.md](DEEPSEEK.md)。本月预算已设置；一次固定合成探针实际 3/4 通过，日程项待诊断，已保守结算 4 美分。20:00 定时任务虽返回 HTTP 200，两项生成工作仍为排队且领取次数为零，尚未验收。所有日期为上海日 `YYYY-MM-DD`。仅两位固定账号可用。前端只持 Supabase publishable key 与本人 JWT，不接触 service_role 或 AI 密钥。所有新表客户端可按 RLS `select`，**不可直接 insert/update/delete**；写入走 RPC 或 Edge Function。未配置服务端 AI/Cron/照片时明确返回错误，不提供假结果。
 
 ## 权限与通用字段
 

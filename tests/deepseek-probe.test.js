@@ -1,9 +1,28 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { probeDeepSeek, response } from '../supabase/functions/_shared/ai-core.js'
+import { generate, probeDeepSeek, response } from '../supabase/functions/_shared/ai-core.js'
 
 const schema={type:'object',properties:{},required:[],additionalProperties:false}
+
+test('standard job UUID reaches claim while a missing UUID segment is rejected',async()=>{
+  const id='11111111-1111-4111-8111-111111111111'
+  let claimed=false
+  const user={from:table=>({select(){return this},eq(){return this},
+    async maybeSingle(){return table==='ai_plan_preferences'?{data:null,error:null}:
+      {data:{id,status:'queued',lease_until:null},error:null}}})}
+  const admin={rpc(name,args){
+    assert.equal(name,'claim_generation_job')
+    assert.equal(args.p_id,id)
+    claimed=true
+    return {maybeSingle:async()=>({data:null,error:null})}
+  }}
+  await assert.rejects(generate({user,admin,id},id,'rules'),/JOB_NOT_AVAILABLE/)
+  assert.equal(claimed,true)
+  claimed=false
+  await assert.rejects(generate({user,admin,id},'11111111-1111-4111-111111111111','rules'),/INVALID_REQUEST/)
+  assert.equal(claimed,false)
+})
 
 test('synthetic probe without a server key is explicitly blocked',async()=>{
   const previous=process.env.DEEPSEEK_API_KEY,oldFetch=globalThis.fetch
@@ -86,6 +105,8 @@ test('synthetic probe uses four fixed tasks, peak-price reservations and no heal
     assert.equal(reservations.length,4)
     assert.ok(reservations.every(x=>x.p_cents>=1&&x.p_cents<=10))
     assert.equal(result.results.filter(x=>x.valid).length,4)
+    assert.equal(result.results[0].schema_valid,true)
+    assert.deepEqual(result.results[0].checks,{slot:true,date:true,start:true,end:true,duration:true})
     assert.equal(result.synthetic_only,true)
     assert.equal(result.balance_delta_is_attributable,false)
     const invalidCases=[
@@ -102,8 +123,24 @@ test('synthetic probe uses four fixed tasks, peak-price reservations and no heal
       at=0
       const rejected=await probeDeepSeek(admin,photo)
       assert.equal(rejected.results[index].valid,false)
+      assert.equal(rejected.results[index].schema_valid,true)
+      if(index===0) assert.ok(Object.values(rejected.results[index].checks).includes(false))
       drafts[index]=original
     }
+    const malformed=drafts[0]
+    drafts[0]={...malformed,exercise:{...malformed.exercise,explicit_end_time:123}}
+    at=0
+    const invalidSchema=await probeDeepSeek(admin,photo)
+    assert.equal(invalidSchema.results[0].schema_valid,false)
+    assert.equal(invalidSchema.results[0].checks,null)
+    drafts[0]=malformed
+    const before=calls.length
+    at=0
+    const scheduleOnly=await probeDeepSeek(admin,null,{scheduleOnly:true})
+    assert.equal(calls.length,before+1)
+    assert.equal(scheduleOnly.results.length,1)
+    assert.equal(scheduleOnly.results[0].valid,true)
+    assert.equal(calls.at(-1).input[1].content.length,1)
   }finally{
     globalThis.fetch=oldFetch
     if(previous===undefined) delete process.env.DEEPSEEK_API_KEY

@@ -26,7 +26,7 @@
   "not_covered_at_004_check": ["Migration 005", "Edge Function deployment", "Cron execution", "real fixed-account health API", "physical devices", "paid AI calls"],
   "later_observations": {
     "recorded_at_utc": "2026-10-13T16:54:46Z",
-    "updated_at_utc": "2026-10-13T16:58:29Z",
+    "updated_at_utc": "2026-10-13T17:46:59Z",
     "source": "Parent agent's subsequent production SQL Editor and deployment observations; document writer did not rerun them",
     "migration_005": {
       "version": "202610130005",
@@ -41,7 +41,7 @@
       "source_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
       "health_photo": "deployed",
       "health_ai": "deployed",
-      "health_cron": "deployed",
+      "health_cron": "deployed from revision 437f341e9ffa8f0fb5b0e5bf78492914b5724d37; bundle 320927 bytes",
       "legacy_gateway_jwt_verification": "off; application authentication or cron secret still required"
     },
     "monthly_budgets": {
@@ -54,7 +54,16 @@
       "schedule": "health-daily-dispatch every 5 minutes",
       "schedule_state": "active",
       "first_probe_request": {"request_id": 2, "http_status": 401, "response_code": "AUTH_REQUIRED", "supplier_called": false},
-      "failed_requests": 1,
+      "historical_auth_failures": [
+        {"request_id": 2, "http_status": 401, "response_code": "AUTH_REQUIRED"},
+        {"request_id": 9, "http_status": 401, "response_code": "AUTH_REQUIRED"},
+        {"request_id": 10, "http_status": 401, "response_code": "AUTH_REQUIRED"}
+      ],
+      "failed_requests": 3,
+      "connectivity_request": {"request_id": 11, "http_status": 200, "timed_out": false},
+      "synthetic_probe": {"request_id": 14, "http_status": 200, "valid_cases": 3, "invalid_cases": 1, "ledger_charged_cents": 4, "evidence_file": "test-results/deepseek-probe-cloud-results.json"},
+      "generation_jobs_readback": {"count": 2, "status": "queued", "attempts_each": 0, "target_date": "2026-10-14", "scheduled_for_utc": "2026-10-13T12:00:00Z"},
+      "ledger_readback_at_utc": "2026-10-13T17:45:44.214116Z",
       "real_20_00_execution": "not_run"
     },
     "vault_configuration_readback": {
@@ -62,9 +71,9 @@
       "one_cron_secret": true,
       "minimum_length_ok": true,
       "whitespace_ok": true,
-      "matches_edge_digest": false,
+      "matches_edge_digest": true,
       "counts_toward_business_passes": false,
-      "interpretation": "Vault and Edge currently hold different values; the first probe was rejected before supplier call"
+      "interpretation": "Vault and Edge matched on the latest readback; earlier 401 requests remain in history"
     }
   }
 }

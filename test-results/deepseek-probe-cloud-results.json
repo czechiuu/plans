@@ -1,0 +1,28 @@
+{
+  "recorded_at_utc": "2026-10-13T17:46:59Z",
+  "evidence_source": "Parent agent's production SQL Editor and request readback; report writer did not invoke Edge or supplier",
+  "scope": "Fixed four-case synthetic DeepSeek probe only; no real health data or account input",
+  "request_id": 14,
+  "request_observed_at_utc_approx": "2026-10-13T17:42:00Z",
+  "http_status": 200,
+  "timed_out": false,
+  "model": "deepseek-flash",
+  "synthetic_only": true,
+  "passed": 3,
+  "failed": 1,
+  "not_run": 0,
+  "cases": [
+    {"id": "parse_schedule", "valid": false, "input_tokens": 711, "output_tokens": 117, "estimated_upper_cents": 1, "ledger_charged_cents": 1},
+    {"id": "estimate_meal_text", "valid": true, "input_tokens": 507, "output_tokens": 185, "estimated_upper_cents": 1, "ledger_charged_cents": 1},
+    {"id": "estimate_meal_photo", "valid": true, "input_tokens": 681, "output_tokens": 211, "estimated_upper_cents": 1, "ledger_charged_cents": 1},
+    {"id": "generate_plan", "valid": true, "input_tokens": 1452, "output_tokens": 314, "estimated_upper_cents": 1, "ledger_charged_cents": 1}
+  ],
+  "ledger_readback_at_utc": "2026-10-13T17:45:44.214116Z",
+  "ledger_status": "all four settled",
+  "ledger_total_charged_cents": 4,
+  "ledger_note": "Generate-plan reserved 2 cents; the other three reserved 1 cent each; every entry settled at 1 cent",
+  "observed_usd_balance_delta": 0,
+  "balance_delta_is_attributable": false,
+  "actual_provider_invoice_status": "not_verified",
+  "pending": ["parse_schedule semantic/schema failure diagnosis", "separate schedule-only retest"]
+}

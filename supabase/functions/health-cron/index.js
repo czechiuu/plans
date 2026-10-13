@@ -11,6 +11,12 @@ function validSecret(actual,expected){
   return diff===0
 }
 
+const failureCodes=new Set(['INVALID_REQUEST','JOB_NOT_AVAILABLE','AI_DISABLED',
+  'INVALID_GENERATED_PLAN','MEAL_TEMPLATE_UNCONFIRMED'])
+export function classifyGenerationFailure(error){
+  return failureCodes.has(error?.message)?error.message:'GENERATION_FAILED'
+}
+
 function lastShanghaiEight(now){
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',
     year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'})
@@ -30,7 +36,9 @@ async function handle(request){
   const raw=request.body?new TextDecoder().decode(await readBounded(request,128)):''
   let body={}
   try{body=raw?JSON.parse(raw):{}}catch{throw new Error('INVALID_REQUEST')}
-  if(body.action==='probe-deepseek'){
+  if(Object.keys(body).length===1&&body.action==='probe-deepseek-schedule')
+    return json(200,await probeDeepSeek(admin,null,{scheduleOnly:true}))
+  if(Object.keys(body).length===1&&body.action==='probe-deepseek'){
     const encoded=foodExample.split(',')[1]
     const bytes=Uint8Array.from(atob(encoded),char=>char.charCodeAt(0))
     return json(200,await probeDeepSeek(admin,bytes))
@@ -44,12 +52,18 @@ async function handle(request){
     .in('status',['queued','failed','running']).lte('next_run_at',now).order('next_run_at').limit(20)
   if(pending.error) throw new Error('INTERNAL_ERROR')
   let attempted=0
+  const failures=[]
   for(const job of pending.data){
     if(job.status==='running' && (!job.lease_until||Date.parse(job.lease_until)>=Date.now())) continue
     attempted++
-    try{await generate({user:admin,admin,id:job.user_id,spaceId:job.space_id},job.id)}catch{}
+    try{await generate({user:admin,admin,id:job.user_id,spaceId:job.space_id},job.id)}catch(error){
+      const code=classifyGenerationFailure(error)
+      const row=failures.find(x=>x.code===code)
+      if(row) row.count++
+      else failures.push({code,count:1})
+    }
   }
-  return json(200,{enqueued:enqueue.data,attempted})
+  return json(failures.length?503:200,{enqueued:enqueue.data,attempted,failures})
 }
 
 Deno.serve(async request=>{
