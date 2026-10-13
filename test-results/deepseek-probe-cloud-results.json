@@ -1,5 +1,6 @@
 {
   "recorded_at_utc": "2026-10-13T17:46:59Z",
+  "updated_at_utc": "2026-10-13T18:07:31Z",
   "evidence_source": "Parent agent's production SQL Editor and request readback; report writer did not invoke Edge or supplier",
   "scope": "Fixed four-case synthetic DeepSeek probe only; no real health data or account input",
   "request_id": 14,
@@ -24,5 +25,27 @@
   "observed_usd_balance_delta": 0,
   "balance_delta_is_attributable": false,
   "actual_provider_invoice_status": "not_verified",
-  "pending": ["parse_schedule semantic/schema failure diagnosis", "separate schedule-only retest"]
+  "schedule_only_retest": {
+    "request_id": 19,
+    "readback_at_utc": "2026-10-13T18:06:08.3025Z",
+    "http_status": 200,
+    "timed_out": false,
+    "model": "deepseek-flash",
+    "case_id": "parse_schedule",
+    "valid": true,
+    "schema_valid": true,
+    "semantic_checks": {"slot": true, "date": true, "start": true, "end": true, "duration": true},
+    "input_tokens": 768,
+    "output_tokens": 97,
+    "estimated_upper_cents": 1,
+    "ledger_charged_cents": 1,
+    "observed_usd_balance_delta": 0,
+    "balance_delta_is_attributable": false
+  },
+  "all_attempts": {"count": 5, "passed": 4, "failed": 1},
+  "latest_per_case_coverage": {"distinct_case_count": 4, "passed": 4, "failed": 0,
+    "method": "Three valid cases from request 14 plus the parse_schedule-only retest from request 19; the original failure remains counted in all attempts"},
+  "ledger_latest_readback": {"charged_cents_total": 5, "reserved_rows": 0,
+    "readback_at_utc": "2026-10-13T18:06:08.3025Z"},
+  "pending": []
 }

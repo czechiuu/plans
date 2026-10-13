@@ -1,10 +1,10 @@
 {
   "recorded_at_utc": "2026-10-13T16:54:46Z",
-  "updated_at_utc": "2026-10-13T17:46:59Z",
+  "updated_at_utc": "2026-10-13T18:07:31Z",
   "scope": "Production rollout evidence recorded from the parent agent's browser, SQL Editor, and deployment observations plus separately recorded public checks; no production action was repeated by this report writer",
   "project_ref": "wnzbtitlvteptkvwhavw",
   "source_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
-  "source_revision_scope": "migration 005, frontend, health-photo, health-ai; health-cron revision is listed separately",
+  "source_revision_scope": "migration 005, frontend, health-photo; health-ai and health-cron revisions are listed separately",
   "migration_004": {
     "status": "applied",
     "passed": 10,
@@ -24,9 +24,11 @@
     "health_photo": "deployed",
     "health_ai": "deployed",
     "health_cron": "deployed",
-    "health_photo_and_ai_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
-    "health_cron_revision": "437f341e9ffa8f0fb5b0e5bf78492914b5724d37",
-    "health_cron_bundle_bytes": 320927,
+    "health_photo_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
+    "health_ai_cron_revision": "69006400aee6f603073579ae5bfb9af9896070e1",
+    "health_ai_bundle": {"bytes": 265373, "sha256": "501a64b53ce0291823752b09f2272a60be12a17eea13dcd1bd6b1833d38a5f13"},
+    "health_cron_bundle": {"bytes": 322211, "sha256": "e9fcf7d822a32231b0efee1bb27c2741df5dca1f6db36d11831ac022a589a465"},
+    "health_ai_cron_ci_run": {"id": "38442975458", "status": "success"},
     "gateway_legacy_jwt_verification": "off",
     "application_boundary": "health-photo and health-ai require fixed-account authentication; health-cron requires cron secret",
     "public_http_checks": {"passed": 14, "failed": 0, "evidence_file": "test-results/edge-public-results.json"}
@@ -43,7 +45,16 @@
     "failed_requests": 3,
     "connectivity_request": {"request_id": 11, "http_status": 200, "timed_out": false},
     "synthetic_deepseek_probe": {"request_id": 14, "http_status": 200, "valid_cases": 3, "invalid_cases": 1, "ledger_charged_cents": 4, "evidence_file": "test-results/deepseek-probe-cloud-results.json"},
-    "generation_jobs_readback": {"count": 2, "status": "queued", "attempts_each": 0, "target_date": "2026-10-14", "scheduled_for_utc": "2026-10-13T12:00:00Z", "readback_at_utc": "2026-10-13T17:45:44.214116Z"},
+    "schedule_only_retest": {"request_id": 19, "http_status": 200, "valid": true, "schema_valid": true, "ledger_charged_cents": 1},
+    "probe_latest_per_case_coverage": {"passed": 4, "failed": 0, "distinct_cases": 4},
+    "probe_all_attempts": {"passed": 4, "failed": 1, "attempts": 5},
+    "probe_ledger_readback": {"charged_cents_total": 5, "reserved_rows": 0, "readback_at_utc": "2026-10-13T18:06:08.3025Z"},
+    "normal_dispatch": {"request_id": 20, "http_status": 503, "timed_out": false, "enqueued": 0, "attempted": 2,
+      "failures": [{"code": "MEAL_TEMPLATE_UNCONFIRMED", "count": 2}], "published_plans": 0},
+    "generation_jobs_readback": {"count": 2, "status": "failed", "attempts_each": 1,
+      "error_code": "MEAL_TEMPLATE_UNCONFIRMED", "target_date": "2026-10-14", "scheduled_for_utc": "2026-10-13T12:00:00Z",
+      "next_run_at_utc": ["2026-10-13T18:09:30.50722Z", "2026-10-13T18:09:30.928701Z"],
+      "readback_at_utc": "2026-10-13T18:06:08.3025Z"},
     "real_20_00_run": "not_run",
     "vault_configuration_readback": {
       "source": "Parent agent's production read-only boolean checks",
@@ -60,6 +71,6 @@
     "public_page_checks": {"passed": 8, "failed": 0, "evidence_file": "test-results/deployed-public-results.json"},
     "evidence_source": "Parent agent's deployment observation and existing public page report"
   },
-  "pending": ["parse_schedule synthetic probe failure diagnosis", "separate schedule-only probe retest", "successful generation job execution", "fixed-account health API", "physical-device verification"],
+  "pending": ["Confirm meal templates before successful generation", "real 20:00 dispatch acceptance", "fixed-account health API", "physical-device verification"],
   "overall_acceptance": "incomplete"
 }

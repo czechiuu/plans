@@ -6,7 +6,7 @@
 
 | 运行 | 通过 | 失败 | 证据 |
 |---|---:|---:|---|
-| `node --test` 全套 | 61 | 0 | 此前实际执行；随后受影响项 8/0、本次合成探针定向 3/0，均未合并计数。旧 [56/0 报告](../test-results/unit-results.json)仅为历史，`pnpm` 沙箱 EPERM 不计通过 |
+| `node --test` 全套 | 61 | 0 | 此前实际执行；随后受影响项 8/0、合成探针定向 3/0、[UUID/cron 定向 6/0](../test-results/cron-uuid-local-results.json)，均未合并计数。旧 [56/0 报告](../test-results/unit-results.json)仅为历史，`pnpm` 沙箱 EPERM 不计通过 |
 | `pnpm test:concurrency` | 5 | 0 | [历史邀请多连接](../test-results/concurrency-results.json) |
 | `pnpm test:concurrency:health` | 11 | 0 | [健康多连接](../test-results/health-concurrency-results.json) |
 | 004部署包隔离PG核验 | 12 | 0 | [历史匹配/换行修复/幂等/回滚](../test-results/health-migration-wrapper-results.json) |
@@ -25,7 +25,7 @@
 |---|---|---|
 | 004健康迁移 | 10通过、0失败 | [实际生产回读](../test-results/cloud-health-deployment.json)；9项结构/权限和1项历史摘要，首次CRLF失败及修复保留 |
 | 005配置回查 | 7通过、0失败 | 原项目迁移与本月预算已执行；全站200美分、OpenAI200美分、DeepSeek合成10美分为上限，非已花费 |
-| 三项Edge Function与公开边界 | 14通过、0失败 | `health-photo`、`health-ai` 仍为 `b55346a`，`health-cron` 已更新到 `437f341`；[匿名/伪造令牌/来源/预检报告](../test-results/edge-public-results.json)针对旧 bundle，未测真实登录 |
+| 三项Edge Function与公开边界 | 修复后重新14通过、0失败 | `health-ai`、`health-cron` 的 UUID 修复包已部署，`health-photo` 仍为 `b55346a`；[匿名/伪造令牌/来源/预检报告](../test-results/edge-public-results.json)，未测真实登录 |
 | 新版公开网页 | 8通过、0失败 | [HTTPS/资源/手机桌面/刷新/合成回跳报告](../test-results/deployed-public-results.json)；[手机截图](../test-results/public-mobile-login.png)，未登录 |
 | `pnpm test:cloud` | 新版未执行 | 安全输入两密码；旧版[11/0](../test-results/cloud-api-results.json)不转为新版证据 |
 | `pnpm test:browser:cloud` | 新版未执行 | 正式HTTPS实际构建；旧版[9/1](../test-results/cloud-browser-results.json)待复测 |
@@ -33,8 +33,8 @@
 | 照片上传/权限/删除回读 | 未执行 | 真实私有存储；直接接口本人/伴侣/匿名、撤销、去重、精确ID清理 |
 | 日程→生成→次日查看→训练/餐食→趋势 | 未执行 | 最新部署与真实服务，合成输入，不改已有个人设置 |
 | OpenAI真实调用 | 未执行 | 005逐用途授权、预算、费用和本人确认均须核对；旧笼统同意不自动转换 |
-| DeepSeek合成探针 | 3通过、1失败 | 首次请求 id=2 曾 HTTP 401；密钥四项核对已通过。真实固定合成探针 id=14：日程解析失败，食物文字、苹果香蕉图片、休息模板计划通过。SQL四条均 settled，计费记录 4/10 美分；余额差额0不等于免费。真实健康资料仍禁用 |
-| 20:00服务端任务 | HTTP 200，执行未验收 | `*/5 * * * *` dispatch 按最近上海20:00锚点；请求 id=11 enqueued=2、attempted=2，后续多次 enqueued=0、attempted=2；截至17:47 UTC两项 job 仍 queued、attempts=0，AI 两处 UUID 校验缺段拒绝真实 job_id/meal_id，AI、cron 修复未部署；HTTP 200 不算计划成功 |
+| DeepSeek合成探针 | 最新覆盖4通过、0失败；历史五次响应4/1 | id=14 日程曾失败，id=19 单项复测 1/0，五项字段与 schema 全 true；食物文字、苹果香蕉图片、休息模板计划此前通过。SQL五条均 settled，计费记录5/10美分、reserved=0；余额差额0不等于免费。真实健康资料仍禁用 |
+| 20:00服务端任务 | 两项真正领取，计划未生成 | 18:06 UTC 请求 id=20 HTTP 503，`MEAL_TEMPLATE_UNCONFIRMED` count=2；两项 failed、attempts=1。锚点 `2026-10-13T12:00Z` 目标 2026-10-14 正确。需本人确认餐食模板及训练条件，新版真实权限验收前不导入原始真实档案；真实到点执行未验收 |
 | 两台物理设备 | 未执行 | [最短步骤](DEVICE-ACCEPTANCE.md)，手机尺寸模拟不算真机 |
 
 新增健康脚本只建本轮marker+精确ID的餐食/停止训练，不改既有规则/共享。训练用超出计划有效日期上限的合成日期，避免使真实计划过期。计划生成、共享配置、图片、AI需要独立受控验收，脚本未覆盖项记阻塞，不能把子集叫完整链路。
