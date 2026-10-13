@@ -1,0 +1,20 @@
+{
+  "generated_at": "2026-10-13T12:50:00Z",
+  "recorded_at_utc": "2026-10-13T12:52:03Z",
+  "observation_time_basis": "The administrator observed the read-only SQL result after the third browser run (9 passed, 1 failed) cleanup and before this report was recorded; exact query time was not provided.",
+  "source": "Administrator read-only post_test_counts query in production Supabase SQL Editor; results provided to this report author",
+  "scope": "Current database counts and sharing settings after cloud API 11/0 and third browser run 9/1",
+  "passed": 8,
+  "failed": 0,
+  "cases": [
+    { "id": "SPACES_COUNT", "expected": 1, "observed": 1, "status": "passed" },
+    { "id": "MEMBERS_COUNT", "expected": 2, "observed": 2, "status": "passed" },
+    { "id": "WEIGHTS_COUNT", "expected": 0, "observed": 0, "status": "passed" },
+    { "id": "SCHEDULES_COUNT", "expected": 0, "observed": 0, "status": "passed" },
+    { "id": "AUTH_USERS_COUNT", "expected": 2, "observed": 2, "status": "passed" },
+    { "id": "FIXED_ACCOUNTS_COUNT", "expected": 2, "observed": 2, "status": "passed" },
+    { "id": "HEALTH_PROFILES_COUNT", "expected": 0, "observed": 0, "status": "passed" },
+    { "id": "SHARING_AND_EDIT_OFF", "expected": true, "observed": true, "status": "passed" }
+  ],
+  "boundary": "Read-only current-table verification. No database-wide erase, backup purge, or historical storage deletion was performed or verified. No identifiers or health content are recorded."
+}

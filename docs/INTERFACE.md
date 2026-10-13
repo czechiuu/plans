@@ -6,7 +6,7 @@
 
 - `api.session()` 返回 session/null；`api.onAuthChange(callback)` 返回 unsubscribe，回调为 `callback(session,event)`。
 - `api.signIn(slot,password)` 中 `slot` 仅允许 `me`、`w`，映射到两个内部登录标识；登录后以 `current_account()` 核对槽位。 `api.currentAccount()` 返回调用者 `me`/`w`；不公开另一人 UUID。 `api.signOut()` 清本机会话。
-- `api.updatePassword(currentPassword,newPassword)` 供本人已知当前密码时改密。遗忘密码的管理员路径待核实；不承诺邮件重置。
+- `api.updatePassword(currentPassword,newPassword)` 供本人已知当前密码时改密。遗忘密码由管理员在交互终端运行 `node scripts/reset-fixed-password.mjs me|w` 处理；尚未在生产执行，不承诺邮件重置。
 - `api.load()` 返回 `{user,account,space,members,profile,profiles,schedules,weights,audit,range}`。退出或无成员关系时 `space=null`，数组为空；固定槽位仍可识别。`profile` 是本人档案，`profiles` 是 RLS 许可的档案；日程、体重按每页 500 全量读取，不静默截断，`range={from,to}` 为实际记录日期边界；审计仅最近 100 项元数据。
 - `api.saveSettings(settings)` 接收 `{share_profile,share_schedule,share_weight,allow_partner_edit}` 布尔值，默认 false。
 - `api.saveProfile(payload)` 接收 `{sex,age,height_cm,baseline_weight_kg,baseline_date,target_weight_kg,target_date,preferences,health_notes,is_shared,expected_updated_at}`；无真实数据默认值，新建时已有档案须冲突。

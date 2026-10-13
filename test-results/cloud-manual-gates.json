@@ -1,14 +1,20 @@
 {
+  "generated_at": "2026-10-13T12:50:00Z",
+  "recorded_at_utc": "2026-10-13T12:52:03Z",
+  "backend_gate_time_basis": "Administrator read-only SQL observation followed third browser run cleanup and preceded this record; exact query time was not provided.",
   "scope": "manual-gates-for-two-fixed-account-release",
   "cancelled_requirements": 4,
-  "notrun": 2,
-  "passed": 0,
+  "notrun": 3,
+  "passed": 1,
+  "failed": 0,
   "cases": [
     { "id": "SIGNUP_CONFIRMATION_EMAIL", "status": "cancelled" },
     { "id": "PASSWORD_RECOVERY_EMAIL", "status": "cancelled" },
-    { "id": "PASSWORD_RESET_NEW_PASSWORD", "status": "cancelled" },
+    { "id": "EMAIL_RECOVERY_NEW_PASSWORD", "status": "cancelled" },
     { "id": "INVITE_EXPIRY", "status": "cancelled" },
+    { "id": "SIGNED_IN_PASSWORD_CHANGE", "status": "notrun" },
+    { "id": "ADMIN_PASSWORD_RESET", "status": "notrun" },
     { "id": "TWO_PHYSICAL_DEVICES", "status": "notrun" },
-    { "id": "BACKEND_PHYSICAL_DELETION", "status": "notrun" }
+    { "id": "BACKEND_PHYSICAL_DELETION", "status": "passed", "evidence": "Current health table rows are zero; backup erasure is outside this gate." }
   ]
 }

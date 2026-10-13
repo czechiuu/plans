@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-10-13T12:18:59.672Z",
+  "scope": "two-fixed-accounts-real-build",
+  "passed": 2,
+  "failed": 1,
+  "blocked": 7,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "E2E_BUILD",
+      "status": "passed"
+    },
+    {
+      "id": "E2E_AUTH_SETTINGS",
+      "status": "passed"
+    },
+    {
+      "id": "E2E_ACCOUNTS",
+      "status": "failed"
+    },
+    {
+      "id": "E2E_DATA_SAFETY",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_FIXED_LOGIN",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_PERSISTENCE",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_PARTNER",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_EXPORT",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_SWITCH",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_CLEANUP",
+      "status": "blocked"
+    }
+  ]
+}

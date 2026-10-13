@@ -1,10 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { pathToFileURL } from 'node:url'
 import { emails } from '../src/fixed-account.js'
+import { readHidden } from './secure-input.mjs'
 
 const projectUrl = 'https://wnzbtitlvteptkvwhavw.supabase.co'
 const fail = code => { throw Object.assign(new Error(code), { code }) }
-const safeCodes = new Set(['INPUT_INVALID', 'REGISTRY_READ_FAILED', 'REGISTRY_MISMATCH', 'AUTH_LIST_FAILED', 'AUTH_MISMATCH', 'AUTH_UPDATE_FAILED', 'AUTH_UPDATE_UNCONFIRMED'])
+const safeCodes = new Set(['INPUT_INVALID', 'INPUT_CANCELLED', 'TTY_REQUIRED', 'PASSWORD_MISMATCH', 'REGISTRY_READ_FAILED', 'REGISTRY_MISMATCH', 'AUTH_LIST_FAILED', 'AUTH_MISMATCH', 'AUTH_UPDATE_FAILED', 'AUTH_UPDATE_UNCONFIRMED'])
 
 export async function resetFixedPassword(client, slot, password) {
   if (!Object.hasOwn(emails, slot) || typeof password !== 'string' || password.length < 8) fail('INPUT_INVALID')
@@ -28,11 +29,22 @@ export async function resetFixedPassword(client, slot, password) {
 
 async function main() {
   const slot = process.argv[2]
-  const secret = process.env.PH_RESET_ADMIN_SECRET
-  const password = process.env.PH_RESET_NEW_PASSWORD
-  delete process.env.PH_RESET_ADMIN_SECRET
-  delete process.env.PH_RESET_NEW_PASSWORD
-  if (!Object.hasOwn(emails, slot) || !secret || !password) fail('INPUT_INVALID')
+  if (process.argv.length !== 3 || !Object.hasOwn(emails, slot)) fail('INPUT_INVALID')
+  const stdin = process.stdin
+  if (!stdin.isTTY || !process.stdout.isTTY || typeof stdin.setRawMode !== 'function') fail('TTY_REQUIRED')
+  const wasRaw = Boolean(stdin.isRaw)
+  let secret, password, confirmation
+  try {
+    stdin.setRawMode(true)
+    secret = await readHidden('输入本项目管理员 secret/service_role 密钥: ')
+    password = await readHidden('输入新密码: ')
+    confirmation = await readHidden('再次输入新密码: ')
+  } finally {
+    stdin.setRawMode(wasRaw)
+    stdin.pause()
+  }
+  if (!secret || password.length < 8) fail('INPUT_INVALID')
+  if (password !== confirmation) fail('PASSWORD_MISMATCH')
   const client = createClient(projectUrl, secret, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
   await resetFixedPassword(client, slot, password)
   process.stdout.write(`RESET_OK:${slot}\n`)

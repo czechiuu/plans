@@ -4,14 +4,16 @@ import { fileURLToPath } from 'node:url'
 import { mkdir } from 'node:fs/promises'
 import { addDays, shanghaiDate } from '../src/domain.js'
 import { report, blocked, runCase } from './test-helpers/report.mjs'
-import { cloudSetup, client, ok } from './test-helpers/cloud.mjs'
+import { cloudPublicSetup, cloudSetup, client, ok } from './test-helpers/cloud.mjs'
 import { launchBrowser } from './test-helpers/browser.mjs'
+import { login } from './test-helpers/browser-login.mjs'
 
 const ids=['E2E_BUILD','E2E_AUTH_SETTINGS','E2E_ACCOUNTS','E2E_DATA_SAFETY','E2E_FIXED_LOGIN','E2E_PERSISTENCE','E2E_PARTNER','E2E_EXPORT','E2E_SWITCH','E2E_CLEANUP']
 const cases=[],details=[]
 const check=(id,fn)=>runCase(cases,details,id,fn)
+const buildOnly=process.argv.includes('--build-only')
 let setup
-try { setup=cloudSetup(['E2E_BASE_URL']) } catch { setup={blocked:true,reason:'Invalid configuration'} }
+try { setup=buildOnly?cloudPublicSetup():cloudSetup(['E2E_BASE_URL']) } catch { setup={blocked:true,reason:'Invalid configuration'} }
 if (!setup.blocked) {
   try {
     const url=new URL(process.env.E2E_BASE_URL)
@@ -21,7 +23,31 @@ if (!setup.blocked) {
     setup.pageUrl=url.href
   } catch { setup={blocked:true,reason:'E2E_BASE_URL must be a deployed HTTPS site or local production preview'} }
 }
-if (setup.blocked) {
+async function verifyBuild(page) {
+  const response=await page.goto(setup.pageUrl)
+  assert.equal(response?.ok(),true)
+  await page.getByRole('heading',{name:'欢迎回来'}).waitFor()
+  const src=await page.locator('script[type="module"][src]').first().getAttribute('src')
+  assert.match(src,/(^|\/)assets\/[^/]+\.js$/)
+  const assetUrl=new URL(src,setup.pageUrl)
+  const assetResponse=await page.request.get(assetUrl.href)
+  assert.equal(assetResponse.ok(),true)
+  const js=await assetResponse.text()
+  assert.ok(js.includes(new URL(setup.url).origin),'Production bundle must target configured Supabase project')
+  assert.equal(js.includes('/@vite/client'),false)
+  assert.equal(js.includes('/src/main.js'),false)
+  assert.equal(await page.getByLabel('邮箱').count(),0)
+  assert.equal(await page.getByRole('button',{name:'创建账号'}).count(),0)
+}
+if (buildOnly) {
+  if (setup.blocked) throw new Error(setup.reason)
+  const browser=await launchBrowser()
+  try {
+    const page=await browser.newPage()
+    await verifyBuild(page)
+    process.stdout.write('E2E_BUILD preflight passed\n')
+  } finally { await browser.close() }
+} else if (setup.blocked) {
   process.stderr.write(`云端浏览器未运行：${setup.reason}\n`)
   await report('cloud-browser','two-fixed-accounts-real-build',blocked(ids))
 } else {
@@ -37,12 +63,6 @@ if (setup.blocked) {
     page.on('pageerror',e=>pageErrors.push(e.name))
     page.on('requestfailed',r=>requestFailures.push(new URL(r.url()).pathname.split('/')[1]||'root'))
     page.on('request',r=>{ const host=new URL(r.url()).hostname; if(host.endsWith('.supabase.co')) backendHosts.add(host) })
-  }
-  const login=async(page,slot,password)=>{
-    await page.locator(`[data-form="signin"] [name="slot"][value="${slot}"]`).check()
-    await page.getByLabel('密码',{exact:true}).fill(password)
-    await page.getByRole('button',{name:'登录',exact:true}).click()
-    await page.getByRole('heading',{name:'照顾自己，也看见彼此'}).waitFor()
   }
   const viewDay=async page=>{
     await page.getByRole('button',{name:'日程',exact:true}).click()
@@ -70,22 +90,7 @@ if (setup.blocked) {
     contextB=await browser.newContext({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:1})
     pageA=await contextA.newPage();pageB=await contextB.newPage()
     observe(pageA);observe(pageB)
-    await check('E2E_BUILD',async()=>{
-      const response=await pageA.goto(setup.pageUrl)
-      assert.equal(response?.ok(),true)
-      await pageA.getByRole('heading',{name:'欢迎回来'}).waitFor()
-      const src=await pageA.locator('script[type="module"][src]').first().getAttribute('src')
-      assert.match(src,/(^|\/)assets\/[^/]+\.js$/)
-      const assetUrl=new URL(src,setup.pageUrl)
-      const assetResponse=await pageA.request.get(assetUrl.href)
-      assert.equal(assetResponse.ok(),true)
-      const js=await assetResponse.text()
-      assert.ok(js.includes(setup.url),'Production bundle must target configured Supabase project')
-      assert.equal(js.includes('/@vite/client'),false)
-      assert.equal(js.includes('/src/main.js'),false)
-      assert.equal(await pageA.getByLabel('邮箱').count(),0)
-      assert.equal(await pageA.getByRole('button',{name:'创建账号'}).count(),0)
-    })
+    await check('E2E_BUILD',()=>verifyBuild(pageA))
     await check('E2E_AUTH_SETTINGS',async()=>{
       const response=await fetch(new URL('/auth/v1/settings',setup.url),{headers:{apikey:setup.key}})
       assert.equal(response.ok,true)
@@ -152,6 +157,8 @@ if (setup.blocked) {
       assert.equal(exported.schedules.some(row=>row.raw_text===`${marker}-W`),false)
     })
     await check('E2E_SWITCH',async()=>{
+      let step='SAVE_WEIGHT'
+      try {
       await pageA.getByRole('button',{name:'体重',exact:true}).click()
       await pageA.locator('[data-action="scope"][data-scope="mine"]').first().click()
       const form=pageA.locator('[data-form="weight"]')
@@ -162,17 +169,22 @@ if (setup.blocked) {
       await form.getByRole('button',{name:'保存体重',exact:true}).click()
       await pageA.getByText('体重已保存',{exact:true}).waitFor()
       await pageA.getByText(`${marker}-PRIVATE`,{exact:true}).waitFor()
+      step='SIGNOUT_ME'
       await pageA.getByRole('button',{name:'设置',exact:true}).click()
       await pageA.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
       await pageA.getByRole('heading',{name:'欢迎回来'}).waitFor()
+      step='LOGIN_W'
       await login(pageA,'w',setup.passwords[1])
+      step='VERIFY_W'
       await pageA.getByRole('button',{name:'设置',exact:true}).click()
       await pageA.getByText('当前固定账号：W',{exact:false}).waitFor()
       await pageA.getByRole('button',{name:'体重',exact:true}).click()
       assert.equal(await pageA.getByText(`${marker}-PRIVATE`,{exact:true}).count(),0)
+      step='SIGNOUT_W'
       await pageA.getByRole('button',{name:'设置',exact:true}).click()
       await pageA.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
       await pageA.getByRole('heading',{name:'欢迎回来'}).waitFor()
+      step='REOPEN_ME'
       await contextA.close()
       contextA=await browser.newContext({viewport:{width:390,height:844},isMobile:true,deviceScaleFactor:1})
       pageA=await contextA.newPage();observe(pageA)
@@ -182,11 +194,17 @@ if (setup.blocked) {
       await pageA.getByText(`${marker}-ME`,{exact:true}).waitFor()
       await pageA.getByRole('button',{name:'体重',exact:true}).click()
       await pageA.getByText(`${marker}-PRIVATE`,{exact:true}).waitFor()
+      step='FINAL_CHECK'
       assert.deepEqual(pageErrors,[])
       assert.deepEqual(requestFailures,[])
       await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
       await pageA.screenshot({path:fileURLToPath(new URL('../test-results/private/cloud-browser-me.png',import.meta.url)),fullPage:true})
       await pageB.screenshot({path:fileURLToPath(new URL('../test-results/private/cloud-browser-w.png',import.meta.url)),fullPage:true})
+      } catch(error) {
+        error.code=`E2E_SWITCH_${step}`
+        process.stderr.write(`${error.code}\n`)
+        throw error
+      }
     })
   } catch(error) {
     if(error?.code==='EXISTING_HEALTH_DATA') cases.find(item=>item.id==='E2E_DATA_SAFETY').status='blocked'

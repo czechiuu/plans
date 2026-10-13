@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-10-13T12:46:15Z",
+  "suite": "secure-input-local",
+  "environment": "Windows PTY and non-TTY subprocess checks; Node.js; local workspace",
+  "historical_checks_recorded_at": "2026-10-13T12:13:09Z",
+  "historical_checks_note": "The five checks below were recorded before the final continuous no-echo change; they were not all repeated afterward.",
+  "counts": {
+    "passed": 5,
+    "failed": 0,
+    "blocked": 0,
+    "notrun": 0
+  },
+  "cases": [
+    {
+      "id": "HIDDEN_SYNTHETIC_INPUT",
+      "status": "passed",
+      "evidence": "Synthetic hidden input was absent from terminal output; process exited successfully."
+    },
+    {
+      "id": "CTRL_C_RESTORES_TERMINAL",
+      "status": "passed",
+      "evidence": "Cancellation was reported and terminal raw mode was restored."
+    },
+    {
+      "id": "NON_TTY_REJECTED",
+      "status": "passed",
+      "evidence": "Non-interactive launch was rejected with a nonzero exit."
+    },
+    {
+      "id": "RUNNER_NO_CANCEL",
+      "status": "passed",
+      "evidence": "Declining the runner confirmation cancelled before cloud tests."
+    },
+    {
+      "id": "RUNNER_PASSWORD_CTRL_C",
+      "status": "passed",
+      "evidence": "Cancellation at the first hidden password prompt stopped the runner before cloud tests."
+    }
+  ],
+  "post_change_checks": {
+    "passed": 3,
+    "failed": 0,
+    "cases": [
+      { "id": "GAP_NO_ECHO", "status": "passed", "evidence": "Synthetic input during the protected wait was absent from terminal output." },
+      { "id": "WAIT_CANCEL_RESTORES_TERMINAL", "status": "passed", "evidence": "Cancellation during a simulated network wait restored non-raw terminal mode and exited nonzero after an additional Enter." },
+      { "id": "RUNNER_NO_CANCEL_FINAL", "status": "passed", "evidence": "Declining confirmation in the final runner exited nonzero without starting cloud tests." }
+    ]
+  },
+  "boundary": "Local synthetic and cancellation checks only. Windows PTY may require one Enter after Ctrl+C during a network wait to release pending terminal input; the terminal then reports raw mode off and the process exits nonzero. No real credentials were supplied and no cloud tests were run by these checks. Precise per-check execution times were not recorded; generated_at is the report update time."
+}

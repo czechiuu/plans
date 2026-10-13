@@ -1,10 +1,10 @@
 {
-  "recorded_at_utc": "2026-10-13T11:46:14Z",
-  "execution_finished_before_utc": "2026-10-13T11:46:14Z",
+  "recorded_at_utc": "2026-10-13T12:24:34Z",
+  "execution_finished_before_utc": "2026-10-13T12:24:34Z",
   "execution_time_basis": "The command completed before this UTC clock reading; command output has no absolute finish time.",
   "command": "pnpm test",
-  "tests": 37,
-  "passed": 37,
+  "tests": 41,
+  "passed": 41,
   "failed": 0,
   "exit_code": 0,
   "scope": "Local synthetic unit, PostgreSQL contract, migration, date, build-config and persistence tests; not real Supabase acceptance"

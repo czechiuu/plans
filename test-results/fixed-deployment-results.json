@@ -1,0 +1,60 @@
+{
+  "generated_at": "2026-10-13T12:01:06.488Z",
+  "scope": "anonymous-published-login-page-only",
+  "source_sha_claim": "d9447478fa326b43fe8e6d74f61a2fcc1c133c5e",
+  "deployment_run_id": "38393501421",
+  "production_url": "https://czechiuu.github.io/plans/",
+  "artifact_match_local_build": true,
+  "asset_sha256": {
+    "javascript": "48af54e45b3ca8ac4678ce5aa2e4a3c0bb333ad1a12c52ccfd87e15f60f7e525",
+    "css": "38714f8ba60f7d7c5fa226ec6ad30629b4141b375ff0fa57899eba6f12c0b56c"
+  },
+  "passed": 8,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "FIXED_HTML",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_ARTIFACT",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_LOGIN_UI",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_DESKTOP",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_MOBILE",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_REFRESH",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_CALLBACK",
+      "status": "passed"
+    },
+    {
+      "id": "FIXED_RUNTIME_ERRORS",
+      "status": "passed"
+    }
+  ],
+  "runtime_error_counts": {
+    "console": 0,
+    "page": 0,
+    "request": 0,
+    "http": 0
+  },
+  "limitations": [
+    "No account password was entered",
+    "No authenticated data or physical device was tested"
+  ]
+}

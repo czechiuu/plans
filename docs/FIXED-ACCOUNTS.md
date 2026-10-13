@@ -16,6 +16,6 @@
 
 知道当前密码时由本人使用网页修改密码入口；项目已开启“修改时要求当前密码”。本人随后核实新密码可登录、旧密码失效，不截图或记录密码。
 
-遗忘当前密码时，Supabase 用户详情当前只有发送恢复邮件的按钮，没有无邮件手动改密表单。管理员可在项目根目录先运行 `pnpm install`，再执行 `./scripts/reset-fixed-password.ps1 -Slot me`（或 `-Slot w`）；若 `node` 不在 PATH，增加 `-NodePath 'Node可执行文件的绝对路径'`。脚本在终端安全提示输入**本项目**的 secret/service_role 和新密码两次，仅在进程环境中交给 Node；先核对固定账号表与 Auth 恰好两位指定邮箱/UUID，再调用官方 `auth.admin.updateUserById`。成功只显示 `RESET_OK:me` 或 `RESET_OK:w`，失败只显示安全错误代码；不调用邮件，也不把密码写进 SQL、仓库或报告。工具本地单测 3 通过、0 失败（已包含在 `pnpm test` 的 37 项）；尚未在生产执行；改密后由本人验证新密码登录及旧密码失效，其他设备会话是否失效未经验证不作承诺。[官方管理 API](https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid)。
+遗忘当前密码时，Supabase 用户详情当前只有发送恢复邮件的按钮，没有无邮件手动改密表单。管理员可在项目根目录先运行 `pnpm install`，再执行 `node scripts/reset-fixed-password.mjs me`（或 `w`）；若 `node` 不在 PATH，将其换成可执行文件的绝对路径。脚本要求交互式终端，隐藏输入**本项目**的 secret/service_role、新密码及再次确认；不接受命令参数或环境变量中的密码；先核对固定账号表与 Auth 恰好两位指定邮箱/UUID，再调用官方 `auth.admin.updateUserById`。成功只显示 `RESET_OK:me` 或 `RESET_OK:w`，失败只显示安全错误代码；不调用邮件，也不把密码写进 SQL、仓库或报告。工具本地单测 3 通过、0 失败（已包含在 `pnpm test` 的 37 项）；尚未在生产执行；改密后由本人验证新密码登录及旧密码失效，其他设备会话是否失效未经验证不作承诺。[官方管理 API](https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid)。
 
 Custom SMTP 未配置，本轮没有邮件注册或重置流程。

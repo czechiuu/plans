@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-10-13T12:46:15Z",
+  "execution_finished_before_utc": "2026-10-13T12:46:15Z",
+  "command": "node --test scripts/verify-login-race.mjs",
+  "scope": "Controlled synthetic logout-rerender timing in local headless Chrome; no deployed site, account, or network",
+  "passed": 1,
+  "failed": 0,
+  "cases": [
+    { "id": "DELAYED_LOGOUT_RERENDER", "status": "passed" }
+  ]
+}

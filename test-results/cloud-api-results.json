@@ -1,54 +1,54 @@
 {
-  "generated_at": "2026-10-13T11:38:43.211Z",
+  "generated_at": "2026-10-13T12:12:57.204Z",
   "scope": "two-fixed-accounts-real-supabase",
-  "passed": 0,
+  "passed": 11,
   "failed": 0,
-  "blocked": 11,
+  "blocked": 0,
   "notrun": 0,
   "cases": [
     {
       "id": "API_AUTH_SETTINGS",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_PASSWORDS",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_FIXED_ACCOUNTS",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_DATA_SAFETY",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_ANON",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_SIGNUP_CLOSED",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_PRIVATE",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_SHARE_REVOKE",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_PARTNER_EDIT",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_CRUD_READBACK",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "API_CLEANUP",
-      "status": "blocked"
+      "status": "passed"
     }
   ]
 }
