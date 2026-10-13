@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { response } from '../supabase/functions/_shared/ai-core.js'
-import { generatedPlanSchema } from '../shared/ai-schema.js'
 
 function context(enabled,events){
   const consent={enabled,policy_version:'2026-10-13-openai-health-v1'}
@@ -14,7 +13,8 @@ test('disabled AI consent makes no provider request or budget reservation',async
   const events=[];const originalFetch=globalThis.fetch
   globalThis.fetch=async()=>{events.push('fetch');throw new Error('unexpected')}
   try{
-    await assert.rejects(response(context(false,events),'text',{name:'test',schema:{},userText:'SYNTHETIC'}),/AI_CONSENT_REQUIRED/)
+    await assert.rejects(response(context(false,events),'openai','parse_schedule',
+      {name:'test',schema:{},userText:'SYNTHETIC'}),/AI_CONSENT_REQUIRED/)
     assert.deepEqual(events,[])
   }finally{globalThis.fetch=originalFetch}
 })
@@ -38,8 +38,9 @@ test('provider failure or timeout is explicit and never settles a fabricated res
         if(simulated==='timeout') throw new DOMException('timed out','TimeoutError')
         return new Response('{}',{status:503})
       }
-      await assert.rejects(response(context(true,events),'text',{name:'test',schema:{},userText:'SYNTHETIC'}),/AI_PROVIDER_FAILED/)
-      assert.deepEqual(events,['reserve_ai_usage','fetch'])
+      await assert.rejects(response(context(true,events),'openai','parse_schedule',
+        {name:'test',schema:{},userText:'SYNTHETIC'}),/AI_PROVIDER_FAILED/)
+      assert.deepEqual(events,['reserve_ai_provider_usage','fetch'])
     }
   }finally{
     globalThis.fetch=originalFetch
@@ -73,7 +74,7 @@ test('complete three-meal Chinese input is sent intact with an output and cost c
   let requestBody,reserved
   const ctx=context(true,[])
   ctx.admin.rpc=async(name,args)=>{
-    if(name==='reserve_ai_usage') reserved=args.p_cents
+    if(name==='reserve_ai_provider_usage') reserved=args.p_cents
     return {data:'22222222-2222-4222-8222-222222222222',error:null}
   }
   globalThis.fetch=async(_url,options)=>{
@@ -82,7 +83,8 @@ test('complete three-meal Chinese input is sent intact with an output and cost c
       usage:{input_tokens:1000,output_tokens:2}}),{status:200})
   }
   try{
-    await response(ctx,'text',{name:'daily_health_plan',schema:generatedPlanSchema(),userText})
+    await response(ctx,'openai','generate_plan',{name:'daily_health_plan',
+      schema:{type:'object',properties:{},required:[],additionalProperties:false},userText})
     assert.equal(requestBody.input[1].content[0].text,userText)
     assert.equal(requestBody.max_output_tokens,8192)
     assert.ok(reserved>=4)

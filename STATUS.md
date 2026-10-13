@@ -1,42 +1,20 @@
 # 项目状态
 
-更新时间：2026-10-13（Asia/Shanghai）。源码、本地验证、生产执行和真机验收分别记录；未运行不算通过。
+更新于 2026-10-14（上海时间）。源码、已发布网站、数据库和真实使用分别验收。
 
-## 当前生产
+当前 [实际网站](https://czechiuu.github.io/plans/) 仍运行固定双账号基础版 `d9447478fa326b43fe8e6d74f61a2fcc1c133c5e`（[部署记录](https://github.com/czechiuu/plans/actions/runs/38393501421)）。应用源码提交 `b1654ddf574a266825a425f23ba00d61c262509a` 已推送，[push CI](https://github.com/czechiuu/plans/actions/runs/38422347145) 成功，但**尚未发布这版前端**；源码通过测试不等于网站已更新。
 
-[实际网站](https://czechiuu.github.io/plans/) 运行固定双账号基础版，源码 `d9447478fa326b43fe8e6d74f61a2fcc1c133c5e`，[实际部署](https://github.com/czechiuu/plans/actions/runs/38393501421)。本轮开始时 main 为 `d9e406592f1d163276c0d6e1b0ffd429c22be73e`。
+原 Supabase 项目已在 SQL Editor 执行 004 健康迁移。原有 3 张健康表仍为空，固定账号仍为 2 个；9 张新表的 RLS、私人照片 bucket、默认私有、无 AI 授权及匿名/普通客户端拒绝等结构检查 9/0。历史登记首次因粘贴的 CRLF 与原文不符而失败；严格限定为换行差异的修复后，回读 004 原文 MD5 `9a430516e9a44d8d27c651cf24e73e2b`、67968 字节，最终历史检查 1/0，总计 **10/0**。[生产 004 回读记录](test-results/cloud-health-deployment.json)保留了首次失败。没有重跑 001–003，也没有导入真实健康档案。
 
-本轮已只读核对原 Supabase：迁移仅 001/002/003，历史源码摘要一致；尚无新健康表、Edge Functions、自定义 secrets、pg_cron 或 pg_net。没有重建项目、重跑旧迁移或导入个人健康档案。
+005 的服务商分用途授权、预算与 DeepSeek 合成探针已写源码（源 MD5 `2c57e2948216f3e08e2170754e1fd883`），**尚未在云端执行**。后台已核实存在 `DEEPSEEK_API_KEY` 和 `HEALTH_CRON_SECRET` 两个 secret 名称，没有读取其值。用户已允许本轮 DeepSeek **仅合成测试最多 10 美分**，并共用原先同意的全站每月 2 美元上限；独立预算和真实调用仍待部署、核对。三个 Edge Function 正在发布，尚未确认成功；Cron 也未部署或验收。DeepSeek 不接收个人健康资料。
 
-注册和匿名登录已关闭，两指定账号同一空间。邮件与邀请为**需求取消**，不是通过。原版真实 API 11/0，原版真实浏览器 9/1（切账号超时），原报告保留；新版修复了应用退出流程，尚未真实复测。两台物理设备未验收。
+| 验证环境 | 通过/失败 | 边界 |
+|---|---:|---|
+| 本地 `node --test` 全套 | 61/0 | 最终全套；后续受影响项再验 8/0，未把沙箱中的 `pnpm` EPERM 当作通过 |
+| 隔离 PostgreSQL 的 004 包 | 12/0 | [报告](test-results/health-migration-wrapper-results.json)，不是云端执行 |
+| 隔离 PostgreSQL 的 005 权限/预算并发 | 5/0 | [报告](test-results/ai-provider-concurrency-results.json)，无付费调用 |
+| 合成浏览器界面 | 18/0 | [报告](test-results/ui-mock-results.json)，不触生产账号 |
+| 未配置页面 / 动作逐项核对 | 2/0、11/0 | [页面报告](test-results/unconfigured-results.json)、[动作来源](docs/EXERCISE-SOURCES.md) |
+| 生产 004 结构与历史 | 10/0 | [回读记录](test-results/cloud-health-deployment.json)；不代替业务/API 验收 |
 
-## 本轮源码与证据
-
-已写六页手机界面、退出期间锁定输入、日程草稿确认、个人规则、计划版本与锁定、逐组训练及休息保存、手动餐食与确认汇总、私人照片处理、服务端 AI 接口与上海 20:00 调度。保留原体重、日程、固定账号和权限。自制肌群位置插图不冒充动作示范，实际示范来自逐项核验的视频嵌入。
-
-| 环境 | 通过 | 失败 | 证据与边界 |
-|---|---:|---:|---|
-| 本地单元 / PGlite / 合成 Auth | 56 | 0 | [报告](test-results/unit-results.json)，附源文件摘要 |
-| 历史邀请锁顺序 / 隔离 PostgreSQL | 5 | 0 | [报告](test-results/concurrency-results.json)，不表示生产开放邀请 |
-| 健康权限与并发 / 隔离 PostgreSQL | 11 | 0 | [报告](test-results/health-concurrency-results.json)，真实多连接等待 |
-| 004 一次部署包 / 隔离 PostgreSQL | 7 | 0 | [报告](test-results/health-migration-wrapper-results.json)，首次/重复/冲突/回滚 |
-| 未配置页面 / 独立空配置进程 | 2 | 0 | [报告](test-results/unconfigured-results.json) |
-| 模拟界面 / 合成资料 | 15 | 0 | [报告](test-results/ui-mock-results.json)，不算云端 |
-| 动作人工核对与嵌入播放 | 11 | 0 | [来源](docs/EXERCISE-SOURCES.md)，不代表两台真机可播放 |
-| 新版真实云端 | 0 | 0 | 未完成：004/函数未执行、密码未提供，缺配置记阻塞 |
-| OpenAI / 真实20:00 / 两台物理设备 | 0 | 0 | 均未执行 |
-
-合成截图：[手机训练](test-results/mobile-training-synthetic.png)、[桌面训练](test-results/desktop-training-synthetic.png)、[手机饮食](test-results/mobile-food-synthetic.png)。前端构建与 Edge 打包成功，不等于服务验收。
-
-004 SHA-256：`abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585`。[一次执行包](supabase/admin/apply-health-004.sql)核对旧迁移和两固定账号，在同一事务执行并登记；同源码重复为空操作，冲突时报错。
-
-## 云端待办与限制
-
-1. 操作时确认后，在原项目执行 004、部署三项函数和私人照片 bucket、配置服务端调度。新增健康数据访问权限需浏览器工具规定的确认；前端发布已有授权。
-2. AI 密钥和费用预算尚未配置，默认关闭；两人本人分别同意文字/图片才可调用。ChatGPT 网页会话不能当接口，官方套餐 OAuth 接入资格尚未验证，见 [AI 边界](docs/AI-CONFIG.md)。
-3. 调度凭据由管理员在安全界面填写；没有观察到真实到点执行前，不宣称20:00验收通过。
-4. 两账号安全输入后跑真实 API、网页和健康子集，只清理本轮唯一标记及精确 ID，再做[双设备验收](docs/DEVICE-ACCEPTANCE.md)。
-
-自动餐食目前沿用本人确认的三餐模板，AI 不自行换菜单、减少份量或增减餐数；不等于每天多样化 AI 菜单。伤情/训练历史未确认时只给明确休息建议。照片单条共享标记上传后不能改，撤销单张需删除；关类别共享立即阻止对方新的下载请求。另一设备需手动刷新，未实现手机推送。
-
-免费 Supabase 的暂停/可用性限制仍适用。AI、完整云端链路、真实定时和真机未验收，不能称为完整版交付。详见[测试清单](docs/TEST-CHECKLIST.md)和[部署说明](docs/HEALTH-DEPLOY.md)。
+旧版真实 API [11/0](test-results/cloud-api-results.json)、旧版浏览器 [9/1](test-results/cloud-browser-results.json)是历史记录，不能算新源码通过。新版真实双账号健康读写、照片、AI、20:00 定时和两台物理设备均未通过；前端和函数部署后还需单独验收。手动记录默认私有；另一设备需手动刷新，站内提示不是手机推送。完整步骤见[测试清单](docs/TEST-CHECKLIST.md)和[部署说明](docs/HEALTH-DEPLOY.md)。

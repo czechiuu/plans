@@ -1,0 +1,30 @@
+{
+  "started_at": "2026-10-13T16:09:38.814Z",
+  "generated_at": "2026-10-13T16:09:47.220Z",
+  "scope": "Isolated local PostgreSQL with synthetic fixed accounts; no cloud or paid AI calls",
+  "cases": {
+    "PROVIDER_AND_PURPOSE_BOUNDARY": {
+      "status": "passed"
+    },
+    "GLOBAL_CROSS_PROVIDER_RACE": {
+      "status": "passed"
+    },
+    "DEEPSEEK_PROBE_CAP_RACE": {
+      "status": "passed"
+    },
+    "WRAPPER_CRLF_AND_REPEAT": {
+      "status": "passed"
+    },
+    "WRAPPER_HISTORY_GUARD": {
+      "status": "passed"
+    }
+  },
+  "passed": 5,
+  "failed": 0,
+  "not_run": 0,
+  "postgresql_version": "17.10",
+  "migration_005_sha256": "585202ae6fb06fcda937e587078f313b8ff096f3a65ff4d53d1ceafe39749841",
+  "migration_005_md5": "2c57e2948216f3e08e2170754e1fd883",
+  "wrapper_005_sha256": "f3c6f085b4e6b99e14f9ae2b8ff63c5445d64b887cc3fa3be58ea3ad805df093",
+  "script_sha256": "3b58970089ed0c5e45f22d6d6fe49c02540b99a685dcfe703d7da867160f52b1"
+}

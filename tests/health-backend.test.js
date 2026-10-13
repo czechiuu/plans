@@ -20,7 +20,8 @@ async function setup() {
   `)
   for (let i=0;i<2;i++) await db.query('insert into auth.users(id,email,email_confirmed_at,encrypted_password) values($1,$2,now(),$3)',[users[i],['me@plans.invalid','w@plans.invalid'][i],'SYNTHETIC'])
   const dir = new URL('../supabase/migrations/',import.meta.url)
-  for (const file of (await readdir(dir)).filter(x=>x.endsWith('.sql')).sort()) await db.exec(await readFile(new URL(file,dir),'utf8'))
+  for (const file of (await readdir(dir)).filter(x=>/^20261013000[1-4]_.*\.sql$/.test(x)).sort())
+    await db.exec(await readFile(new URL(file,dir),'utf8'))
   await db.exec(await readFile(new URL('../supabase/admin/initialize-fixed-accounts.sql',import.meta.url),'utf8'))
   await db.query('insert into auth.users(id,email,email_confirmed_at,encrypted_password) values($1,$2,now(),$3)',[users[2],'third@plans.invalid','SYNTHETIC'])
   const actor = async (i,sql,args=[]) => {

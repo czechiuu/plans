@@ -1,0 +1,14 @@
+{
+  "checked_at_utc": "2026-10-13T16:08:12Z",
+  "scope": "local implementation only; synthetic accounts and mock provider responses",
+  "migration_005_md5_lf": "2c57e2948216f3e08e2170754e1fd883",
+  "migration_005_sha256": "585202ae6fb06fcda937e587078f313b8ff096f3a65ff4d53d1ceafe39749841",
+  "commands": [
+    {"command": "node --test", "environment": "local non-sandbox Windows; PGlite", "passed": 61, "failed": 0, "exit_code": 0},
+    {"command": "node scripts/build-edge.mjs", "environment": "local", "bundles": 3, "exit_code": 0},
+    {"command": "node scripts/prepare-ai-provider-migration.mjs", "environment": "local", "exit_code": 0}
+  ],
+  "cloud_migration_005": "not_run",
+  "deepseek_external_calls": 0,
+  "limitation": "The sandboxed G-drive pnpm invocation failed before tests with EPERM realpath; PGlite persistence also aborted under the sandbox. The complete Node test suite passed outside that sandbox. These local checks do not validate a deployed 005 migration or paid provider behavior."
+}

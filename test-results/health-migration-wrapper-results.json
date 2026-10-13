@@ -1,10 +1,10 @@
 {
-  "started_at": "2026-10-13T15:07:44.245Z",
+  "started_at": "2026-10-13T15:48:50.566Z",
   "scope": "Isolated local PostgreSQL; synthetic accounts; no cloud",
   "cases": {
     "FIRST_APPLY_EXACT_HISTORY": {
       "status": "passed",
-      "evidence": "004 DDL and exact original statement committed together"
+      "evidence": "CRLF-pasted wrapper executed 004 but registered exact LF original in same transaction"
     },
     "SAME_HASH_NO_OP": {
       "status": "passed",
@@ -29,14 +29,35 @@
     "FIXED_ACCOUNT_PRECONDITION": {
       "status": "passed",
       "evidence": "missing fixed member rejected before 004 DDL"
+    },
+    "REPAIR_EXACT_CRLF_HISTORY": {
+      "status": "passed",
+      "evidence": "exact legacy CRLF hash repaired to LF; DDL unchanged; fixed wrapper accepts history"
+    },
+    "REPAIR_ALREADY_LF_NO_OP": {
+      "status": "passed",
+      "evidence": "already normalized history stayed unchanged"
+    },
+    "REPAIR_NON_NEWLINE_TAMPER_REJECTED": {
+      "status": "passed",
+      "evidence": "non-newline byte change refused without history or DDL mutation"
+    },
+    "REPAIR_WRONG_NAME_REJECTED": {
+      "status": "passed",
+      "evidence": "wrong name refused without metadata mutation"
+    },
+    "REPAIR_WRONG_CARDINALITY_REJECTED": {
+      "status": "passed",
+      "evidence": "wrong cardinality refused without metadata mutation"
     }
   },
-  "passed": 7,
+  "passed": 12,
   "failed": 0,
   "not_run": 0,
-  "wrapper_sha256": "2232942595076993c579df96a00c3cb942cb05910e91cb643bee4652bbeaa5e3",
+  "wrapper_sha256": "ddf5e11c4f65066b9673e3d3e67889d6b689e33c2f954c6f128fdc10229896dd",
+  "repair_sha256": "84509bf3c1b326642f7e151900d0f8c9d9505c81d67c803b77739cbea7464e8a",
   "migration_004_sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
   "postgresql_version": "17.10",
-  "generated_at": "2026-10-13T15:08:01.839Z",
-  "script_sha256": "7fce908bca94106c32983a83df2bf95859dbe84374e8e4c3b0124b64a3f302f3"
+  "generated_at": "2026-10-13T15:49:13.098Z",
+  "script_sha256": "9693d03cd14c34134966aa4df37cb4367cfc3e2851bf46abba2d8c8d5cb2cb38"
 }

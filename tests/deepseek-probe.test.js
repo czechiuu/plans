@@ -1,0 +1,90 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
+import { probeDeepSeek, response } from '../supabase/functions/_shared/ai-core.js'
+
+const schema={type:'object',properties:{},required:[],additionalProperties:false}
+
+test('synthetic probe without a server key is explicitly blocked',async()=>{
+  const previous=process.env.DEEPSEEK_API_KEY,oldFetch=globalThis.fetch
+  delete process.env.DEEPSEEK_API_KEY
+  globalThis.fetch=async()=>{throw new Error('unexpected external call')}
+  try{
+    await assert.rejects(probeDeepSeek({},new Uint8Array([1])),/AI_DISABLED/)
+  }finally{
+    globalThis.fetch=oldFetch
+    if(previous!==undefined) process.env.DEEPSEEK_API_KEY=previous
+  }
+})
+
+test('real health DeepSeek calls stay disabled before any reservation or provider request',async()=>{
+  const events=[];const previous=process.env.DEEPSEEK_API_KEY
+  process.env.DEEPSEEK_API_KEY='SYNTHETIC_NOT_A_KEY'
+  const oldFetch=globalThis.fetch
+  globalThis.fetch=async()=>{events.push('fetch');throw new Error('unexpected')}
+  try{
+    await assert.rejects(response({id:'synthetic',admin:{rpc(){events.push('reserve')}}},
+      'deepseek','parse_schedule',{name:'test',schema,userText:'SYNTHETIC'}),/AI_DISABLED/)
+    assert.deepEqual(events,[])
+  }finally{
+    globalThis.fetch=oldFetch
+    if(previous===undefined) delete process.env.DEEPSEEK_API_KEY
+    else process.env.DEEPSEEK_API_KEY=previous
+  }
+})
+
+test('synthetic probe uses four fixed tasks, peak-price reservations and no health rows',async()=>{
+  const previous=process.env.DEEPSEEK_API_KEY,oldFetch=globalThis.fetch
+  process.env.DEEPSEEK_API_KEY='SYNTHETIC_NOT_A_KEY'
+  const calls=[]
+  const validPlan={summary:'合成休息计划',meals:['早餐','午餐','晚餐'].map(title=>({time:null,title,
+    foods:[{name:'合成食物',portion:'1拳',unit:'拳'}],prep_method:'简单备餐',
+    purchase_or_prep:'购买或提前准备',alternative:'同份量替代食物',notes:'合成样例',snack_reason:null})),
+    training:{mode:'rest',purpose:'合成测试',time:null,intensity:'无',equipment:'无',muscles:[],warmup:[],items:[],cooldown:[],total_seconds:0},warnings:[]}
+  const drafts=[
+    {user_slot:'me',record_date:'2026-10-14',exercise:{intent:'yes',type:'散步',duration_minutes:30,
+      location:null,equipment:null,explicit_start_time:'18:30',explicit_end_time:'19:00'},
+      meal:{conditions:null,arrangements:null},constraints:[],fatigue:null,pain:null,sleep:null,ambiguous_fields:[]},
+    {recognition_status:'uncertain',items:[{name:'苹果',portion:'未知',unit:'份',confidence:'low'}],
+      energy_min_kcal:null,energy_max_kcal:null,uncertainty:'未知重量',assumptions:[],cooking:null,oil:null,leftover:null},
+    {recognition_status:'uncertain',items:[{name:'苹果',portion:'未知',unit:'份',confidence:'medium'},
+      {name:'香蕉',portion:'未知',unit:'份',confidence:'medium'}],energy_min_kcal:null,
+      energy_max_kcal:null,uncertainty:'遮挡',assumptions:[],cooking:null,oil:null,leftover:null},
+    validPlan,
+  ]
+  let at=0
+  globalThis.fetch=async(url,options)=>{
+    assert.ok(url.startsWith('https://api.deepseek.com/'))
+    if(url.endsWith('/user/balance')) return new Response(JSON.stringify({balance_infos:[{currency:'USD',total_balance:'1.00'}]}),{status:200})
+    const body=JSON.parse(options.body)
+    assert.equal(body.model,'deepseek-flash')
+    assert.equal(body.reasoning.effort,'none')
+    assert.equal(body.tools,undefined)
+    assert.equal(body.store,undefined)
+    assert.ok(!JSON.stringify(body).includes('real-user'))
+    calls.push(body)
+    return new Response(JSON.stringify({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(drafts[at++])}]}],
+      usage:{input_tokens:1000,output_tokens:100}}),{status:200})
+  }
+  const reservations=[]
+  const admin={from(){return {select(){return this},eq(){return this},
+    async maybeSingle(){return {data:{limit_cents:10},error:null}}}},rpc:async(name,args)=>{
+    if(name==='reserve_ai_probe') reservations.push(args)
+    return {data:'11111111-1111-4111-8111-111111111111',error:null}
+  }}
+  try{
+    const photo=new Uint8Array(await readFile(new URL('./fixtures/food-example-compact.png',import.meta.url)))
+    const result=await probeDeepSeek(admin,photo)
+    assert.equal(calls.length,4)
+    assert.equal(calls[2].input[1].content[1].type,'input_image')
+    assert.equal(reservations.length,4)
+    assert.ok(reservations.every(x=>x.p_cents>=1&&x.p_cents<=10))
+    assert.equal(result.results.filter(x=>x.valid).length,4)
+    assert.equal(result.synthetic_only,true)
+    assert.equal(result.balance_delta_is_attributable,false)
+  }finally{
+    globalThis.fetch=oldFetch
+    if(previous===undefined) delete process.env.DEEPSEEK_API_KEY
+    else process.env.DEEPSEEK_API_KEY=previous
+  }
+})

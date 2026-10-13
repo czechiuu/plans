@@ -1,6 +1,6 @@
 # 健康功能后端接口（004，本地实现契约）
 
-此契约供前端对接；004 尚未部署生产。所有日期为上海日 `YYYY-MM-DD`。仅两位固定账号可用。前端只持 Supabase publishable key 与本人 JWT，不接触 service_role 或 AI 密钥。所有新表客户端可按 RLS `select`，**不可直接 insert/update/delete**；写入走 RPC 或 Edge Function。未配置服务端 AI/Cron/照片时明确返回错误，不提供假结果。
+此契约供前端对接；004 已由管理员部署生产，005 AI 供应商扩展见 [DEEPSEEK.md](DEEPSEEK.md)。所有日期为上海日 `YYYY-MM-DD`。仅两位固定账号可用。前端只持 Supabase publishable key 与本人 JWT，不接触 service_role 或 AI 密钥。所有新表客户端可按 RLS `select`，**不可直接 insert/update/delete**；写入走 RPC 或 Edge Function。未配置服务端 AI/Cron/照片时明确返回错误，不提供假结果。
 
 ## 权限与通用字段
 
@@ -30,9 +30,9 @@
 
 已上传照片的单条 `is_shared` 不支持事后修改；要撤销单张照片需删除该照片。关闭本人照片类别共享后，对方的新读取请求立即失去授权。
 
-## AI 与费用
+## 004 AI 与费用（005 后通用授权入口停用）
 
-`ai_consents` 为本人 `text`/ `photo` 分别授权：`provider,policy_version,enabled,monthly_limit_cents,consented_at,revoked_at`；`set_ai_consent(p_kind text,p_enabled boolean,p_monthly_limit_cents integer,p_policy_version text)` 仅本人。Edge `health-ai` 只在对应同意、服务端 `OPENAI_API_KEY` 与 `OPENAI_MODEL` 均配置且预算足够时工作；否则明确拒绝，不调用外部 AI。模型/价格/保留政策待管理员核对后配置。每次在数据库锁内按最大输入/输出 token 的最坏费用预留预算，响应后结算或释放；有限 token/timeout，零余额不调用。调用 OpenAI Responses，不启用工具；用户原文与 OCR 当数据而非指令，只发当次最小输入，日志仅元数据/错误码，不记录健康原文、照片、密钥。文字/照片估算先返回草稿供本人核对，绝不自动确认或重复计数。
+以下为 004 历史接口；005 部署后须使用 [供应商与用途分开的新接口](DEEPSEEK.md)，旧授权会关闭。`ai_consents` 原为本人 `text`/ `photo` 分别授权：`provider,policy_version,enabled,monthly_limit_cents,consented_at,revoked_at`；`set_ai_consent(p_kind text,p_enabled boolean,p_monthly_limit_cents integer,p_policy_version text)` 仅本人。Edge `health-ai` 只在对应同意、服务端 `OPENAI_API_KEY` 与 `OPENAI_MODEL` 均配置且预算足够时工作；否则明确拒绝，不调用外部 AI。模型/价格/保留政策待管理员核对后配置。每次在数据库锁内按最大输入/输出 token 的最坏费用预留预算，响应后结算或释放；有限 token/timeout，零余额不调用。调用 OpenAI Responses，不启用工具；用户原文与 OCR 当数据而非指令，只发当次最小输入，日志仅元数据/错误码，不记录健康原文、照片、密钥。文字/照片估算先返回草稿供本人核对，绝不自动确认或重复计数。
 
 ## 错误与部署边界
 
@@ -40,4 +40,4 @@
 
 三个 Edge Function 均由 `node scripts/build-edge.mjs` 生成 `supabase/bundles/*.js` 单文件；三者网关均设 `verify_jwt=false`，兼容本项目 ES256 用户令牌与浏览器 OPTIONS 预检。`health-ai`、`health-photo` 在函数内依次用 Supabase Auth `getUser(jwt)`、固定槽位 `current_account` 和空间成员 `current_space_id` 核验本人；匿名或仅持公开 key 的调用不能进入业务。`health-cron` 不由浏览器调用，函数内严格核对至少 32 字符随机 `HEALTH_CRON_SECRET`。CORS 的 `HEALTH_ALLOWED_ORIGINS` 为精确 Origin 列表，正式站用 `https://czechiuu.github.io`，本地可加 `http://localhost:5173` 或 `http://127.0.0.1:5173`；预检允许 Supabase SDK 的 `x-client-info`。Cron 部署脚本 `supabase/admin/schedule-health-cron.sql` 仅引用 Vault 中的项目 URL、publishable key 和独立 cron secret，不含值；每 5 分钟幂等处理最近上海 20:00 的每人次日任务及有限重试。发布前须另行配置 Vault、Edge secrets、全空间预算；AI 密钥或预算未配置时不可调用付费 AI。
 
-`health_schema_version()` 返回标量整数 `4`。旧生产 003 尚无此 RPC；前端只在确切 PostgREST 缺函数错误 `PGRST202` 时显示健康功能未部署，继续旧功能；其余错误正常暴露。`save_confirmed_schedule(p_payload jsonb,p_id uuid default null)` 同事务保存原始日程字段及本人确认的 `confirmed_data`（`user_slot,record_date,exercise,meal,constraints` 及疲劳/疼痛/睡眠等）、`submitted_at`、`parse_version`，只有本人能确认且人物/日期必须匹配。`health-ai` 的 `parse-schedule` 请求 `{raw_text,submitted_at}` 返回 `{draft,needs_confirmation:true,parse_version:"health-schedule-v1",submitted_at}`；`estimate-meal` 请求 `{meal_id}` 返回 `{draft,needs_confirmation:true}`；`generate-plan` 请求 `{job_id}` 返回 `{job_id,status,plan_id:null|uuid,error_code:null|string}`。`health-photo` 上传用 multipart `file`、可选 `meal_id` UUID、`is_shared` 布尔，返回 `{photo_id,mime,width,height,bytes}`。RPC 输入 JSON 类型、长度、日期、身份与版本严格校验；未授权统一拒绝，不泄漏对方私有行是否存在。004 需先本地隔离数据库测试，再由管理员按迁移历史部署；照片 bucket、Edge secrets、Cron 调用与 AI 预算未配置时相关功能必须显示不可用。
+`health_schema_version()` 返回标量整数 `4`。旧生产 003 尚无此 RPC；前端只在确切 PostgREST 缺函数错误 `PGRST202` 时显示健康功能未部署，继续旧功能；其余错误正常暴露。`save_confirmed_schedule(p_payload jsonb,p_id uuid default null)` 同事务保存原始日程字段及本人确认的 `confirmed_data`（`user_slot,record_date,exercise,meal,constraints` 及疲劳/疼痛/睡眠等）、`submitted_at`、`parse_version`，只有本人能确认且人物/日期必须匹配。004 的 `health-ai` 的 `parse-schedule` 请求 `{raw_text,submitted_at}` 返回 `{draft,needs_confirmation:true,parse_version:"health-schedule-v1",submitted_at}`；`estimate-meal` 请求 `{meal_id}` 返回 `{draft,needs_confirmation:true}`；`generate-plan` 请求 `{job_id}` 返回 `{job_id,status,plan_id:null|uuid,error_code:null|string}`。`health-photo` 上传用 multipart `file`、可选 `meal_id` UUID、`is_shared` 布尔，返回 `{photo_id,mime,width,height,bytes}`。005 部署后上述 AI 请求均须显式 `provider`，以 [DEEPSEEK.md](DEEPSEEK.md) 为准。RPC 输入 JSON 类型、长度、日期、身份与版本严格校验；未授权统一拒绝，不泄漏对方私有行是否存在。004 已经本地隔离测试并由管理员按迁移历史部署；照片 bucket、Edge secrets、Cron 调用与 AI 预算未配置时相关功能必须显示不可用。

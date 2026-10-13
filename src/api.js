@@ -43,6 +43,14 @@ async function edgeResult(promise) {
 
 const verifiedUser = expectedSlot => verifyFixedUser(ready(), expectedSlot)
 const healthTables = ['health_rules', 'daily_plans', 'generation_jobs', 'training_sessions', 'meals', 'photo_assets', 'ai_consents']
+// DeepSeek remains visible as a candidate, but health-data calls are disabled this release.
+const aiProviders = ['openai']
+const aiPurposes = ['parse_schedule', 'estimate_meal_text', 'estimate_meal_photo', 'generate_plan']
+function provider(value, allowRules = false) {
+  if (value === 'deepseek') throw Object.assign(new Error('DeepSeek 健康资料处理尚未开放'), { code: 'AI_PROVIDER_UNAVAILABLE' })
+  if (!aiProviders.includes(value) && !(allowRules && value === 'rules')) throw Object.assign(new Error('请选择 AI 供应商'), { code: 'AI_PROVIDER_REQUIRED' })
+  return value
+}
 
 async function allPages(table, column, value) {
   const rows = []
@@ -93,12 +101,16 @@ export const api = {
     const { user, account } = await verifiedUser()
     const member = await result(ready().from('members').select('space_id').eq('user_id', user.id).maybeSingle())
     const today = shanghaiDate()
-    if (!member) return { user, account, space: null, members: [], profile: null, profiles: [], schedules: [], weights: [], audit: [], healthAvailable: false, range: { from: today, to: today } }
+    if (!member) return { user, account, space: null, members: [], profile: null, profiles: [], schedules: [], weights: [], audit: [], healthAvailable: false, providerAiAvailable: false, range: { from: today, to: today } }
     const spaceId = member.space_id
     const schema = await ready().rpc('health_schema_version')
     if (schema.error && schema.error.code !== 'PGRST202') throw schema.error
     const healthAvailable = !schema.error && schema.data === 4
     if (!schema.error && !healthAvailable) throw new Error('健康功能版本不匹配')
+    const providerSchema = healthAvailable ? await ready().rpc('health_provider_schema_version') : { error: { code: 'PGRST202' } }
+    if (providerSchema.error && providerSchema.error.code !== 'PGRST202') throw providerSchema.error
+    const providerAiAvailable = !providerSchema.error && providerSchema.data === 5
+    if (!providerSchema.error && !providerAiAvailable) throw new Error('AI 授权版本不匹配')
     const [space, members, profiles, schedules, weights, audit, ...healthRows] = await Promise.all([
       result(ready().from('spaces').select('id,name').eq('id', spaceId).single()),
       result(ready().from('members').select(healthAvailable ? 'space_id,user_id,display_name,share_profile,share_schedule,share_weight,share_plan,share_training,share_meal,share_photo,allow_partner_edit' : 'space_id,user_id,display_name,share_profile,share_schedule,share_weight,allow_partner_edit').eq('space_id', spaceId)),
@@ -111,7 +123,7 @@ export const api = {
     const health = Object.fromEntries(healthTables.map((table, index) => [table, healthRows[index] ?? []]))
     const dates = [...schedules, ...weights].map(row => row.record_date).sort()
     const range = { from: dates[0] ?? today, to: dates.at(-1) ?? today }
-    return { user, account, space, members, profile: profiles.find(row => row.user_id === user.id) ?? null, profiles, schedules, weights, audit, healthAvailable, ...health, range }
+    return { user, account, space, members, profile: profiles.find(row => row.user_id === user.id) ?? null, profiles, schedules, weights, audit, healthAvailable, providerAiAvailable, ...health, range }
   },
   async saveSettings(settings) { await result(bound().rpc('save_settings', { p_settings: settings })) },
   async saveProfile(payload) { return result(bound().rpc('save_profile', { p_payload: payload }).single()) },
@@ -127,14 +139,22 @@ export const api = {
   async setPlanLock(id, locked, expectedUpdatedAt) { return result(bound().rpc('set_plan_lock', { p_id: id, p_locked: locked, p_expected_updated_at: expectedUpdatedAt }).single()) },
   async requestPlanGeneration(targetDate) { return result(bound().rpc('request_plan_generation', { p_target_date: targetDate }).single()) },
   async retryGenerationJob(id) { return result(bound().rpc('retry_generation_job', { p_id: id }).single()) },
-  async generatePlan(jobId) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'generate-plan', job_id: jobId } })) },
+  async generatePlan(jobId, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'generate-plan', job_id: jobId, provider: provider(selectedProvider, true) } })) },
   async saveTrainingSession(payload, id = null) { return result(bound().rpc('save_training_session', { p_payload: payload, p_id: id }).single()) },
   async saveMeal(payload, id = null) { return result(bound().rpc('save_meal', { p_payload: payload, p_id: id }).single()) },
   async deleteMeal(id) { await result(bound().rpc('delete_meal', { p_id: id })) },
-  async setAiConsent(kind, enabled, monthlyLimitCents, policyVersion) { return result(bound().rpc('set_ai_consent', { p_kind: kind, p_enabled: enabled, p_monthly_limit_cents: monthlyLimitCents, p_policy_version: policyVersion })) },
-  async parseSchedule(rawText, submittedAt) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'parse-schedule', raw_text: rawText, submitted_at: submittedAt } })) },
-  async estimateMeal(mealId) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'estimate-meal', meal_id: mealId } })) },
-  async aiStatus() { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'status' } })) },
+  async setAiProviderConsent(selectedProvider, purpose, enabled, monthlyLimitCents, policyVersion) {
+    if (!aiPurposes.includes(purpose)) throw Object.assign(new Error('AI 用途无效'), { code: 'AI_PURPOSE_INVALID' })
+    return result(bound().rpc('set_ai_provider_consent', { p_provider: provider(selectedProvider), p_purpose: purpose, p_enabled: enabled, p_monthly_limit_cents: monthlyLimitCents, p_policy_version: policyVersion }).single())
+  },
+  async setAiPlanProvider(selectedProvider) { return result(bound().rpc('set_ai_plan_provider', { p_provider: provider(selectedProvider, true) })) },
+  async parseSchedule(rawText, submittedAt, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'parse-schedule', raw_text: rawText, submitted_at: submittedAt, provider: provider(selectedProvider) } })) },
+  async estimateMeal(mealId, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'estimate-meal', meal_id: mealId, provider: provider(selectedProvider) } })) },
+  async aiStatus() {
+    const status = await edgeResult(bound().functions.invoke('health-ai', { body: { action: 'status' } }))
+    if (status?.schema_version !== 5 || !status.providers || !status.plan_provider) throw Object.assign(new Error('AI 服务版本不匹配'), { code: 'AI_SERVICE_VERSION_MISMATCH' })
+    return status
+  },
   async uploadPhoto(file, mealId = null, isShared = false) {
     const body = new FormData()
     body.append('file', file, 'meal.png')

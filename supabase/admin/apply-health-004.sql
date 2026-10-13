@@ -1049,6 +1049,11 @@ $health004_body$;
   v_expected record;
   v_count integer;
 begin
+  -- SQL Editor clipboard transport can turn LF into CRLF inside the quoted migration.
+  v_source := replace(v_source, chr(13)||chr(10), chr(10));
+  if md5(v_source) is distinct from '9a430516e9a44d8d27c651cf24e73e2b' then
+    raise exception 'Migration source mismatch: 202610130004';
+  end if;
   for v_expected in
     select * from (values
       ('202610130001', '1d56c15aa7609c057d53a05b124b172d'),

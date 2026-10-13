@@ -1,0 +1,27 @@
+{
+  "recorded_at_utc": "2026-10-13T16:07:03Z",
+  "scope": "Original production Supabase project, migration 004 only; administrator SQL Editor execution and readback",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "evidence_source": "Parent agent's Supabase SQL Editor observation; this document writer did not rerun production SQL",
+  "migration": {
+    "version": "202610130004",
+    "name": "health_daily",
+    "status": "applied",
+    "source_md5_lf": "9a430516e9a44d8d27c651cf24e73e2b",
+    "source_bytes": 67968,
+    "structural_checks": {
+      "passed": 9,
+      "failed": 0,
+      "observed_summary": "The three pre-existing health tables remained empty; the fixed two-account scope, nine new RLS tables, private photo bucket, private defaults, absent AI consents, and anonymous/publishable-client denials were checked."
+    },
+    "history_digest_check": {
+      "passed": 1,
+      "failed": 0,
+      "observed_summary": "Archived 004 source was repaired only for the legacy CRLF/LF difference; final registered LF source MD5 and byte count match the source."
+    }
+  },
+  "passed": 10,
+  "failed": 0,
+  "historical_failed_attempt": "Initial history digest check failed because the SQL Editor paste used CRLF. The failure was retained as history and was resolved by a strict newline-only history repair before final readback.",
+  "not_covered": ["Migration 005", "Edge Function deployment", "Cron execution", "real fixed-account health API", "physical devices", "paid AI calls"]
+}

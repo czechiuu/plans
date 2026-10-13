@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-13T14:53:43.844Z",
+  "generated_at": "2026-10-13T15:58:02.557Z",
   "scope": "two-fixed-accounts-synthetic-ui",
-  "passed": 15,
+  "passed": 18,
   "failed": 0,
   "blocked": 0,
   "notrun": 0,
@@ -51,6 +51,14 @@
       "status": "passed"
     },
     {
+      "id": "UI_PROVIDER_CONSENT",
+      "status": "passed"
+    },
+    {
+      "id": "UI_PROVIDER_GATES",
+      "status": "passed"
+    },
+    {
       "id": "UI_LOGOUT_PENDING",
       "status": "passed"
     },
@@ -64,6 +72,10 @@
     },
     {
       "id": "UI_PASSWORD_SWITCH",
+      "status": "passed"
+    },
+    {
+      "id": "UI_PROVIDER_LEGACY",
       "status": "passed"
     }
   ]

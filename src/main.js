@@ -47,6 +47,12 @@ function errorText(error) {
   if (code === 'AI_BUDGET_EXCEEDED') return '本人或空间的 AI 预算不足，当前不会调用付费服务。'
   if (code === 'MEAL_TEMPLATE_UNCONFIRMED') return '三餐模板尚未由本人完整确认，计划没有生成。'
   if (code === 'AI_PROVIDER_FAILED') return 'AI 服务请求失败，计划没有生成；请稍后查看任务状态。'
+  if (code === 'AI_PROVIDER_REQUIRED') return '请先明确选择本次使用的服务。'
+  if (code === 'AI_PROVIDER_UNAVAILABLE') return 'DeepSeek 本轮仅验证合成样例，尚未开放个人健康资料处理。'
+  if (code === 'AI_EXTENSION_UNAVAILABLE') return '新版 AI 授权尚未部署；手动记录与计划仍可使用。'
+  if (code === 'AI_STATUS_REQUIRED') return '请先检查后台服务状态，再设置夜间计划方式。'
+  if (code === 'AI_SERVICE_VERSION_MISMATCH') return 'AI 服务版本尚未与授权功能匹配，当前不会发送健康内容。'
+  if (code === 'AI_SERVICE_NOT_READY') return '所选 AI 服务或预算尚未准备好，当前不会发送健康内容。'
   if (code === 'AI_SERVICE_UNAVAILABLE') return '生成任务已登记，但无法确认 AI 服务调用；请刷新查看任务状态。'
   if (error?.name === 'FunctionsFetchError' || error?.name === 'FunctionsHttpError') return '无法连接功能服务或服务尚未部署，请稍后查看真实状态。'
   if (error?.message === 'photo-required') return '请先选择本人照片。'
@@ -113,7 +119,21 @@ function person(id) { return id === state.data?.user?.id ? '我' : partner()?.di
 function visibleByScope(row) { return state.scope === 'all' || (state.scope === 'mine' ? row.user_id === state.data.user.id : row.user_id !== state.data.user.id) }
 function ownRows(key) { return (state.data?.[key] || []).filter(row => row.user_id === state.data.user.id) }
 function currentRules() { return ownRows('health_rules')[0] || null }
-function consentFor(kind) { return ownRows('ai_consents').find(row => row.kind === kind) || null }
+function providerConsent(provider,purpose) { return ownRows('ai_consents').find(row=>row.provider===provider && row.purpose===purpose) || null }
+async function requireProviderReady(provider,purpose) {
+  const started=generation, token=state.session?.access_token
+  if (!state.data?.providerAiAvailable) throw Object.assign(new Error('新版 AI 授权尚未部署'),{code:'AI_EXTENSION_UNAVAILABLE'})
+  if (!provider) throw Object.assign(new Error('未选择服务'),{code:'AI_PROVIDER_REQUIRED'})
+  if (provider === 'deepseek') throw Object.assign(new Error('DeepSeek 尚未开放'),{code:'AI_PROVIDER_UNAVAILABLE'})
+  const status=await api.aiStatus()
+  if (started !== generation || token !== state.session?.access_token) throw Object.assign(new Error('账号已变化'),{code:'ACCOUNT_CHANGED'})
+  state.aiStatus=status
+  if (provider === 'rules') return status
+  const choice=status.providers?.[provider]
+  if (!choice?.configured || !choice.budget_configured || !status.global_budget_configured) throw Object.assign(new Error('服务或预算未就绪'),{code:'AI_SERVICE_NOT_READY'})
+  if (!choice.consents?.[purpose]?.enabled) throw Object.assign(new Error('本人未授权该用途'),{code:'AI_CONSENT_REQUIRED'})
+  return status
+}
 function currentPlan(day, userId = state.data.user.id) { return (state.data.daily_plans || []).filter(row => row.user_id === userId && row.target_date === day).sort((a,b) => b.version - a.version)[0] || null }
 function healthStatus() { return `<div class="card warn"><h2>新功能尚未连接</h2><p class="hint">这个后台尚未部署训练、饮食和计划所需的数据库更新。现有手动日程、体重与隐私功能仍可使用；这里不会显示虚构数据。</p></div>` }
 function canEdit(row, type) {
@@ -199,15 +219,19 @@ function planEditor(day, plan) {
 function generationPanel(day, job) {
   const r=currentRules()?.rules
   const ready=Boolean(r?.confirmed && r?.meal_template?.length===3)
-  return `<div class="card"><h3>生成明日安排</h3><p class="hint">点击后会登记任务并请求服务端生成；只有任务显示成功且出现真实计划时才算完成。需本人确认规则和三餐模板。</p>${ready ? button('请求生成明日计划','request-plan','secondary',`data-day="${safe(day)}"`) : '<p class="hint">请先在设置中确认本人规则与三餐模板。</p>'}${job && ['failed','exhausted'].includes(job.status) ? button('重试这次生成','retry-job','secondary',`data-id="${safe(job.id)}"`) : ''}</div>`
+  const selected=state.data.providerAiAvailable ? select('本次生成方式','ai_provider','',[['','请明确选择'],['rules','确定性规则（不发送给 AI）'],['openai','OpenAI']]) : '<p class="hint">新版生成服务尚未部署，请继续手动计划。</p>'
+  return `<div class="card"><h3>生成明日安排</h3><p class="hint">点击后会登记任务并请求所选服务；只有任务显示成功且出现真实计划时才算完成。DeepSeek 本轮仅供合成验证，不处理个人健康资料。</p>${selected}${ready && state.data.providerAiAvailable ? button('请求生成明日计划','request-plan','secondary',`data-day="${safe(day)}"`) : '<p class="hint">请先确认本人规则与三餐模板，并等待新版服务部署。</p>'}${job && ['failed','exhausted'].includes(job.status) && state.data.providerAiAvailable ? button('重试这次生成','retry-job','secondary',`data-id="${safe(job.id)}"`) : ''}</div>`
+}
+function parseSchedulePanel() {
+  if (!state.data.providerAiAvailable) return '<div class="card warn"><h2>原文整理</h2><p class="hint">新版逐用途授权尚未部署；请在下方手动填写日程。</p></div>'
+  return `<div class="card"><h2>原文整理</h2><p class="hint">先明确选择服务；只有点击解析且本人已授权此用途、服务与预算可用时，才发送当次原文。DeepSeek 本轮不处理个人健康资料。</p><form data-form="parse-schedule">${select('本次服务','ai_provider','',[['','请明确选择'],['openai','OpenAI']])}${textArea('明日原文','raw_text','')}<div class="actions"><button class="btn secondary">解析为可编辑草稿</button></div></form>${state.parsedSchedule ? '<p class="notice">解析内容已填入日程表单。请逐项核对后手动保存。</p>' : ''}</div>`
 }
 function tomorrowPage() {
   const day = addDays(date(),1)
   const plan = state.data.healthAvailable ? currentPlan(day) : null
   const history = state.data.healthAvailable ? ownRows('daily_plans').filter(row => row.target_date === day).sort((a,b) => b.version-a.version) : []
   const job = state.data.healthAvailable ? ownRows('generation_jobs').find(row => row.target_date === day) : null
-  const textConsent = consentFor('text')
-  return `<div class="card soft"><p class="eyebrow">明日安排 · ${safe(day)}</p><h2>先确认真实日程，再决定明天怎么过</h2><p class="hint">日程、个人规则和档案变化会标记旧计划待更新。系统不会替你补写未知安排。</p></div>${state.data.healthAvailable ? `<div class="card"><h2>原文整理</h2><p class="hint">${textConsent?.enabled ? '你已授权文字 AI；仅点击解析后才会发送当次原文，仍受服务配置和预算限制。' : '文字 AI 未获本人授权，当前不会发送原文。'} 也可直接手动填写。</p><form data-form="parse-schedule">${textArea('明日原文','raw_text','')}<div class="actions"><button class="btn secondary" ${!textConsent?.enabled ? 'disabled' : ''}>解析为可编辑草稿</button></div></form>${state.parsedSchedule ? '<p class="notice">解析内容已填入日程表单。请逐项核对后手动保存。</p>' : ''}</div>${plan ? planCard(plan) : '<div class="card empty"><strong>明天还没有计划</strong>可手动创建；自动生成尚未配置时不会出现假结果。</div>'}${job ? `<div class="card"><h3>生成任务</h3><p>${safe(job.status)} · 目标日 ${safe(job.target_date)} · 尝试 ${safe(job.attempts)}/${safe(job.max_attempts)}</p>${job.error_code ? `<p class="hint">错误代码：${safe(job.error_code)}</p>` : ''}</div>` : ''}${generationPanel(day,job)}${planEditor(day,plan)}${history.length>1 ? `<div class="card"><h2>历史版本</h2>${history.slice(1).map(planCard).join('')}</div>` : ''}` : healthStatus()}${schedulePage()}`
+  return `<div class="card soft"><p class="eyebrow">明日安排 · ${safe(day)}</p><h2>先确认真实日程，再决定明天怎么过</h2><p class="hint">日程、个人规则和档案变化会标记旧计划待更新。系统不会替你补写未知安排。</p></div>${state.data.healthAvailable ? `${parseSchedulePanel()}${plan ? planCard(plan) : '<div class="card empty"><strong>明天还没有计划</strong>可手动创建；自动生成尚未配置时不会出现假结果。</div>'}${job ? `<div class="card"><h3>生成任务</h3><p>${safe(job.status)} · 目标日 ${safe(job.target_date)} · 尝试 ${safe(job.attempts)}/${safe(job.max_attempts)}</p>${job.error_code ? `<p class="hint">错误代码：${safe(job.error_code)}</p>` : ''}</div>` : ''}${generationPanel(day,job)}${planEditor(day,plan)}${history.length>1 ? `<div class="card"><h2>历史版本</h2>${history.slice(1).map(planCard).join('')}</div>` : ''}` : healthStatus()}${schedulePage()}`
 }
 function exerciseCard(exercise) {
   const demo = exercise.demo || {}
@@ -265,7 +289,7 @@ function mealCard(row) {
   const d = row.data || {}, own = row.user_id === state.data.user.id
   const photos = (state.data.photo_assets || []).filter(photo => photo.meal_id === row.id)
   const estimate = d.estimate
-  return `<article class="list-item"><div class="row-between"><div><strong>${safe(shanghaiDate(d.recorded_at))} · ${safe(({breakfast:'早餐',lunch:'午餐',dinner:'晚餐',snack:'加餐',other:'其他'})[d.kind] || '餐食')}</strong><p class="fine">${safe(person(row.user_id))} · ${safe(row.status === 'confirmed' ? '已确认实际摄入' : '草稿未计入')}</p></div><span class="tag ${row.is_shared ? 'shared' : 'private'}">${row.is_shared ? '共享' : '私有'}</span></div><p>${(d.items || []).map(item => `${safe(item.name)} ${safe(item.portion)} ${safe(item.unit)}`).join('、') || '尚未填写食物'}</p><p class="hint">实际吃掉 ${safe(Math.round(Number(d.eaten_fraction || 0)*100))}%${d.cooking ? ` · ${safe(d.cooking)}` : ''}${d.oil ? ` · 油/酱汁：${safe(d.oil)}` : ''}${d.leftover ? ` · 剩余：${safe(d.leftover)}` : ''}</p>${estimate ? estimateNotice(estimate) : ''}${photos.length ? `<div class="actions">${photos.map(photo => button('查看私人照片','view-photo','secondary small',`data-id="${safe(photo.id)}"`)).join('')}${own && consentFor('photo')?.enabled ? button('请求估算草稿','estimate-meal','secondary small',`data-id="${safe(row.id)}"`) : ''}</div>` : ''}<div class="actions">${own ? `${button('编辑','edit-meal','ghost small',`data-id="${safe(row.id)}"`)}${button('删除','delete-meal','danger secondary small',`data-id="${safe(row.id)}"`)}` : canEdit(row,'meal') ? button('代改正文','edit-meal','ghost small',`data-id="${safe(row.id)}"`) : ''}</div>${updateMeta(row)}</article>`
+  return `<article class="list-item"><div class="row-between"><div><strong>${safe(shanghaiDate(d.recorded_at))} · ${safe(({breakfast:'早餐',lunch:'午餐',dinner:'晚餐',snack:'加餐',other:'其他'})[d.kind] || '餐食')}</strong><p class="fine">${safe(person(row.user_id))} · ${safe(row.status === 'confirmed' ? '已确认实际摄入' : '草稿未计入')}</p></div><span class="tag ${row.is_shared ? 'shared' : 'private'}">${row.is_shared ? '共享' : '私有'}</span></div><p>${(d.items || []).map(item => `${safe(item.name)} ${safe(item.portion)} ${safe(item.unit)}`).join('、') || '尚未填写食物'}</p><p class="hint">实际吃掉 ${safe(Math.round(Number(d.eaten_fraction || 0)*100))}%${d.cooking ? ` · ${safe(d.cooking)}` : ''}${d.oil ? ` · 油/酱汁：${safe(d.oil)}` : ''}${d.leftover ? ` · 剩余：${safe(d.leftover)}` : ''}</p>${estimate ? estimateNotice(estimate) : ''}${photos.length ? `<div class="actions">${photos.map(photo => button('查看私人照片','view-photo','secondary small',`data-id="${safe(photo.id)}"`)).join('')}</div>` : ''}${own && state.data.providerAiAvailable ? `<div class="actions">${select('本次估算服务','ai_provider','',[['','请明确选择'],['openai','OpenAI']])}${button(photos.length ? '请求图片估算草稿' : '请求文字估算草稿','estimate-meal','secondary small',`data-id="${safe(row.id)}"`)}</div>` : ''}<div class="actions">${own ? `${button('编辑','edit-meal','ghost small',`data-id="${safe(row.id)}"`)}${button('删除','delete-meal','danger secondary small',`data-id="${safe(row.id)}"`)}` : canEdit(row,'meal') ? button('代改正文','edit-meal','ghost small',`data-id="${safe(row.id)}"`) : ''}</div>${updateMeta(row)}</article>`
 }
 function mealPrepCard() {
   const rules=currentRules()?.rules
@@ -289,8 +313,8 @@ function foodPage() {
   const visible = (state.data.meals || []).filter(visibleByScope).sort((a,b) => b.data.recorded_at.localeCompare(a.data.recorded_at))
   const ownMeals = ownRows('meals').sort((a,b) => b.data.recorded_at.localeCompare(a.data.recorded_at))
   const confirmed = ownMeals.filter(row => row.status === 'confirmed')
-  const photoConsent = consentFor('photo')
-  return `<div class="card soft"><p class="eyebrow">真实记录 · 不作评价</p><h2>饮食</h2><p class="hint">未记录不等于未吃。份量和吃掉比例由本人确认；照片默认私有。AI 估算在服务与明确授权都准备好之前不可用。</p><div class="actions">${scopeSwitch()}${button('刷新数据','refresh','secondary')}</div></div><div class="stat-grid"><div class="stat"><span>我的已确认餐食</span><b>${confirmed.length}</b><span>条真实记录</span></div><div class="stat"><span>草稿</span><b>${ownMeals.length-confirmed.length}</b><span>未计入摄入</span></div><div class="stat"><span>照片估算</span><b>${photoConsent?.enabled ? '已授权' : '未启用'}</b><span>服务状态另行核对</span></div></div>${dailyIntakeCard(ownMeals,state.mealDate)}${mealPrepCard()}${mealForm()}<div class="card"><h2>私人照片</h2><p class="hint">只选择本人照片；浏览器会重新绘制为 PNG 去除原文件元数据，服务器仍会再次检查。上传后也不会自动交给 AI。</p><form data-form="photo"><div class="form-grid">${select('关联本人餐食','meal_id','',[['','暂不关联'],...ownMeals.map(row => [row.id,`${shanghaiDate(row.data.recorded_at)} · ${row.data.kind}`])])}<label class="field"><span>选择图片</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><div class="field full">${check('允许伴侣查看这张照片','is_shared',false,'还需要设置里的“共享照片”开关。')}</div></div><div class="actions"><button class="btn secondary">上传私有照片</button></div></form>${state.photoUrl ? `<div class="photo-preview"><img src="${safe(state.photoUrl)}" alt="按当前权限读取的私人照片">${button('关闭照片','close-photo','ghost small')}</div>` : ''}</div><div class="card"><h2>餐食记录</h2>${visible.length ? `<div class="list">${visible.map(mealCard).join('')}</div>` : '<p class="empty">还没有实际餐食记录。</p>'}</div>`
+  const photoConsent = providerConsent('openai','estimate_meal_photo')
+  return `<div class="card soft"><p class="eyebrow">真实记录 · 不作评价</p><h2>饮食</h2><p class="hint">未记录不等于未吃。份量和吃掉比例由本人确认；照片默认私有。AI 估算在服务与明确授权都准备好之前不可用。</p><div class="actions">${scopeSwitch()}${button('刷新数据','refresh','secondary')}</div></div><div class="stat-grid"><div class="stat"><span>我的已确认餐食</span><b>${confirmed.length}</b><span>条真实记录</span></div><div class="stat"><span>草稿</span><b>${ownMeals.length-confirmed.length}</b><span>未计入摄入</span></div><div class="stat"><span>图片估算授权</span><b>${photoConsent?.enabled ? '已授权' : '未启用'}</b><span>服务状态另行核对</span></div></div>${dailyIntakeCard(ownMeals,state.mealDate)}${mealPrepCard()}${mealForm()}<div class="card"><h2>私人照片</h2><p class="hint">只选择本人照片；浏览器会重新绘制为 PNG 去除原文件元数据，服务器仍会再次检查。上传后也不会自动交给 AI。</p><form data-form="photo"><div class="form-grid">${select('关联本人餐食','meal_id','',[['','暂不关联'],...ownMeals.map(row => [row.id,`${shanghaiDate(row.data.recorded_at)} · ${row.data.kind}`])])}<label class="field"><span>选择图片</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp" required></label><div class="field full">${check('允许伴侣查看这张照片','is_shared',false,'还需要设置里的“共享照片”开关。')}</div></div><div class="actions"><button class="btn secondary">上传私有照片</button></div></form>${state.photoUrl ? `<div class="photo-preview"><img src="${safe(state.photoUrl)}" alt="按当前权限读取的私人照片">${button('关闭照片','close-photo','ghost small')}</div>` : ''}</div><div class="card"><h2>餐食记录</h2>${visible.length ? `<div class="list">${visible.map(mealCard).join('')}</div>` : '<p class="empty">还没有实际餐食记录。</p>'}</div>`
 }
 function trendsPage() {
   const rows = ownRows('weights'), days = new Set(rows.filter(row => row.record_date >= addDays(date(),-6) && row.record_date <= date()).map(row => row.record_date))
@@ -312,11 +336,13 @@ function rulesForm() {
 }
 function aiServiceStatus() {
   const s=state.aiStatus
-  return `<div class="callout"><div class="row-between"><strong>服务实际状态</strong>${button('检查 AI 服务状态','ai-status','secondary small')}</div>${s ? `<p>${s.configured && s.budget_configured ? `服务端已配置模型 ${safe(s.model || '未知')}，实际调用仍受本人授权及剩余额度限制。` : '服务端密钥或预算未准备好；当前不会调用 AI。'}</p>${['text','photo'].map(kind=>{const u=s.usage?.[kind];return u ? `<p class="fine">${kind==='text'?'文字':'图片'}：本月已计费 ${safe(u.charged_cents)} 美分、预留 ${safe(u.reserved_cents)} 美分、本人上限 ${safe(u.monthly_limit_cents)} 美分。</p>` : ''}).join('')}` : '<p class="fine">尚未从服务端核对；保存授权不会立即调用。</p>'}</div>`
+  const openai=s?.providers?.openai
+  return `<div class="callout"><div class="row-between"><strong>服务实际状态</strong>${state.data.providerAiAvailable ? button('检查 AI 服务状态','ai-status','secondary small') : ''}</div>${s ? `<p>OpenAI：${openai?.configured && openai?.budget_configured && s.global_budget_configured ? `服务端已配置 ${safe(openai.model || '模型')}；调用仍受逐用途授权和额度限制。` : '密钥或预算未就绪，无法发送健康资料。'}</p><p class="fine">下方费用是按用量估算，不是供应商账单。已选择的夜间计划方式：${safe(({rules:'确定性规则',openai:'OpenAI',deepseek:'DeepSeek（本轮禁用）'})[s.plan_provider] || '未知')}。</p>` : '<p class="fine">尚未从服务端核对；保存授权不会立即调用。</p>'}</div>`
 }
 function aiConsentPanel() {
-  const textConsent = consentFor('text'), photoConsent = consentFor('photo')
-  return `<div class="card"><h2>AI 授权与费用</h2><p class="hint">文字和图片分别授权，默认关闭。拟用 OpenAI Responses API，只发送当次需要的内容；请求设置 store:false。服务商仍可能保留滥用监测日志通常至多 30 天，且政策有例外。服务是否可用以实时检查结果为准；未配置密钥或预算时不会发送健康内容。</p><p class="hint">模型和价格须上线前再次核对；月度上限以美元美分计，保存同意本身不会触发调用。照片上传和手动记录不需要 AI 授权。</p>${aiServiceStatus()}<div class="consent-grid">${[['text','文字解析与计划',textConsent],['photo','照片餐食估算',photoConsent]].map(([kind,title,row]) => `<form data-form="ai-consent" data-kind="${kind}" class="consent-card"><h3>${title}</h3>${check('允许此类内容在服务就绪后发送给 OpenAI','enabled',row?.enabled || false)}${field('每月上限（美元美分）','monthly_limit_cents',row?.monthly_limit_cents ?? 0,'number','required min="0" max="100000" step="1"')}<p class="fine">当前：${row?.enabled ? '已授权；请检查上方真实服务状态' : '未授权'}</p><button class="btn secondary">保存此项授权</button></form>`).join('')}</div></div>`
+  if (!state.data.providerAiAvailable) return '<div class="card warn"><h2>逐用途 AI 授权尚未部署</h2><p class="hint">现有手动功能可继续使用；不会把旧版的笼统授权自动转为新版授权。</p></div>'
+  const purposes=[['parse_schedule','日程文字解析'],['generate_plan','AI 生成计划'],['estimate_meal_text','文字餐食估算'],['estimate_meal_photo','图片餐食估算']]
+  return `<div class="card"><h2>AI 服务与逐用途授权</h2><p class="hint">四种用途分别确认，默认不新增授权。每次调用还需明确选择服务；照片上传和手动记录无需 AI。月上限以美元美分计，系统按用量估算费用，不等于供应商账单。</p><p class="hint">OpenAI 的 <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">数据政策</a>；服务端请求不保存响应，但不能据此推断零保留。</p>${aiServiceStatus()}<div class="consent-grid">${purposes.map(([purpose,title])=>{const row=providerConsent('openai',purpose),usage=state.aiStatus?.providers?.openai?.usage?.[purpose];return `<form data-form="ai-consent" data-purpose="${purpose}" class="consent-card"><h3>OpenAI · ${title}</h3>${check('允许此次用途发送给 OpenAI','enabled',row?.enabled || false)}${field('每月上限（美元美分）','monthly_limit_cents',row?.monthly_limit_cents ?? 0,'number','required min="0" max="100000" step="1"')}<p class="fine">当前：${row?.enabled ? '已授权' : '未授权'}${usage ? ` · 本月估算已用 ${safe(usage.charged_cents)}、预留 ${safe(usage.reserved_cents)} 美分` : ''}</p><button class="btn secondary">保存此项授权</button></form>`}).join('')}</div><form data-form="plan-provider" class="stack"><h3>夜间计划方式</h3><p class="hint">默认使用确定性规则，不发送给 AI；选择 OpenAI 前需先检查服务并单独授权“AI 生成计划”。</p>${select('由本人选择','plan_provider',state.aiStatus?.plan_provider || 'rules',[['rules','确定性规则'],['openai','OpenAI']])}<button class="btn secondary">保存夜间计划方式</button></form><div class="callout"><h3>DeepSeek 候选</h3><p>本轮仅验证合成样例，尚未开放个人健康资料处理；需核实适用 API 条款并重新确认授权。不会自动切换到 DeepSeek。</p><p class="fine"><a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-privacy-policy.html" target="_blank" rel="noopener noreferrer">DeepSeek 隐私政策</a> · <a href="https://api-docs.deepseek.com/guides/responses_api/" target="_blank" rel="noopener noreferrer">API 说明</a></p></div></div>`
 }
 function profileForm() {
   const p = state.profileDraft || state.data.profile || {}
@@ -438,7 +464,14 @@ async function submit(form) {
     if (kind === 'ai-consent') {
       const limit = Number(v.monthly_limit_cents)
       if (checked(form,'enabled') && limit <= 0) throw new Error('ai-budget')
-      await api.setAiConsent(form.dataset.kind,checked(form,'enabled'),limit,'2026-10-13-openai-health-v1'); await reload(started); return
+      if (!state.data.providerAiAvailable) throw Object.assign(new Error('新版授权尚未部署'),{code:'AI_EXTENSION_UNAVAILABLE'})
+      await api.setAiProviderConsent('openai',form.dataset.purpose,checked(form,'enabled'),limit,'2026-10-13-openai-health-v1'); state.aiStatus=null; await reload(started); return
+    }
+    if (kind === 'plan-provider') {
+      if (!state.aiStatus) throw Object.assign(new Error('请先检查服务状态'),{code:'AI_STATUS_REQUIRED'})
+      await requireProviderReady(v.plan_provider,v.plan_provider === 'openai' ? 'generate_plan' : null)
+      if (started !== generation) return
+      await api.setAiPlanProvider(v.plan_provider); state.aiStatus=null; await reload(started); return
     }
     if (kind === 'profile') {
       const current = state.data.profile
@@ -462,9 +495,10 @@ async function submit(form) {
       state.parsedSchedule = null; state.scheduleDate = v.record_date; await reload(started); return
     }
     if (kind === 'parse-schedule') {
-      if (!consentFor('text')?.enabled) throw new Error('ai-not-enabled')
+      await requireProviderReady(v.ai_provider,'parse_schedule')
+      if (started !== generation) return
       const submittedAt = new Date().toISOString()
-      const response = await api.parseSchedule(v.raw_text,submittedAt)
+      const response = await api.parseSchedule(v.raw_text,submittedAt,v.ai_provider)
       if (started !== generation) return
       if (response?.needs_confirmation !== true || !response.draft || typeof response.draft !== 'object' || !response.parse_version || response.submitted_at !== submittedAt) throw new Error('invalid-ai-draft')
       state.parsedSchedule = {...response.draft,raw_text:v.raw_text,parse_version:response.parse_version,submitted_at:response.submitted_at}
@@ -512,7 +546,7 @@ async function submit(form) {
       if (started !== generation) return
       state.danger = null; state.profileDraft = null; await reload(started); return
     }
-  }, ({signin:'登录成功',settings:'共享设置已保存','health-sharing':'新类别共享已保存',rules:'本人规则已保存','ai-consent':'授权设置已保存',profile:'档案已保存',schedule:'日程已保存','parse-schedule':'解析草稿已载入，请确认后保存',plan:'手动计划新版本已保存',meal:'餐食已保存','training-set':'实际训练组已保存',photo:'照片已上传',weight:'体重已保存',danger:'操作已完成'})[kind] || '')
+  }, ({signin:'登录成功',settings:'共享设置已保存','health-sharing':'新类别共享已保存',rules:'本人规则已保存','ai-consent':'授权设置已保存','plan-provider':'夜间计划方式已保存',profile:'档案已保存',schedule:'日程已保存','parse-schedule':'解析草稿已载入，请确认后保存',plan:'手动计划新版本已保存',meal:'餐食已保存','training-set':'实际训练组已保存',photo:'照片已上传',weight:'体重已保存',danger:'操作已完成'})[kind] || '')
 }
 function exportJson(data) {
   const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'})
@@ -572,10 +606,13 @@ async function act(el) {
   if (action === 'request-plan' || action === 'retry-job') {
     const started=generation
     await work(async()=>{
+      const selectedProvider=el.closest('.card')?.querySelector('[name="ai_provider"]')?.value
+      await requireProviderReady(selectedProvider,selectedProvider === 'openai' ? 'generate_plan' : null)
+      if (started !== generation) return
       const job=action === 'request-plan' ? await api.requestPlanGeneration(el.dataset.day) : await api.retryGenerationJob(el.dataset.id)
       if (started !== generation) return
       try {
-        const outcome=await api.generatePlan(job.id)
+        const outcome=await api.generatePlan(job.id,selectedProvider)
         if (outcome?.status !== 'succeeded') throw Object.assign(new Error('生成未完成'),{code:outcome?.error_code || 'AI_SERVICE_UNAVAILABLE'})
       } finally { await reload(started) }
     },'计划已由服务端生成；请核对内容后使用。')
@@ -605,7 +642,7 @@ async function act(el) {
   if (action === 'delete-meal') { const row=ownRows('meals').find(item => item.id === el.dataset.id); if (!row || !confirm('确认删除这条本人餐食记录？')) return; const started=generation; await work(async()=>{await api.deleteMeal(row.id);await reload(started)},'餐食记录已删除'); return }
   if (action === 'delete-photo') { const row=ownRows('photo_assets').find(item => item.id === el.dataset.id); if (!row || !confirm('确认删除这张本人照片？')) return; const started=generation; await work(async()=>{await api.deletePhoto(row.id);if(state.photoUrl){URL.revokeObjectURL(state.photoUrl);state.photoUrl=null}await reload(started)},'照片已删除'); return }
   if (action === 'view-photo') { const started=generation; await work(async()=>{const blob=await api.downloadPhoto(el.dataset.id);if(started!==generation)return;if(!(blob instanceof Blob))throw new Error('photo-invalid');if(state.photoUrl)URL.revokeObjectURL(state.photoUrl);state.photoUrl=URL.createObjectURL(blob)},'照片已按当前权限读取'); return }
-  if (action === 'estimate-meal') { const row=ownRows('meals').find(item => item.id === el.dataset.id); if (!row || !consentFor('photo')?.enabled) return; const started=generation; await work(async()=>{const response=await api.estimateMeal(row.id);if(started!==generation)return;const draft=response?.draft;if(response?.needs_confirmation!==true || !draft || typeof draft!=='object' || !Array.isArray(draft.items)) throw new Error('invalid-ai-draft');state.mealEstimateDraft=draft;state.mealEdit={...row,data:{...row.data,items:draft.items.map(item=>({name:item.name || '',portion:item.portion || '',unit:item.unit || ''})),cooking:draft.cooking ?? row.data.cooking,oil:draft.oil ?? row.data.oil,leftover:draft.leftover ?? row.data.leftover,estimate:draft}};state.page='food'},'识别草稿已填入，请逐项核对后保存'); return }
+  if (action === 'estimate-meal') { const row=ownRows('meals').find(item => item.id === el.dataset.id); if (!row) return; const started=generation; await work(async()=>{const selectedProvider=el.closest('article')?.querySelector('[name="ai_provider"]')?.value;const hasPhotos=(state.data.photo_assets||[]).some(photo=>photo.meal_id===row.id);await requireProviderReady(selectedProvider,hasPhotos?'estimate_meal_photo':'estimate_meal_text');if(started!==generation)return;const response=await api.estimateMeal(row.id,selectedProvider);if(started!==generation)return;const draft=response?.draft;if(response?.needs_confirmation!==true || !draft || typeof draft!=='object' || !Array.isArray(draft.items)) throw new Error('invalid-ai-draft');state.mealEstimateDraft=draft;state.mealEdit={...row,data:{...row.data,items:draft.items.map(item=>({name:item.name || '',portion:item.portion || '',unit:item.unit || ''})),cooking:draft.cooking ?? row.data.cooking,oil:draft.oil ?? row.data.oil,leftover:draft.leftover ?? row.data.leftover,estimate:draft}};state.page='food'},'识别草稿已填入，请逐项核对后保存'); return }
   if (action === 'page') { state.page = el.dataset.page; state.edit = null; state.mealEdit = null; state.mealEstimateDraft=null; state.notice = ''; render(); scrollTo(0,0); return }
   if (action === 'scope') { state.scope = el.dataset.scope; render(); return }
   if (action === 'cancel-edit') { state.edit = null; render(); return }

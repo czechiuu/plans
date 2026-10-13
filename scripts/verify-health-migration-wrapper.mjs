@@ -7,19 +7,27 @@ import { localPostgres } from './with-local-postgres.mjs';
 
 const ids = ['FIRST_APPLY_EXACT_HISTORY', 'SAME_HASH_NO_OP',
   'OLD_HISTORY_001_REJECTED', 'OLD_HISTORY_002_REJECTED', 'OLD_HISTORY_003_REJECTED',
-  'DIFFERENT_004_REJECTED', 'FIXED_ACCOUNT_PRECONDITION'];
+  'DIFFERENT_004_REJECTED', 'FIXED_ACCOUNT_PRECONDITION',
+  'REPAIR_EXACT_CRLF_HISTORY', 'REPAIR_ALREADY_LF_NO_OP', 'REPAIR_NON_NEWLINE_TAMPER_REJECTED',
+  'REPAIR_WRONG_NAME_REJECTED', 'REPAIR_WRONG_CARDINALITY_REJECTED'];
 const result = { started_at: new Date().toISOString(), scope: 'Isolated local PostgreSQL; synthetic accounts; no cloud',
   cases: Object.fromEntries(ids.map(id => [id, { status: 'not_run' }])), passed: 0, failed: 0, not_run: ids.length };
 const users = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'];
 const root = new URL('../', import.meta.url);
 const wrapper = await readFile(new URL('supabase/admin/apply-health-004.sql', root), 'utf8');
+const repair = await readFile(new URL('supabase/admin/normalize-health-004-history.sql', root), 'utf8');
+const normalization = `  -- SQL Editor clipboard transport can turn LF into CRLF inside the quoted migration.\n  v_source := replace(v_source, chr(13)||chr(10), chr(10));\n  if md5(v_source) is distinct from '9a430516e9a44d8d27c651cf24e73e2b' then\n    raise exception 'Migration source mismatch: 202610130004';\n  end if;\n`;
+assert.ok(wrapper.includes(normalization));
+const crlfWrapper = wrapper.replace(/\n/g, '\r\n');
+const legacyCrlfWrapper = wrapper.replace(normalization, '').replace(/\n/g, '\r\n');
 const migrationDir = new URL('supabase/migrations/', root);
-const names = (await readdir(migrationDir)).filter(name => name.endsWith('.sql')).sort();
+const names = (await readdir(migrationDir)).filter(name => /^20261013000[1-4]_.*\.sql$/.test(name)).sort();
 assert.equal(names.length, 4);
 const source = await Promise.all(names.map(async name => (await readFile(new URL(name, migrationDir), 'utf8')).replace(/\r\n/g, '\n')));
 const md5 = text => createHash('md5').update(text, 'utf8').digest('hex');
 const sha256 = text => createHash('sha256').update(text, 'utf8').digest('hex');
 result.wrapper_sha256 = sha256(wrapper);
+result.repair_sha256 = sha256(repair);
 result.migration_004_sha256 = sha256(source[3]);
 
 async function freePort() {
@@ -91,19 +99,19 @@ try {
   let good;
   await caseRun('FIRST_APPLY_EXACT_HISTORY', async () => {
     good = await fixture('good');
-    await good.query(wrapper);
+    await good.query(crlfWrapper);
     assert.ok((await good.query("select to_regclass('public.health_rules') as t")).rows[0].t);
     const row = (await good.query("select statements,name from supabase_migrations.schema_migrations where version='202610130004'"))
       .rows[0];
     assert.equal(row.name, 'health_daily');
     assert.deepEqual(row.statements, [source[3]]);
     assert.equal(md5(row.statements[0]), md5(source[3]));
-    return '004 DDL and exact original statement committed together';
+    return 'CRLF-pasted wrapper executed 004 but registered exact LF original in same transaction';
   });
   await caseRun('SAME_HASH_NO_OP', async () => {
     assert.ok(good);
     const before = (await good.query("select 'public.health_rules'::regclass::oid as oid")).rows[0].oid;
-    await good.query(wrapper);
+    await good.query(crlfWrapper);
     const after = (await good.query("select 'public.health_rules'::regclass::oid as oid")).rows[0].oid;
     assert.equal(after, before);
     assert.equal((await good.query("select count(*)::int as n from supabase_migrations.schema_migrations where version='202610130004'"))
@@ -128,6 +136,61 @@ try {
     const db = await fixture('fixed', { badFixed: true });
     await rejected(db, /Fixed two-account space precondition failed/);
     return 'missing fixed member rejected before 004 DDL';
+  });
+  let legacy;
+  await caseRun('REPAIR_EXACT_CRLF_HISTORY', async () => {
+    legacy = await fixture('legacy');
+    await legacy.query(legacyCrlfWrapper);
+    const before = (await legacy.query("select statements[1] as s from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0].s;
+    assert.equal(md5(before), 'ec77b7c1e820787e54e61da4b23bc990');
+    assert.equal(Buffer.byteLength(before), 69006);
+    const oid = (await legacy.query("select 'public.health_rules'::regclass::oid as oid")).rows[0].oid;
+    await legacy.query(repair);
+    const after = (await legacy.query("select statements[1] as s from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0].s;
+    assert.equal(after, source[3]);
+    assert.equal((await legacy.query("select 'public.health_rules'::regclass::oid as oid")).rows[0].oid, oid);
+    await legacy.query(crlfWrapper);
+    return 'exact legacy CRLF hash repaired to LF; DDL unchanged; fixed wrapper accepts history';
+  });
+  await caseRun('REPAIR_ALREADY_LF_NO_OP', async () => {
+    assert.ok(legacy);
+    const before = (await legacy.query("select statements[1] as s from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0].s;
+    await legacy.query(repair);
+    const after = (await legacy.query("select statements[1] as s from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0].s;
+    assert.equal(after, before);
+    return 'already normalized history stayed unchanged';
+  });
+  await caseRun('REPAIR_NON_NEWLINE_TAMPER_REJECTED', async () => {
+    const db = await fixture('tamper');
+    await db.query(legacyCrlfWrapper);
+    await db.query("update supabase_migrations.schema_migrations set statements[1]=statements[1]||'X' where version='202610130004'");
+    const before = (await db.query("select statements[1] as s from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0].s;
+    const oid = (await db.query("select 'public.health_rules'::regclass::oid as oid")).rows[0].oid;
+    await assert.rejects(db.query(repair), /Migration history mismatch: 202610130004/);
+    await db.query('rollback');
+    assert.equal((await db.query("select statements[1] as s from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0].s, before);
+    assert.equal((await db.query("select 'public.health_rules'::regclass::oid as oid")).rows[0].oid, oid);
+    return 'non-newline byte change refused without history or DDL mutation';
+  });
+  for (const kind of ['name', 'cardinality']) await caseRun(`REPAIR_WRONG_${kind.toUpperCase()}_REJECTED`, async () => {
+    const db = await fixture(`wrong${kind}`);
+    await db.query(legacyCrlfWrapper);
+    if (kind === 'name') await db.query("update supabase_migrations.schema_migrations set name='other' where version='202610130004'");
+    else await db.query("update supabase_migrations.schema_migrations set statements=statements||array['extra'] where version='202610130004'");
+    const before = (await db.query("select statements,name from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0];
+    await assert.rejects(db.query(repair), /Migration history mismatch: 202610130004/);
+    await db.query('rollback');
+    const after = (await db.query("select statements,name from supabase_migrations.schema_migrations where version='202610130004'"))
+      .rows[0];
+    assert.deepEqual(after, before);
+    return `wrong ${kind} refused without metadata mutation`;
   });
 } catch (error) {
   result.setup_error = { name: error.name, code: error.code ?? null, reason: String(error.message).slice(0, 180) };

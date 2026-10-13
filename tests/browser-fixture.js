@@ -10,7 +10,7 @@ const fresh = () => ({profile:null,schedules:[],weights:[],health_rules:[],daily
 const store = {me:fresh(),w:fresh()};
 const members = Object.entries(ids).map(([slot,user_id])=>({user_id,space_id:'synthetic-space',display_name:slot==='me'?'合成甲':'合成 W',share_profile:false,share_schedule:false,share_weight:false,share_plan:false,share_training:false,share_meal:false,share_photo:false,allow_partner_edit:false}));
 const space = {id:'synthetic-space',name:'合成测试空间'};
-let slot=null, session=null, callback, seq=0, hold=false, release, holdSignOut=false, releaseSignOut, holdPassword=false, releasePassword;
+let slot=null, session=null, callback, seq=0, hold=false, release, holdSignOut=false, releaseSignOut, holdPassword=false, releasePassword, providerExtensionAvailable=true, planProvider='rules';
 const stamp = () => new Date(Date.now() + (++seq)*1000).toISOString();
 const uid = () => ids[slot];
 const mine = () => store[slot];
@@ -41,6 +41,9 @@ window.__synthetic = {
   passwordCalls:0,
   photoUploads:0
   ,generateCalls:0
+  ,parseCalls:0
+  ,estimateCalls:0
+  ,setProviderExtension(value){providerExtensionAvailable=value}
   ,seedGenerationReady(){mine().health_rules=[row({user_id:uid(),rules:{confirmed:true,meal_template:[{title:'合成早餐',foods:[{name:'合成食物',portion:'1',unit:'份'}]},{title:'合成午餐',foods:[{name:'合成食物',portion:'1',unit:'份'}]},{title:'合成晚餐',foods:[{name:'合成食物',portion:'1',unit:'份'}]}]},is_shared:false})]}
   ,setLatestMealEstimate(){mine().meals.at(-1).data.estimate={recognition_status:'recognized',items:[],energy_min_kcal:400,energy_max_kcal:600,uncertainty:'合成区间',assumptions:[],cooking:null,oil:null,leftover:null}}
   ,seedTodayPlan(){const now=new Date().toISOString();const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const plan=row({user_id:uid(),target_date:today,version:1,source:'manual',status:'published',is_shared:false,is_stale:false,is_locked:false,input_version:'synthetic',content:{summary:'合成训练安排',meals:[],training:{mode:'workout',purpose:'合成检查',time:null,intensity:'轻',equipment:'固定器械',muscles:['腿'],warmup:[],items:[{exercise_id:'machine_leg_press',sets:1,reps:8,work_seconds:30,rest_seconds:10,transition_seconds:0,first_use_check:'',short_option:''}],cooldown:[],total_seconds:30},warnings:[]},generated_at:now});mine().daily_plans.push(plan);return plan.id}
@@ -75,7 +78,7 @@ export const api = {
       schedules:[...own.schedules.map(r=>({...r})),...visible(other.schedules,'share_schedule').map(r=>({...r}))],
       weights:[...own.weights.map(r=>({...r})),...visible(other.weights,'share_weight').map(r=>({...r}))],
       audit:[],range:{from:'2026-01-01',to:'2027-01-01'}
-      ,healthAvailable:true,
+      ,healthAvailable:true,providerAiAvailable:providerExtensionAvailable,
       ...Object.fromEntries(['health_rules','daily_plans','generation_jobs','training_sessions','meals','photo_assets','ai_consents'].map(key=>[key,[...own[key].map(r=>({...r})),...visible(other[key],'share_'+({health_rules:'profile',daily_plans:'plan',generation_jobs:'plan',training_sessions:'training',meals:'meal',photo_assets:'photo',ai_consents:'profile'})[key]).map(r=>({...r}))]]))
     };
     if (hold) {hold=false;await new Promise(resolve=>{release=resolve})}
@@ -88,13 +91,15 @@ export const api = {
   async setPlanLock(id,locked,expected){const plan=mine().daily_plans.find(r=>r.id===id);if(!plan||plan.updated_at!==expected)throw new Error('Update conflict');plan.is_locked=locked;plan.updated_at=stamp();return {...plan}},
   async requestPlanGeneration(targetDate){const job=row({user_id:uid(),target_date:targetDate,kind:'manual',status:'queued',attempts:0,max_attempts:3,error_code:null});mine().generation_jobs.push(job);return {...job}},
   async retryGenerationJob(id){const job=mine().generation_jobs.find(r=>r.id===id);job.status='queued';return {...job}},
-  async generatePlan(id){window.__synthetic.generateCalls++;const job=mine().generation_jobs.find(r=>r.id===id);if(!job)throw new Error('Missing synthetic job');const old=mine().daily_plans.filter(r=>r.target_date===job.target_date).sort((a,b)=>b.version-a.version)[0];const plan=row({user_id:uid(),target_date:job.target_date,version:(old?.version||0)+1,source:'rules',status:'published',is_shared:false,is_stale:false,is_locked:false,input_version:'synthetic',content:old?.content||{summary:'合成生成计划',meals:[],training:{mode:'rest',warmup:[],items:[],cooldown:[],total_seconds:0},warnings:[]},generated_at:stamp()});mine().daily_plans.push(plan);job.status='succeeded';job.attempts++;job.plan_id=plan.id;return {job_id:id,status:'succeeded',plan_id:plan.id,error_code:null}},
+  async generatePlan(id,provider){if(provider!=='rules')throw new Error('Synthetic generator requires explicit rules');window.__synthetic.generateCalls++;const job=mine().generation_jobs.find(r=>r.id===id);if(!job)throw new Error('Missing synthetic job');const old=mine().daily_plans.filter(r=>r.target_date===job.target_date).sort((a,b)=>b.version-a.version)[0];const plan=row({user_id:uid(),target_date:job.target_date,version:(old?.version||0)+1,source:'rules',status:'published',is_shared:false,is_stale:false,is_locked:false,input_version:'synthetic',content:old?.content||{summary:'合成生成计划',meals:[],training:{mode:'rest',warmup:[],items:[],cooldown:[],total_seconds:0},warnings:[]},generated_at:stamp()});mine().daily_plans.push(plan);job.status='succeeded';job.attempts++;job.plan_id=plan.id;return {job_id:id,status:'succeeded',plan_id:plan.id,error_code:null}},
   async saveTrainingSession(payload,id){return save(mine().training_sessions,{...payload,user_id:uid()},id)},
   async saveMeal(payload,id){return save(mine().meals,{...payload,user_id:uid()},id)},
   async deleteMeal(id){mine().meals=mine().meals.filter(r=>r.id!==id)},
-  async setAiConsent(kind,enabled,limit,version){mine().ai_consents=mine().ai_consents.filter(r=>r.kind!==kind);mine().ai_consents.push(row({user_id:uid(),kind,enabled,monthly_limit_cents:limit,policy_version:version,is_shared:false}))},
-  async parseSchedule(){throw new Error('Synthetic AI unavailable')},
-  async estimateMeal(){throw new Error('Synthetic AI unavailable')},
+  async setAiProviderConsent(provider,purpose,enabled,limit,version){if(provider!=='openai')throw new Error('Synthetic DeepSeek disabled');mine().ai_consents=mine().ai_consents.filter(r=>r.provider!==provider||r.purpose!==purpose);mine().ai_consents.push(row({user_id:uid(),provider,purpose,enabled,monthly_limit_cents:limit,policy_version:version,is_shared:false}))},
+  async setAiPlanProvider(provider){if(!['rules','openai'].includes(provider))throw new Error('Invalid provider');planProvider=provider;return provider},
+  async aiStatus(){if(!providerExtensionAvailable)throw Object.assign(new Error('Missing extension'),{code:'PGRST202'});const consents=Object.fromEntries(mine().ai_consents.filter(r=>r.provider==='openai').map(r=>[r.purpose,{enabled:r.enabled,monthly_limit_cents:r.monthly_limit_cents}]));return {schema_version:5,plan_provider:planProvider,global_budget_configured:true,providers:{openai:{configured:true,model:'synthetic-model',budget_configured:true,consents,usage:{}},deepseek:{configured:false,model:null,budget_configured:false,consents:{},usage:{}}}}},
+  async parseSchedule(rawText,submittedAt,provider){if(provider!=='openai')throw new Error('Missing explicit provider');window.__synthetic.parseCalls++;return {draft:{user_slot:'me',record_date:'2026-10-14',exercise:{intent:'unknown'},meal:{conditions:''},constraints:[],fatigue:'unknown',pain:null,sleep:'unknown'},needs_confirmation:true,parse_version:'health-schedule-v1',submitted_at:submittedAt}},
+  async estimateMeal(mealId,provider){if(provider!=='openai')throw new Error('Missing explicit provider');window.__synthetic.estimateCalls++;return {draft:{recognition_status:'unrecognized',items:[],energy_min_kcal:null,energy_max_kcal:null,uncertainty:'合成未知',assumptions:[],cooking:null,oil:null,leftover:null},needs_confirmation:true}},
   async uploadPhoto(){window.__synthetic.photoUploads++;throw new Error('Synthetic photo service unavailable')},
   async downloadPhoto(){throw new Error('Synthetic photo service unavailable')},
   async deletePhoto(){throw new Error('Synthetic photo service unavailable')},

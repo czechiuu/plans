@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
-import { env, json, safeError } from '../_shared/runtime.js'
-import { generate } from '../_shared/ai-core.js'
+import { env, json, safeError, readBounded } from '../_shared/runtime.js'
+import { generate, probeDeepSeek } from '../_shared/ai-core.js'
+import foodExample from '../../../tests/fixtures/food-example-compact.png'
 
 function validSecret(actual,expected){
   if(!actual||!expected||expected.length<32) return false
@@ -26,6 +27,15 @@ async function handle(request){
   const url=env('SUPABASE_URL'),key=env('SUPABASE_SERVICE_ROLE_KEY')
   if(!url||!key) throw new Error('SERVER_NOT_CONFIGURED')
   const admin=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}})
+  const raw=request.body?new TextDecoder().decode(await readBounded(request,128)):''
+  let body={}
+  try{body=raw?JSON.parse(raw):{}}catch{throw new Error('INVALID_REQUEST')}
+  if(body.action==='probe-deepseek'){
+    const encoded=foodExample.split(',')[1]
+    const bytes=Uint8Array.from(atob(encoded),char=>char.charCodeAt(0))
+    return json(200,await probeDeepSeek(admin,bytes))
+  }
+  if(Object.keys(body).length) throw new Error('INVALID_REQUEST')
   const scheduledFor=lastShanghaiEight(new Date())
   const enqueue=await admin.rpc('enqueue_scheduled_plans',{p_scheduled_for:scheduledFor})
   if(enqueue.error) throw new Error('INTERNAL_ERROR')

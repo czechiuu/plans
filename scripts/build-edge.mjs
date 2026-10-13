@@ -9,6 +9,6 @@ await build({
   entryNames:'[dir]',
   outbase:fileURLToPath(new URL('supabase/functions/',root)),
   bundle:true,platform:'browser',format:'esm',target:'es2022',minify:true,
-  legalComments:'eof',logLevel:'warning',
+  legalComments:'eof',logLevel:'warning',loader:{'.png':'dataurl'},
 })
 console.log(`Built ${names.length} Edge Function bundles.`)
