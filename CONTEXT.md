@@ -1,7 +1,7 @@
 # 项目上下文
 
-- 当前：第一阶段源码已上传；邮件子路径和邀请/退出并发已修复，远端 Linux CI 通过，继续准备云端验收。
-- 停点：远端提交 `c03df47c5b44c2fe5a2bb4c7459234a239b63cfe`，51 个公开文件哈希一致；[Linux CI](https://github.com/czechiuu/plans/actions/runs/38361905537) 的 23 单元、5 并发（另复现旧漏洞 1 项）、构建通过，deploy skipped。真实云 API 11 和真实页面 7 项仍未运行。免费创建/迁移/发布已获授权；已登录并创建 Personal 免费组织 `czechiuu's Org`，`plans` 创建表单已填，等待用户设置数据库密码并提交，尚无项目 ref。
+- 当前：第一阶段 Supabase 免费项目、001＋002 迁移及 GitHub Pages 已完成；真实业务账号、邮件、真机仍待验收。
+- 停点：项目 `wnzbtitlvteptkvwhavw` 空库迁移及 14 项结构/ACL 通过，匿名 8 项拒绝通过；[网页](https://czechiuu.github.io/plans/) 的 [部署运行](https://github.com/czechiuu/plans/actions/runs/38375922987) test-build/deploy 成功，源提交 `605c8dad48cef31cbffa72d7056016dd0910f596`。首次部署匿名页面 8 通过、1 失败（图标 404）、3 未运行；代码已修、构建通过，重新部署和复测待完成。本地 23/5/2/5 通过；真实 API 11 和页面 7 项带公共配置重跑，仍缺 A/B/C 账号凭据及测试确认标志。Site URL 与两条精确 Redirect URL 已保存并回读，见 [配置报告](test-results/cloud-auth-config-results.json)；SMTP 未配置，QQ 邮箱候选待用户选择。
 - 决定：GitHub Pages+Supabase；双账号、空间RLS、默认私有、逐条共享+类别开关、独立代改；真实档案只在忽略的private/，测试与截图仅合成数据。
-- 下一步：核对新空项目并按序执行 001/002，安全配置公共变量和三个专用合成账号，部署后验收邮件、权限、持久化、物理删除和两台真实设备。未通过前不导入私人档案，不进入第二阶段。
+- 下一步：上传图标修复后重新部署并复测；确定免费邮件渠道，准备三个专用合成账号；验收真实邮件、三账号权限、物理删除与两台真实设备。未通过前不导入私人档案，不进入第二阶段。
 - 不改父目录科研计划，不创建分支或worktree，不付费、不改变仓库可见性、不发送外部AI。

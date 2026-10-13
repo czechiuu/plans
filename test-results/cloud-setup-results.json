@@ -1,0 +1,53 @@
+{
+  "recorded_at_utc": "2026-10-13T09:18:00Z",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "project_region": "ap-south-1",
+  "evidence_source": "Parent agent's Supabase SQL Editor UI execution and readback; not independently re-run by this report writer",
+  "initial_state": {
+    "public_table_count": 0,
+    "auth_user_count": 0,
+    "schema_migrations_relation": null
+  },
+  "migration_history": [
+    {
+      "version": "202610130001",
+      "name": "initial",
+      "stored_statement_count": 1,
+      "stored_statement_md5_lf": "1d56c15aa7609c057d53a05b124b172d",
+      "matches_repository": true,
+      "transaction_committed": true
+    },
+    {
+      "version": "202610130002",
+      "name": "space_lock_order",
+      "stored_statement_count": 1,
+      "stored_statement_md5_lf": "c1e2788c3d67dccb544ab8166a6c096b",
+      "matches_repository": true,
+      "transaction_committed": true
+    }
+  ],
+  "first_001_attempt": "Rolled back because Windows clipboard CRLF changed the archived statement MD5; subsequent readback found zero public tables, zero Auth users, and no migration history. Retry archived LF text and committed unchanged application SQL.",
+  "migration_ledger": "RLS enabled and client permissions revoked on supabase_migrations.schema_migrations",
+  "structural_checks": {
+    "method": "Read-only SQL in Supabase SQL Editor",
+    "passed": 14,
+    "failed": 0,
+    "all_true": [
+      "anonymous_no_rpc",
+      "seven_tables_rls",
+      "invite_has_no_policy",
+      "clients_cannot_create",
+      "anonymous_no_table_read",
+      "authenticated_rpc_grants",
+      "clients_no_direct_writes",
+      "six_owner_share_policies",
+      "twelve_definer_functions",
+      "002_invite_member_recheck",
+      "002_join_space_lock_first",
+      "002_leave_same_space_only",
+      "authenticated_read_grants",
+      "fixed_function_search_path"
+    ]
+  },
+  "scope": "Migration and structural privilege checks only. Three-account authenticated RLS behavior and real device acceptance remain untested here."
+}

@@ -1,72 +1,49 @@
-# 第一阶段云端准备与人工验收
+# 第一阶段云端验收
 
-**验收状态：未执行。** 用户已授权创建 Supabase 免费项目、应用 001＋002 迁移和 GitHub Pages 发布，已登录控制台；当前创建/部署进展以 [STATUS.md](../STATUS.md) 为准。以下列出待完成的操作和证据，不重复请求已有授权，也不把本地模拟测试算作云端通过。
+**当前：项目、迁移和网页部署已完成；三账号业务、真实邮件和双物理设备尚未通过。** 这里只记录实际证据和剩余门槛，不能把匿名拒绝或页面上线当作完整权限验收。
 
-## 1. 确认目标项目与迁移
+| 已完成项目 | 证据与边界 |
+|---|---|
+| 免费项目与数据库 | `czechiuu's Project`，组织 `czechiuu's Org`，ref `wnzbtitlvteptkvwhavw`，ap-south-1 Mumbai/NANO。确认初始 `public` 应用表和 Auth 用户均为空；SQL Editor 事务按顺序应用 `202610130001_initial.sql`、`202610130002_space_lock_order.sql`，迁移历史保存与仓库一致的 LF 规范化 SQL；14 项结构/ACL 检查通过。[报告](../test-results/cloud-setup-results.json) |
+| 匿名访问 | 公开密钥、无会话请求读取 7 张表及调用 `current_space_id`，8 项均被真实服务拒绝。[报告](../test-results/cloud-anonymous-results.json)；未测试已登录账号之间的 RLS |
+| 前端部署 | [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)，[Actions 运行 38375922987](https://github.com/czechiuu/plans/actions/runs/38375922987) 的 test-build/deploy 均成功；部署源提交 `605c8dad48cef31cbffa72d7056016dd0910f596`。首次[部署匿名页面检查](../test-results/deployment-results.json) 8 通过、1 失败（`/favicon.ico` 404）、3 项需账号或真机未运行；图标代码已修、构建通过，重新部署和复测待完成 |
 
-1. 在获授权后，记录拟新建项目的**名称、project ref、区域、免费方案**和操作者。打开控制台核对 URL 中的 ref 与预期一致；确认 `public` schema 没有本应用的 `spaces`、`members`、`invites`、`health_profiles`、`schedules`、`weights` 等表，且项目没有真实用户资料。控制台里的 Auth 系统表不算应用数据。不要把数据库密码、访问令牌或连接串填进本文件。
-2. 对确认为**全新空项目**的数据库，优先用已链接到该 ref 的 Supabase CLI 按文件名顺序推送 `supabase/migrations/202610130001_initial.sql`，再推送 `supabase/migrations/202610130002_space_lock_order.sql`。执行前复核 CLI 显示的目标 ref；执行后用迁移历史核对两条文件名、顺序和成功状态，并检查表、RLS、函数权限。保存脱敏后的执行时间、操作者及迁移历史证据。不得先运行 002。
-3. 若数据库**已经有应用表或 001 曾通过 SQL Editor 手工执行**，先停下并核对实际 schema 与迁移历史。不要重跑 001，也不要把它标记为已执行来掩盖差异；需要的改动应另写按序编号的增量补丁，审查后再应用。002 也只对已核实的 001 基础应用。迁移出错时保留原始错误和目标 ref，先查原因，不继续部署前端。
+以后若发现差异，先核对迁移历史与实际 schema，只新增按序补丁；**不要重跑历史 001/002**。管理员 SQL Editor 的结构检查不替代普通账号通过应用读写的结果。
 
-## 2. 邮件与回跳地址
+## 邮箱与页面回跳
 
-1. 在 Supabase Auth 保留 **Confirm Email 开启**。先拿到实际发布后的网页 URL，再设置 **Site URL** 为该真实入口，**Redirect URLs** 精确列出真实发布入口（包含仓库项目路径）、实际使用的本地地址与端口；若用户会直接打开 `index.html`，也把该精确入口加入白名单。例子中的路径不能代替实际发布返回的 URL。注册确认与密码重置的前端回跳保留当前页面路径并去掉查询及认证片段；逐一核对邮件最终落在对应网页。自定义邮件模板时还需核对模板是否使用 `RedirectTo`。见 [Supabase Redirect URLs 文档](https://supabase.com/docs/guides/auth/redirect-urls)。
-2. 本地地址要按实际打开方式分别配置，例如 `http://127.0.0.1:5173/` 与 `http://localhost:5173/` 不是同一精确地址。正式站点可用精确项目子路径；不要用整个域名的宽泛通配来掩盖路径错误。
-3. Supabase [SMTP 文档](https://supabase.com/docs/guides/auth/auth-smtp)说明：默认 SMTP 仅向该组织 team 的预授权邮箱发信，当前限制为每小时 2 封，且不适合生产。不要为了收测试邮件把测试用户提升为组织管理员，也不要关闭邮箱确认。真实注册与重置测试需要已存在、或另经确认后在安全控制台配置的 SMTP 服务；新增邮件提供商及费用先确认，SMTP 凭据只留在服务端控制台。发信能力未解决时，邮件验收标“未运行”。
+Auth Site URL 已保存为实际网页 [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)；Redirect URLs 已保存并回读确认总数为 2，只有 `https://czechiuu.github.io/plans/` 与 `https://czechiuu.github.io/plans/index.html` 两个精确入口，没有宽泛通配。控制台读到 Allow new signups 与 Confirm email 开启、anonymous signins 关闭、Email 启用，这些开关未改；见 [配置回读报告](../test-results/cloud-auth-config-results.json)。真实注册确认与密码重置仍需核对邮件链接落在项目路径、新密码可登录、旧密码失效，不截图认证参数或密码。见 [Supabase Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls)。
 
-## 3. 配置边界与测试账号
+Custom SMTP 当前关闭。Supabase [SMTP 文档](https://supabase.com/docs/guides/auth/auth-smtp)说明默认服务只发给组织 team 的预授权邮箱、当前上限 2 封/小时且不适合生产。用户没有现成 SMTP，已要求选择免费方案；个人 QQ 邮箱 SMTP 已作为候选提出，待用户选择和配置，项目所在区域的实际投递尚未验证。不把测试账号提升为组织成员，也不关闭邮箱确认绕过限制。邮件渠道未确定时，真实注册/重置标“未运行”。
 
-- 前端 `.env.local` 或部署控制台只放 `VITE_SUPABASE_URL`、`VITE_SUPABASE_PUBLISHABLE_KEY` 两项**公共**配置。不得放 `service_role`、`secret`、SMTP、AI 密钥或真实健康资料。部署后检查公开构建产物和网页请求，确认没有私密值。
-- 云 API 脚本只从**进程环境**读取 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、`TEST_A_EMAIL`、`TEST_A_PASSWORD`、`TEST_B_EMAIL`、`TEST_B_PASSWORD`、`TEST_C_EMAIL`、`TEST_C_PASSWORD` 这 8 项，以及 `TEST_ACCOUNTS_ARE_DISPOSABLE=YES`。三个邮箱必须是彼此独立的**专用合成账号**；先完成人工真实注册与邮箱确认，且运行脚本时三个账号均未加入空间。绝不能使用“我/W”的健康账号。实站人工或浏览器检查另以 `E2E_BASE_URL` 指向实际发布入口。密码由操作者在本机安全地输入，不贴到聊天、截图或日志。
-- 脚本不会自动读取 `.env.local` 或其他环境文件。需要本机文件时，可自行创建被现有 `.gitignore` 排除的 `.env.cloud-test`，只在本机填入上述值，然后运行 `node --env-file=.env.cloud-test scripts/verify-cloud.mjs`。不提交该文件，不在命令行明文拼接密码。缺配置导致非零退出只表示**未运行**，不是云端通过。脚本只用合成资料，并应检查其退出清理结果；即使脚本通过，仍需下列人工验收。
+## 测试配置与实际顺序
 
-## 4. 两台真实设备人工流程
+1. 前端本地 `.env.local` 和 GitHub Actions Variables 只有 `VITE_SUPABASE_URL`、`VITE_SUPABASE_PUBLISHABLE_KEY` 两项**公共**值。不得放 `secret`、`service_role`、SMTP/AI 凭据或健康数据；`.env.local` 被 Git 忽略。首次部署检查未发现私有资料泄漏，真实账号运行日志仍待验收。
+2. 准备三个**不同的专用合成 A/B/C 账号**，完成真实邮箱确认。绝不使用“我/W”的账号或真实健康资料；云脚本运行时三个账号应尚未加入空间。云 API 脚本仅从进程读取 `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、`TEST_A_EMAIL/PASSWORD`、`TEST_B_EMAIL/PASSWORD`、`TEST_C_EMAIL/PASSWORD` 共 8 项及 `TEST_ACCOUNTS_ARE_DISPOSABLE=YES`。真实页面脚本再需 `E2E_BASE_URL=https://czechiuu.github.io/plans/`。只在本机安全环境或被 Git 忽略的 `.env.cloud-test` 中设置，不贴聊天、截图或日志。
+3. `scripts/verify-cloud.mjs` 和 `scripts/verify-cloud-browser.mjs` **不会自动读取 `.env.local`**。若用本机忽略文件，明确运行 `node --env-file=.env.cloud-test scripts/verify-cloud.mjs` 及对应 browser 脚本。已带项目公共配置和网页地址重跑，[API 11 项](../test-results/cloud-api-results.json) 与 [页面 7 项](../test-results/cloud-browser-results.json) 均为 0 通过、0 失败，现只缺 A/B/C 账号凭据和 `TEST_ACCOUNTS_ARE_DISPOSABLE=YES`，不能写成通过。页面脚本使用已发布 HTTPS 网址或已配置 production preview，不能用 Vite dev 或模拟 API。
+4. 账号可用后，机器先验证匿名/第三人隔离、默认私有、类别＋单条共享/撤销、代改、冲突、导出、清除与退出。管理员按本轮合成账号/空间做数据库删除计数；然后由用户与 W 仅执行 [两台物理设备 5 步流程](DEVICE-ACCEPTANCE.md)。两个窗口不是两台设备。
 
-使用两台**不同物理设备**、不同浏览器会话。A 与 B 用专用合成邮箱完成真实注册、收信、确认、登录；C 为独立第三账号。记录设备型号/浏览器版本和检查时间，不记录邮箱全文、密码、令牌或健康内容。
-
-| 检查 | 实际操作与通过条件 | 结果（通过/失败/未运行） | 脱敏证据或失败原因 |
-|---|---|---|---|
-| 注册与确认 | A、B、C 分别注册；未确认前不能当成已完成账号；确认邮件到达，链接回到含正确项目路径的站点，三账号独立登录。 | 未运行 | 待填 |
-| 密码重置 | A 发起重置，真实邮件回到同一部署页的“设置新密码”；本人手工输入新密码，旧密码失效，新密码重新登录。不得截图邮件令牌或密码。 | 未运行 | 待填 |
-| 私人空间与邀请 | A 创建空间并私下交给 B 一次性令牌；B 加入后空间恰有两人；同令牌重用、C 加入满员空间均被拒绝。令牌不进证据截图。 | 未运行 | 待填 |
-| 邀请过期 | 真实等待 24 小时再尝试；若需加速，只能由获授权管理员在数据库控制台按**本次合成邀请的 id、space_id、created_by** 同时定位，单条调整 `expires_at`，确认只影响该条，随后验证过期拒绝。不能给网页客户端管理权限。 | 未运行 | 待填 |
-| 私有与隔离 | A 填合成档案、日程和体重，默认私有；B 与 C 看不到，匿名请求被拒绝；C 的另一空间看不到 A/B 的空间与记录。 | 未运行 | 待填 |
-| 共享与撤销 | A 分别打开类别共享和单条共享，B 在另一设备**手动刷新**后才看到；关闭任一开关，B 再手动刷新后看不到。不能把自动通知写为已实现。 | 未运行 | 待填 |
-| 代改与冲突 | 未授权时 B 不能改 A 的记录；A 开启代改且该类别/记录均共享后 B 可改，A 刷新看到真实修改者与上海时间；两设备并发编辑时旧版本报冲突、不静默覆盖；撤销代改后 B 再试被拒绝。 | 未运行 | 待填 |
-| 日程与体重 | A/B 各自新增、补录、编辑和删除；今日/明日与“我/伴侣/共同”仅按权限展示；7 日平均只统计真实记录且显示样本数，缺失日期不补造。 | 未运行 | 待填 |
-| 会话与持久化 | 保存后手动刷新、退出再登录、完全关闭浏览器并重开，确认有权数据仍在；退出登录后当前页面没有旧健康内容，另一账号登录不继承前者资料。 | 未运行 | 待填 |
-| 导出、清除、退出 | A 先导出自己的 JSON，确认不含 B 的数据；应用内确认清除本人健康数据后 A/B 刷新均看不到 A 的资料；B 退出空间后权限撤销且其空间健康记录被删除；重新加入不继承旧共享。 | 未运行 | 待填 |
-| 未实现边界 | 未配置时显示未连接；AI、自动计划、照片、自动通知明确标未启用，网页没有假数据或假成功。 | 未运行 | 待填 |
-
-## 5. 清理与删除证据
-
-客户端以 A、B、C 和匿名身份查询都返回空，只能证明**当前身份看不到**，不能单独证明物理删除。清理时由获授权管理员在数据库控制台，按本次三个合成账号的 `user_id` 精确过滤 `health_profiles`、`schedules`、`weights`、`members`，并按本次合成 `space_id` 检查 `invites` 和 `spaces`；记录删除前后计数、操作者、时间及结果。不要用无条件 `DELETE`、不查真实用户的全表清理。必要时再清理专用合成 Auth 账号；不碰“我/W”账号。数据库备份的保留和实际清除规则未经核实，必须标“未知”，不能凭表计数为零宣称备份也已删除。
-
-在管理员 SQL Editor 中，先以本次合成账号的真实 UUID 替换占位符，再按所有者过滤查询；记录检查前后计数，**不要把 UUID 发到聊天或截图**。以下占位符未替换时应报错，不会误把别人的记录当作零：
+客户端 A、B、C 或匿名查询为空，只证明当前身份看不到，**不能单独证明物理删除**。管理员在 SQL Editor 中以本轮合成账号 UUID 替换占位符并核对清理前后计数；未替换时查询应报错，不会产生虚假的零结果：
 
 ```sql
 with test_users as (
   select unnest(array['<A_UUID>'::uuid, '<B_UUID>'::uuid, '<C_UUID>'::uuid]) as user_id
 )
 select 'health_profiles' as table_name, count(*) as remaining from public.health_profiles where user_id in (select user_id from test_users)
-union all
-select 'schedules', count(*) from public.schedules where user_id in (select user_id from test_users)
-union all
-select 'weights', count(*) from public.weights where user_id in (select user_id from test_users)
-union all
-select 'members', count(*) from public.members where user_id in (select user_id from test_users);
+union all select 'schedules', count(*) from public.schedules where user_id in (select user_id from test_users)
+union all select 'weights', count(*) from public.weights where user_id in (select user_id from test_users)
+union all select 'members', count(*) from public.members where user_id in (select user_id from test_users);
 ```
 
-## 6. 最终证据记录
+另按本轮合成 `space_id` 和 `created_by` 检查 `invites` 与 `spaces`；不执行无过滤的清理。过期邀请可等待真实 24 小时，或由获授权管理员只定位本次合成邀请的 `id + space_id + created_by` 后单条调整 `expires_at`，不能给客户端管理权。数据库备份保留/删除规则**尚未核实**，表计数为零不代表备份已删除。
 
-| 门槛 | 结果（通过/失败/未运行） | 证据位置（脱敏）/备注 |
+| 剩余门槛 | 状态 | 脱敏证据 |
 |---|---|---|
-| 项目名称/ref、空库和迁移历史 | 未运行 | 待填 |
-| Confirm Email、Site URL、Redirect URLs、SMTP | 未运行 | 待填 |
-| 云 API 脚本：通过数/失败数/清理结果 | 未运行 | 待填 |
-| 两台物理设备与第三账号人工流程 | 未运行 | 待填 |
-| 合成用户物理删除计数 | 未运行 | 待填 |
-| 公开产物、日志与仓库密钥排查 | 未运行 | 待填 |
-| 备份保留与删除规则 | 未运行（未知） | 待核实 |
+| 两条精确 Redirect URL | 已保存并回读 | 两条精确入口，无通配 |
+| 部署资源/匿名页面 | 首次 8 通过、1 失败、3 未运行；图标已修，待重新部署和复测 | [报告](../test-results/deployment-results.json) |
+| 可用邮件渠道、注册确认与重置全流程 | 未运行 | 待填 |
+| 三账号真实 API 11 项与页面 7 项 | 阻塞：无专用账号 | 待填 |
+| 邀请过期、清理后管理员计数、备份规则 | 未运行／备份未知 | 待填 |
+| 两台真实物理设备 | 未运行 | [人工记录](DEVICE-ACCEPTANCE.md) |
 
-只有上述实际完成且无影响交付的失败，才能把“云端待验收”改成“云端通过”。记录只放脱敏证据；测试中的真实邮箱、密码、令牌和健康数据不得写入此文件。
+所有记录只留设备、时间、结果及脱敏证据；不记邮箱、密码、邀请令牌、Auth 会话或真实健康内容。全部关键门槛通过前不导入真实档案，也不进入第二阶段。

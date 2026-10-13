@@ -1,0 +1,68 @@
+{
+  "checked_at_utc": "2026-10-13T09:21:06.016Z",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "principal": "anonymous, public browser key, no session",
+  "method": "Supabase JS SDK read-only requests",
+  "checks": [
+    {
+      "id": "ANON_SELECT_SPACES",
+      "method": "from('spaces').select('id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_SELECT_MEMBERS",
+      "method": "from('members').select('user_id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_SELECT_INVITES",
+      "method": "from('invites').select('id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_SELECT_HEALTH_PROFILES",
+      "method": "from('health_profiles').select('id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_SELECT_SCHEDULES",
+      "method": "from('schedules').select('id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_SELECT_WEIGHTS",
+      "method": "from('weights').select('id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_SELECT_AUDIT_EVENTS",
+      "method": "from('audit_events').select('id').limit(1)",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    },
+    {
+      "id": "ANON_RPC_CURRENT_SPACE",
+      "method": "rpc('current_space_id')",
+      "passed": true,
+      "http_status": 401,
+      "error_code": "42501"
+    }
+  ],
+  "passed": 8,
+  "failed": 0,
+  "status": "passed",
+  "scope": "Anonymous read and read-only RPC only; no authenticated or three-account RLS behavior tested"
+}

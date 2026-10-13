@@ -1,0 +1,70 @@
+{
+  "generated_at": "2026-10-13T09:31:02.597Z",
+  "scope": "published-anonymous-static-check",
+  "site": "https://czechiuu.github.io/plans/",
+  "deployment_run": "https://github.com/czechiuu/plans/actions/runs/38375922987",
+  "source_sha": "605c8dad48cef31cbffa72d7056016dd0910f596",
+  "deployment_identity_basis": "Run URL and source SHA were supplied for this task; this check did not compare deployed bytes with the commit.",
+  "passed": 8,
+  "failed": 1,
+  "blocked": 0,
+  "notrun": 3,
+  "cases": [
+    {
+      "id": "HTTPS_200",
+      "status": "passed"
+    },
+    {
+      "id": "PLANS_PRODUCTION_ASSETS",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_PROJECT_AND_NO_SECRET",
+      "status": "passed"
+    },
+    {
+      "id": "NO_PRIVATE_PUBLIC_FILES",
+      "status": "passed"
+    },
+    {
+      "id": "DESKTOP_LOGIN",
+      "status": "passed"
+    },
+    {
+      "id": "MOBILE_AUTH_ENTRIES",
+      "status": "passed"
+    },
+    {
+      "id": "REFRESH_AND_QUERY",
+      "status": "passed"
+    },
+    {
+      "id": "INVALID_AUTH_CALLBACK_NO_BLANK",
+      "status": "passed"
+    },
+    {
+      "id": "BASELINE_CONSOLE_AND_RESOURCES",
+      "status": "failed",
+      "error_kind": "AssertionError"
+    }
+  ],
+  "manual_notrun": [
+    "THREE_ACCOUNT_AUTH",
+    "CROSS_DEVICE_PERSISTENCE",
+    "REAL_PHYSICAL_PHONES"
+  ],
+  "diagnostics": {
+    "pageErrors": 0,
+    "consoleErrors": 1,
+    "failedAssets": 0,
+    "consoleErrorSources": [
+      {
+        "case_id": "MOBILE_AUTH_ENTRIES",
+        "host": "czechiuu.github.io",
+        "path": "/favicon.ico",
+        "kind": "resource"
+      }
+    ],
+    "responseErrors": []
+  }
+}

@@ -1,9 +1,12 @@
 {
-  "checked_at_utc": "2026-10-13T06:55:31Z",
+  "checked_at_utc": "2026-10-13T08:43:52.324Z",
   "command": "pnpm test",
   "tests": 23,
   "passed": 23,
   "failed": 0,
   "database_engine": "PGlite local PostgreSQL semantic fixture",
-  "scope": "synthetic local unit, RLS/RPC, build-config, date, and persistence tests; not a Supabase cloud acceptance test"
+  "scope": "synthetic local unit, RLS/RPC, build-config, date, and persistence tests; not a Supabase cloud acceptance test",
+  "execution_finished_before_utc": "2026-10-13T08:38:14.380Z",
+  "execution_time_basis": "This pnpm test run completed before the separately run pnpm test:concurrency report timestamp; the test command output did not include an absolute start or end time.",
+  "exit_code": 0
 }

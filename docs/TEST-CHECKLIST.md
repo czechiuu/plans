@@ -1,76 +1,41 @@
-# 验收清单与第一阶段证据
+# 第一阶段验收清单与证据
 
-2026-10-13，Asia/Shanghai。通过=实际执行成功；失败=执行不成功；未执行/阻塞=没有验证；模拟=只检验界面。第一阶段真实云端验收尚未通过，第二阶段尚未开始。
+截至 2026-10-13（Asia/Shanghai）。通过=实际执行成功；阻塞/未运行=没有功能验收证据；模拟=仅合成界面。各环境分别统计，不把结构、匿名、模拟、本地或部署通过合并成三账号业务通过。
 
-## 本轮实际结果
+| 环境/项目 | 通过 | 失败 | 阻塞 | 证据与实际范围 |
+|---|---:|---:|---:|---|
+| 本地单元、PGlite/合成 Auth | 23 | 0 | 0 | [unit-results.json](../test-results/unit-results.json)，已含 7 项邮件回跳单测 |
+| 本地 PostgreSQL 多连接 | 5 | 0 | 0 | [concurrency-results.json](../test-results/concurrency-results.json)，另按预期复现 001 旧漏洞 1 项 |
+| 未配置页浏览器 | 2 | 0 | 0 | [unconfigured-results.json](../test-results/unconfigured-results.json)，在单独显式清空 `VITE_` 的 dev 进程检查 |
+| 合成资料/内存 API 界面 | 5 | 0 | 0 | [ui-mock-results.json](../test-results/ui-mock-results.json)，只此类替换 API，截图带模拟水印 |
+| 云项目空库、001＋002、结构/ACL | 14 | 0 | 0 | [cloud-setup-results.json](../test-results/cloud-setup-results.json)；空库核对、事务迁移和与仓库一致的 LF 源 SQL 迁移历史 |
+| 真实云端匿名访问拒绝 | 8 | 0 | 0 | [cloud-anonymous-results.json](../test-results/cloud-anonymous-results.json)：7 张表和 `current_space_id`；没有已登录账号 |
+| 首次部署匿名网页 | 8 | 1 | 3 项未运行 | [deployment-results.json](../test-results/deployment-results.json)：唯一失败为 `/favicon.ico` 404，代码已修、构建通过，待重新部署及复测；3 项需账号或真机 |
+| 真实三账号 Supabase API | 0 | 0 | 11 | [cloud-api-results.json](../test-results/cloud-api-results.json)，已带项目公共配置重跑；缺 A/B/C 账号凭据和一次性测试确认标志 |
+| 真实构建页面＋Supabase | 0 | 0 | 7 | [cloud-browser-results.json](../test-results/cloud-browser-results.json)，已带项目公共配置和网页地址重跑；缺 A/B/C 账号凭据和一次性测试确认标志，不替换 API |
+| 真实邮件和两台物理设备 | 0 | 0 | 待做 | [云端](CLOUD-ACCEPTANCE.md)与[真机](DEVICE-ACCEPTANCE.md)清单 |
 
-| 分类 | 独立命令 | 通过 | 失败 | 未执行/阻塞 | 证据 |
-|---|---|---:|---:|---:|---|
-| 本地单元、RLS/RPC、持久化、配置检查 | `pnpm test` | 23 | 0 | 0 | [unit-results.json](../test-results/unit-results.json)，PGlite/合成Auth |
-| 真实 PostgreSQL 多连接 | `pnpm test:concurrency` | 5 | 0 | 0 | [concurrency-results.json](../test-results/concurrency-results.json)，另复现旧漏洞1项 |
-| Linux GitHub Actions 单元/构建 | [运行 38361905537](https://github.com/czechiuu/plans/actions/runs/38361905537) | 23 | 0 | 0 | 安装、`pnpm test` 与 `pnpm build` 通过；deploy skipped |
-| Linux GitHub Actions 多连接并发 | 同一运行 | 5 | 0 | 0 | 修复回归通过，另按预期复现 001 基线漏洞 1 项 |
-| 未配置状态 | `pnpm test:browser:unconfigured` | 2 | 0 | 0 | [unconfigured-results.json](../test-results/unconfigured-results.json) |
-| 合成资料/内存接口界面 | `pnpm test:browser:mock` | 5 | 0 | 0 | [ui-mock-results.json](../test-results/ui-mock-results.json)，仅此类替换API |
-| 真实 Supabase API | `pnpm test:cloud` | 0 | 0 | 11 | [cloud-api-results.json](../test-results/cloud-api-results.json)，缺安全配置退出1 |
-| 真实构建页面＋Supabase | `pnpm test:browser:cloud` | 0 | 0 | 7 | [cloud-browser-results.json](../test-results/cloud-browser-results.json)，缺配置退出1 |
-| 实际注册/密码邮件、重置登录、邀请过期、物理删除 | 人工云端清单 | 0 | 0 | 5 | [人工门槛](../test-results/cloud-manual-gates.json) |
-| 两台真实物理设备 | 人工双设备流程 | 0 | 0 | 1组 | 同上，两个浏览器上下文不算两台设备 |
+[GitHub Pages 部署运行 38375922987](https://github.com/czechiuu/plans/actions/runs/38375922987) 的 test-build、deploy 均成功；实际地址为 [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)，源码 `605c8dad48cef31cbffa72d7056016dd0910f596`。首次部署检查的页面错误为图标 404，修复和复测尚未完成；上述 8 项匿名 API 拒绝不能替代三账号共享/隔离检查。Site URL 和两条精确 Redirect URL 已保存并回读，Custom SMTP 关闭，见 [Auth 配置回读](../test-results/cloud-auth-config-results.json)。
 
-23 项本地测试已包含 7 项回跳测试，不能再相加；表中 Linux 项是同一组测试在另一环境的独立运行，也不能与本地相加。远端源码提交 `c03df47c5b44c2fe5a2bb4c7459234a239b63cfe` 的 51 个公开文件与本地上传内容哈希一致。Linux CI 构建通过，但 deploy skipped；当前没有已发布网页，Supabase 项目创建表单尚未提交。原混合 `verify-browser.mjs` / `browser-results.json` 已移除。
+本机 `.env.local` 已有两项 `VITE_` 公共配置且被 Git 忽略；新克隆须复制空白 `.env.example` 自行配置。再测“未配置页”须用 [README 命令](../README.md#本地运行与配置)启动另一个显式保留两项空值的 Vite 子进程；旧版 PowerShell 中设置空环境变量可能被当作删除，直接沿用已配置服务会使检查失真。模拟界面始终标“模拟”。云 API/云页面脚本只读进程环境，不自动加载 `.env.local`；真实页面需部署 URL 或已配置 production preview，不能用 dev 页。当前阻塞报告已带项目公共配置重跑，不能当作通过。
 
-浏览器两类本地测试先启动 `pnpm dev`；真实浏览器必须使用配置后的 production build/preview 或真实 HTTPS 部署页，不能使用 Vite 开发页。测试核对生产资源及预期 Supabase 主机，不替换 API。云测只读进程环境，不自动读取 `.env.local`；安全运行步骤见 [README](../README.md) 和 [云端验收清单](CLOUD-ACCEPTANCE.md)。自动脚本不得覆盖已记录的人工验收。
+## 原始 14 项需求的当前状态
 
-截图：[桌面未配置](../test-results/desktop-unconfigured.png)、[手机看板（模拟）](../test-results/mobile-dashboard-synthetic.png)、[手机体重/冲突（模拟）](../test-results/mobile-weight-synthetic.png)。后两张明确带合成资料/模拟接口水印；手机尺寸不等于真机测试。
-
-## 两项审查的复现与回归
-
-### 邮件回跳丢失项目子路径
-
-基线 `7a9fe5e` 的 `new URL('./', window.location.origin)` 在访问 `https://example.test/plans/` 时得到域名根路径。先用旧逻辑跑相同断言：2 通过、5 失败。修复为从实际 `window.location.href` 保留路径并移除查询、认证片段，注册确认和密码恢复共用处理，Vite 相对 base 保持不变。7 项回归通过，覆盖本地、根路径、任意项目路径、index.html、查询和认证回调；没有硬编码仓库路径。
-
-运行：`node --test tests/auth-redirect.test.js`。真实邮件发送、允许列表、回跳后的新密码提交与重新登录仍为未执行，不能用 URL 单元测试替代。
-
-### 退出与邀请并发
-
-运行：`pnpm test:concurrency`。脚本启动独立本地 PostgreSQL 17，创建两个隔离数据库，分别只装 001 与装 001＋002。连接A以 authenticated 身份开始事务并执行退出，保持空间锁；连接B用同一账号调用邀请；观察连接通过 `pg_stat_activity` / `pg_blocking_pids` 确认B等待A后，A才提交。没有使用单连接顺序调用冒充并发。
-
-001 基线确实让B获得新邀请，第三个合成账号能用它进入旧空间。002 锁内重新检查成员，拒绝邀请，数据库没有生成该邀请。回归另覆盖同令牌竞争、不同令牌争满员、持空间锁后加入/退出顺序不会死锁，以及双退出的等待者被拒绝。5 通过、0 失败。
-
-客户端角色没有 superuser/BYPASSRLS，RLS 开启；管理员仅做测试库初始化和观察锁。新增迁移统一空间→邀请的锁顺序，并补退出的锁内成员检查，历史001不改。Windows使用英文临时目录运行已固定版本的原生二进制，结束停止服务；测试库和日志仅是本机临时合成资料，不提交。
-
-## 第一阶段云端必须补齐的实际流程
-
-| 流程 | 测试方法 | 当前结果 |
+| # | 用户要求 | 当前结论 |
 |---|---|---|
-| 真实账号与邮件 | 三个专用合成账号各自注册、收确认邮件、登录；退出重登；找回邮件正确子路径→新密码→旧密码失效→新密码登录 | 未执行 |
-| 空间/邀请 | 第一人建空间、第二人加入；重复、过期、满员及第三人加入被拒；新旧邀请与退出并发按修复核对 | 本地并发通过；云端未执行 |
-| 默认私有与即时撤销 | 匿名/第三人猜ID查询被拒；类别＋单条共享后可读；撤销任一开关后新的请求立即不可读 | 本地RLS通过；云端未执行 |
-| 代改/退出 | 默认不能改；独立授权后能改且修改者正确；撤销后拒绝；退出后旧记录和旧授权不可用 | 本地RLS通过；云端未执行 |
-| 日程/体重/导出 | 真实页面新增、修改、删除；同日重复和旧版本冲突；双方都有共享记录时导出仅含本人，核对日期时段和数据 | 本地与模拟通过；云端未执行 |
-| 清除的真实结果 | 清除后保留成员关系，读本人健康表为空；管理员精确筛选本轮合成账号/空间，确认数据库行计数，而非只看提示 | 云端未执行 |
-| 持久化与两个设备 | 保存→刷新→关闭页面→新会话登录；两台物理设备共享/撤销/隔离，另一设备手动刷新 | 本地磁盘通过；云端/真机未执行 |
-| 部署安全 | 实际发布URL、HTTPS、子路径资源、Site URL、Redirect URLs、公开产物和日志、备份保留规则 | 待部署与核实 |
+| 1 | 双人真实账号、双设备共享与持久化 | 真机/业务云测未运行 |
+| 2 | 匿名、第三账号、越权与照片权限 | 匿名 8 项真实云端拒绝通过；三账号未运行；照片未实现 |
+| 3 | 自然语言人物、相对日期和歧义确认 | 上海日期本地测试通过；自然语言未实现 |
+| 4 | 浏览器关闭后的 20:00 任务与跨午夜 | 未实现、未运行 |
+| 5 | 自动生成的并发、防重、失败重试与锁定 | 未实现；邀请并发测试不能替代 |
+| 6 | 日程更新使旧计划待更新并保留版本 | 日程编辑冲突本地通过；自动计划版本未实现 |
+| 7 | 自由日、器械与寝室替代 | 计划规则未实现 |
+| 8 | 热身、动作、休息总时长 | 未实现 |
+| 9 | 动画合法、准确、可播放及文字替代 | 未实现、未人工核验 |
+| 10 | 食物估算草稿、确认、修正和不重复计数 | 未实现 |
+| 11 | 体重真实记录、缺失与少量样本 | 本地计算及模拟界面通过；三账号云端/真机未运行 |
+| 12 | 手机日程→计划→动画→记录全流程 | 第一阶段界面模拟通过；完整流程未实现 |
+| 13 | 前端、仓库、运行日志不泄漏 | 公共配置和本地私有路径已查；首次部署检查的公开资源与页面无私有资料发现，图标修复待重新部署复测；真实账号运行日志未验收 |
+| 14 | 区分通过、失败、阻塞和模拟 | 本表分别报告；自动生成不可标通过 |
 
-共享撤销从服务端新请求生效；已在另一设备屏幕上显示的旧内容需手动刷新。没有实时同步或手机推送。
-
-## 原始14项最终验收状态
-
-| # | 范围 | 当前结论 |
-|---|---|---|
-| 1 | 双设备登录、共享与持久化 | 云端与真机未执行 |
-| 2 | 匿名/第三人/越权/照片 | 本地数据库通过；云端未执行；照片未实现 |
-| 3 | 自然语言人员、相对日期与歧义 | 上海日期单元通过；自然语言未实现 |
-| 4 | 20:00及跨午夜后台任务 | 未实现/未执行 |
-| 5 | 生成并发、防重、网络/AI失败及锁定 | 未实现；本轮邀请并发不能替代生成任务验收 |
-| 6 | 修改日程使旧计划待更新、保留版本 | 日程编辑冲突本地通过；计划版本未实现 |
-| 7 | 自由日、允许器械、寝室替代 | 计划规则未实现 |
-| 8 | 热身/休息/动作总时长 | 未实现 |
-| 9 | 每动作动画准确、合法、手机播放与文字替代 | 未实现/未人工核验 |
-| 10 | 食物估算确认、修正、剩余和重复统计 | 未实现 |
-| 11 | 真实体重、缺失和少量数据 | 本地计算和模拟界面通过；云端/真机未执行 |
-| 12 | 手机完整日程→计划→动画→记录 | 第一阶段模拟界面通过；完整流程未实现/未执行 |
-| 13 | 前端、仓库、日志无泄漏 | 本地公开文件白名单和私有路径检查；云端待验收 |
-| 14 | 区分通过、失败、未执行和模拟 | 本文件和独立报告分别标注；自动任务不能标通过 |
-
-只有真实云端、邮件、隐私和双设备门槛都有证据，才能将第一阶段标为正式可用。真实健康档案导入和第二阶段均须等待这些检查。
+真实邮箱确认/重置、A/B/C 权限与撤销、清除后的管理员计数以及双物理设备流程通过前，第一阶段仍非正式可用。私人健康档案不导入，第二阶段不开始。
