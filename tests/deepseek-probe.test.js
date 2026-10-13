@@ -41,16 +41,19 @@ test('synthetic probe uses four fixed tasks, peak-price reservations and no heal
     foods:[{name:'合成食物',portion:'1拳',unit:'拳'}],prep_method:'简单备餐',
     purchase_or_prep:'购买或提前准备',alternative:'同份量替代食物',notes:'合成样例',snack_reason:null})),
     training:{mode:'rest',purpose:'合成测试',time:null,intensity:'无',equipment:'无',muscles:[],warmup:[],items:[],cooldown:[],total_seconds:0},warnings:[]}
+  const reorderedPlan={...validPlan,meals:validPlan.meals.map(meal=>({snack_reason:meal.snack_reason,...meal}))}
+  assert.notEqual(JSON.stringify(reorderedPlan.meals),JSON.stringify(validPlan.meals))
   const drafts=[
     {user_slot:'me',record_date:'2026-10-14',exercise:{intent:'yes',type:'散步',duration_minutes:30,
       location:null,equipment:null,explicit_start_time:'18:30',explicit_end_time:'19:00'},
       meal:{conditions:null,arrangements:null},constraints:[],fatigue:null,pain:null,sleep:null,ambiguous_fields:[]},
-    {recognition_status:'uncertain',items:[{name:'苹果',portion:'未知',unit:'份',confidence:'low'}],
+    {recognition_status:'uncertain',items:[{name:'苹果',portion:'未知',unit:'份',confidence:'low'},
+      {name:'香蕉',portion:'未知',unit:'份',confidence:'low'}],
       energy_min_kcal:null,energy_max_kcal:null,uncertainty:'未知重量',assumptions:[],cooking:null,oil:null,leftover:null},
     {recognition_status:'uncertain',items:[{name:'苹果',portion:'未知',unit:'份',confidence:'medium'},
       {name:'香蕉',portion:'未知',unit:'份',confidence:'medium'}],energy_min_kcal:null,
       energy_max_kcal:null,uncertainty:'遮挡',assumptions:[],cooking:null,oil:null,leftover:null},
-    validPlan,
+    reorderedPlan,
   ]
   let at=0
   globalThis.fetch=async(url,options)=>{
@@ -77,11 +80,30 @@ test('synthetic probe uses four fixed tasks, peak-price reservations and no heal
     const result=await probeDeepSeek(admin,photo)
     assert.equal(calls.length,4)
     assert.equal(calls[2].input[1].content[1].type,'input_image')
+    assert.match(calls[1].input[0].content[0].text,/苹果和香蕉/)
+    assert.match(calls[3].input[0].content[0].text,/confirmed_meals/)
+    assert.match(calls[3].input[0].content[0].text,/total_seconds=0/)
     assert.equal(reservations.length,4)
     assert.ok(reservations.every(x=>x.p_cents>=1&&x.p_cents<=10))
     assert.equal(result.results.filter(x=>x.valid).length,4)
     assert.equal(result.synthetic_only,true)
     assert.equal(result.balance_delta_is_attributable,false)
+    const invalidCases=[
+      [1,{...drafts[1],items:[drafts[1].items[0]]}],
+      [0,{...drafts[0],exercise:{...drafts[0].exercise,explicit_end_time:'19:30'}}],
+      [0,{...drafts[0],exercise:{...drafts[0].exercise,duration_minutes:31}}],
+      [2,{...drafts[2],items:drafts[2].items.map(item=>({...item,name:'未知食物',portion:item.name}))}],
+      [2,{...drafts[2],recognition_status:'unrecognized'}],
+      [2,{...drafts[2],uncertainty:''}],
+    ]
+    for(const [index,badDraft] of invalidCases){
+      const original=drafts[index]
+      drafts[index]=badDraft
+      at=0
+      const rejected=await probeDeepSeek(admin,photo)
+      assert.equal(rejected.results[index].valid,false)
+      drafts[index]=original
+    }
   }finally{
     globalThis.fetch=oldFetch
     if(previous===undefined) delete process.env.DEEPSEEK_API_KEY

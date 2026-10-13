@@ -6,7 +6,7 @@
 
 | 运行 | 通过 | 失败 | 证据 |
 |---|---:|---:|---|
-| `node --test` 全套 | 61 | 0 | 本轮实际执行；之后 AI 用量相关修改的受影响项再验 8/0。旧 [56/0 报告](../test-results/unit-results.json)仅为历史，`pnpm` 沙箱 EPERM 不计通过 |
+| `node --test` 全套 | 61 | 0 | 此前实际执行；随后受影响项 8/0、本次合成探针定向 3/0，均未合并计数。旧 [56/0 报告](../test-results/unit-results.json)仅为历史，`pnpm` 沙箱 EPERM 不计通过 |
 | `pnpm test:concurrency` | 5 | 0 | [历史邀请多连接](../test-results/concurrency-results.json) |
 | `pnpm test:concurrency:health` | 11 | 0 | [健康多连接](../test-results/health-concurrency-results.json) |
 | 004部署包隔离PG核验 | 12 | 0 | [历史匹配/换行修复/幂等/回滚](../test-results/health-migration-wrapper-results.json) |
@@ -24,20 +24,22 @@
 | 项目 | 本轮结果 | 方法/限制 |
 |---|---|---|
 | 004健康迁移 | 10通过、0失败 | [实际生产回读](../test-results/cloud-health-deployment.json)；9项结构/权限和1项历史摘要，首次CRLF失败及修复保留 |
-| 005与三项Edge Function | 未执行 | 005源码与隔离PG通过不等于云端部署；函数和Cron待实际回读 |
+| 005配置回查 | 7通过、0失败 | 原项目迁移与本月预算已执行；全站200美分、OpenAI200美分、DeepSeek合成10美分为上限，非已花费 |
+| 三项Edge Function与公开边界 | 14通过、0失败 | `health-photo`、`health-ai`、`health-cron` 已部署本版 bundle；[匿名/伪造令牌/来源/预检报告](../test-results/edge-public-results.json)，应用自行鉴权；未测真实登录 |
+| 新版公开网页 | 8通过、0失败 | [HTTPS/资源/手机桌面/刷新/合成回跳报告](../test-results/deployed-public-results.json)；[手机截图](../test-results/public-mobile-login.png)，未登录 |
 | `pnpm test:cloud` | 新版未执行 | 安全输入两密码；旧版[11/0](../test-results/cloud-api-results.json)不转为新版证据 |
 | `pnpm test:browser:cloud` | 新版未执行 | 正式HTTPS实际构建；旧版[9/1](../test-results/cloud-browser-results.json)待复测 |
 | `pnpm test:cloud:health` | 新版未执行 | [旧阻塞报告](../test-results/cloud-health-results.json)产生于004部署前；真实双账号权限需重新验收 |
 | 照片上传/权限/删除回读 | 未执行 | 真实私有存储；直接接口本人/伴侣/匿名、撤销、去重、精确ID清理 |
 | 日程→生成→次日查看→训练/餐食→趋势 | 未执行 | 最新部署与真实服务，合成输入，不改已有个人设置 |
 | OpenAI真实调用 | 未执行 | 005逐用途授权、预算、费用和本人确认均须核对；旧笼统同意不自动转换 |
-| DeepSeek合成探针 | 未执行 | 用户允许本轮最多10美分、共用全站每月2美元；密钥名称已核实，005/独立预算/函数未部署，真实健康资料仍禁用 |
-| 20:00服务端任务 | 未启用、未执行 | `HEALTH_CRON_SECRET` 名称已回读，值未读取；仍需部署并在浏览器全关时观察目标日与实际结果 |
+| DeepSeek合成探针 | 鉴权未通过、模型未调用 | 首个 SQL `net.http_post` 请求（id=2）返回 HTTP 401 `AUTH_REQUIRED`。Vault 与 Edge 调度密钥摘要不一致，等待用户用 Vault 现有值覆盖 Edge。本地探针修复定向测试 3/0，新 `health-cron` 包尚未部署；真实健康资料仍禁用 |
+| 20:00服务端任务 | 已配置，执行未验收 | `*/5 * * * *` dispatch 按最近上海20:00锚点；线上函数仍是 `b55346a`，尚未实查定时触发、实际结果或跨午夜 |
 | 两台物理设备 | 未执行 | [最短步骤](DEVICE-ACCEPTANCE.md)，手机尺寸模拟不算真机 |
 
 新增健康脚本只建本轮marker+精确ID的餐食/停止训练，不改既有规则/共享。训练用超出计划有效日期上限的合成日期，避免使真实计划过期。计划生成、共享配置、图片、AI需要独立受控验收，脚本未覆盖项记阻塞，不能把子集叫完整链路。
 
-实际网站仍为[基础版](https://czechiuu.github.io/plans/)（[运行38393501421](https://github.com/czechiuu/plans/actions/runs/38393501421)）；应用源码提交 `b1654ddf574a266825a425f23ba00d61c262509a` 的 [push CI](https://github.com/czechiuu/plans/actions/runs/38422347145) 成功但尚未发布。004回读显示原3张健康表为空，不保证此后一直为空。第三用户只用隔离合成Auth，不开放生产注册。
+新版 `b55346a6001ff21ff91f70d4e6e76dd607b2625a` 已在[实际网站](https://czechiuu.github.io/plans/)发布，[push CI](https://github.com/czechiuu/plans/actions/runs/38429761363)及[手动 test-build/deploy](https://github.com/czechiuu/plans/actions/runs/38430307904)成功。004回读显示原3张健康表当时为空，不保证此后一直为空。第三用户只用隔离合成Auth，不开放生产注册。
 
 邮件确认、邀请、邮件找回：**需求取消**，不是通过。改密/管理员重置/双设备门槛见[报告](../test-results/cloud-manual-gates.json)。生产只按本轮标记和ID清理，不全量清空；当前表删除不等于备份擦除。
 

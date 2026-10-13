@@ -23,5 +23,48 @@
   "passed": 10,
   "failed": 0,
   "historical_failed_attempt": "Initial history digest check failed because the SQL Editor paste used CRLF. The failure was retained as history and was resolved by a strict newline-only history repair before final readback.",
-  "not_covered": ["Migration 005", "Edge Function deployment", "Cron execution", "real fixed-account health API", "physical devices", "paid AI calls"]
+  "not_covered_at_004_check": ["Migration 005", "Edge Function deployment", "Cron execution", "real fixed-account health API", "physical devices", "paid AI calls"],
+  "later_observations": {
+    "recorded_at_utc": "2026-10-13T16:54:46Z",
+    "updated_at_utc": "2026-10-13T16:58:29Z",
+    "source": "Parent agent's subsequent production SQL Editor and deployment observations; document writer did not rerun them",
+    "migration_005": {
+      "version": "202610130005",
+      "source_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
+      "source_md5_lf": "2c57e2948216f3e08e2170754e1fd883",
+      "status": "applied",
+      "checks": ["migration_005_exact", "three_new_tables_rls", "budget_caps", "no_health_ai_consent", "cron_extensions", "three_vault_entries", "fixed_two_accounts"],
+      "passed": 7,
+      "failed": 0
+    },
+    "edge_functions": {
+      "source_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
+      "health_photo": "deployed",
+      "health_ai": "deployed",
+      "health_cron": "deployed",
+      "legacy_gateway_jwt_verification": "off; application authentication or cron secret still required"
+    },
+    "monthly_budgets": {
+      "period": "2026-10",
+      "global_cents": 200,
+      "openai_cents": 200,
+      "deepseek_synthetic_probe_cents": 10
+    },
+    "cron": {
+      "schedule": "health-daily-dispatch every 5 minutes",
+      "schedule_state": "active",
+      "first_probe_request": {"request_id": 2, "http_status": 401, "response_code": "AUTH_REQUIRED", "supplier_called": false},
+      "failed_requests": 1,
+      "real_20_00_execution": "not_run"
+    },
+    "vault_configuration_readback": {
+      "evidence_source": "Parent agent's production read-only boolean checks; no secret or digest recorded",
+      "one_cron_secret": true,
+      "minimum_length_ok": true,
+      "whitespace_ok": true,
+      "matches_edge_digest": false,
+      "counts_toward_business_passes": false,
+      "interpretation": "Vault and Edge currently hold different values; the first probe was rejected before supplier call"
+    }
+  }
 }

@@ -1,0 +1,54 @@
+{
+  "recorded_at_utc": "2026-10-13T16:54:46Z",
+  "updated_at_utc": "2026-10-13T16:58:29Z",
+  "scope": "Production rollout evidence recorded from the parent agent's browser, SQL Editor, and deployment observations plus separately recorded public checks; no production action was repeated by this report writer",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "source_revision": "b55346a6001ff21ff91f70d4e6e76dd607b2625a",
+  "migration_004": {
+    "status": "applied",
+    "passed": 10,
+    "failed": 0,
+    "evidence_file": "test-results/cloud-health-deployment.json",
+    "historical_crlf_failure": "Retained in the 004 deployment evidence; resolved by strict newline-only history repair"
+  },
+  "migration_005": {
+    "status": "applied",
+    "source_md5_lf": "2c57e2948216f3e08e2170754e1fd883",
+    "passed": 7,
+    "failed": 0,
+    "checks": ["migration_005_exact", "three_new_tables_rls", "budget_caps", "no_health_ai_consent", "cron_extensions", "three_vault_entries", "fixed_two_accounts"],
+    "evidence_source": "Parent agent's production SQL Editor observation"
+  },
+  "edge_functions": {
+    "health_photo": "deployed",
+    "health_ai": "deployed",
+    "health_cron": "deployed",
+    "gateway_legacy_jwt_verification": "off",
+    "application_boundary": "health-photo and health-ai require fixed-account authentication; health-cron requires cron secret",
+    "public_http_checks": {"passed": 14, "failed": 0, "evidence_file": "test-results/edge-public-results.json"}
+  },
+  "monthly_budget_cents": {"period": "2026-10", "global": 200, "openai": 200, "deepseek_synthetic_probe": 10},
+  "cron": {
+    "schedule": "health-daily-dispatch every 5 minutes",
+    "status": "active",
+    "first_probe": {"request_id": 2, "http_status": 401, "response_code": "AUTH_REQUIRED", "supplier_called": false},
+    "failed_requests": 1,
+    "real_20_00_run": "not_run",
+    "vault_configuration_readback": {
+      "source": "Parent agent's production read-only boolean checks",
+      "one_cron_secret": true,
+      "minimum_length_ok": true,
+      "whitespace_ok": true,
+      "matches_edge_digest": false,
+      "counts_toward_business_passes": false
+    }
+  },
+  "frontend": {
+    "manual_deploy_run": "38430307904",
+    "status": "success",
+    "public_page_checks": {"passed": 8, "failed": 0, "evidence_file": "test-results/deployed-public-results.json"},
+    "evidence_source": "Parent agent's deployment observation and existing public page report"
+  },
+  "pending": ["Correct Edge secret to match existing Vault value", "successful cron execution", "real 20:00 cron run", "fixed-account health API", "real AI provider call", "physical-device verification"],
+  "overall_acceptance": "incomplete"
+}

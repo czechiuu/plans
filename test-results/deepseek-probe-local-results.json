@@ -1,0 +1,27 @@
+{
+  "recorded_at_utc": "2026-10-13T17:05:34Z",
+  "scope": "Local synthetic DeepSeek probe checks only; provider responses were mocked",
+  "test": {
+    "command": "node --test tests/deepseek-probe.test.js",
+    "duration_ms": 194.9916,
+    "passed": 3,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "build": {
+    "command": "node scripts/build-edge.mjs",
+    "exit_code": 0,
+    "health_cron_bundle_bytes": 320927,
+    "health_cron_bundle_sha256": "9ea5a54fe8d9c25ab837950217daad65d3603d8b848578024476516e9a423b2f",
+    "health_cron_file_mtime_utc": "2026-10-13T17:04:07.3723562Z"
+  },
+  "fixes_checked": [
+    "Meal template comparison ignores object key order while preserving meal order",
+    "Schedule requires both explicit times and 30-minute duration",
+    "Text and photo checks require apple and banana in item names plus uncertainty",
+    "Photo words in portion fields, unrecognized status, and empty uncertainty fail validation"
+  ],
+  "paid_provider_calls": 0,
+  "cloud_applied": false,
+  "timing_note": "The test command did not record an exact wall-clock timestamp; its measured duration and the subsequent bundle file time are recorded above."
+}
