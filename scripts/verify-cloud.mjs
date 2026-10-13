@@ -1,154 +1,164 @@
 import assert from 'node:assert/strict'
-import { shanghaiDate } from '../src/domain.js'
+import { randomUUID } from 'node:crypto'
+import { addDays, shanghaiDate } from '../src/domain.js'
 import { report, blocked, runCase } from './test-helpers/report.mjs'
 import { cloudSetup, client, ok, denied } from './test-helpers/cloud.mjs'
 
-const ids = ['API_ANON','API_ACCOUNTS','API_INVITES','API_ISOLATION','API_PRIVATE','API_SHARE_REVOKE','API_ROW_REVOKE','API_PARTNER_EDIT','API_CRUD_READBACK','API_ERASE','API_LEAVE_REJOIN']
+const ids = ['API_AUTH_SETTINGS','API_PASSWORDS','API_FIXED_ACCOUNTS','API_DATA_SAFETY','API_ANON','API_SIGNUP_CLOSED','API_PRIVATE','API_SHARE_REVOKE','API_PARTNER_EDIT','API_CRUD_READBACK','API_CLEANUP']
 const cases = [], details = []
+const check = (id, fn) => runCase(cases, details, id, fn)
+const fields = ['share_profile','share_schedule','share_weight','allow_partner_edit']
 let setup
-try { setup = cloudSetup() } catch (error) { setup = { blocked:true, reason:String(error) } }
+try { setup = cloudSetup() } catch { setup = { blocked:true, reason:'Invalid cloud configuration' } }
 if (setup.blocked) {
   process.stderr.write(`云端 API 未运行：${setup.reason}\n`)
-  await report('cloud-api', 'real-supabase-api', blocked(ids), [{ id:'CONFIG', error:setup.reason }])
+  await report('cloud-api','two-fixed-accounts-real-supabase',blocked(ids))
 } else {
-  const clients = 'ABC'.split('').map(() => client(setup.url, setup.key))
-  const users = []
-  let cleanAccountsVerified = false
-  const day = shanghaiDate()
-  const settings = (share, edit=false) => ({ share_profile:share, share_schedule:share, share_weight:share, allow_partner_edit:edit })
-  const select = (i,table,columns='*') => ok(clients[i].from(table).select(columns))
-  const rpc = (i,name,args={}) => ok(clients[i].rpc(name,args))
-  const save = (i,name,payload,id=null) => ok(clients[i].rpc(name,{ p_payload:payload, ...(name==='save_profile' ? {} : {p_id:id}) }).single())
-  const scheduleData = (value,shared,stamp) => ({user_id:users[0],record_date:day,raw_text:value,exercise_intent:'unknown',is_shared:shared,...(stamp ? {expected_updated_at:stamp}:{})})
-  const weightData = (value,shared,stamp) => ({user_id:users[0],record_date:day,weight_kg:value,is_shared:shared,...(stamp ? {expected_updated_at:stamp}:{})})
-  let space, spareInvite, profile, schedule, weight, sharedSchedule
+  const api = [client(setup.url,setup.key),client(setup.url,setup.key)]
+  const users = [], original = [], created = []
+  const marker = `SYNTHETIC-TEST-${randomUUID()}`
+  const day = addDays(shanghaiDate(),-30)
+  const own = (i, table) => ok(api[i].from(table).select('*').eq('user_id',users[i]))
+  const byId = (i, table, id) => ok(api[i].from(table).select('*').eq('id',id))
+  const rpc = (i, name, args={}) => ok(api[i].rpc(name,args))
+  const save = (i, name, payload, id=null) => ok(api[i].rpc(name,{p_payload:payload,p_id:id}).single())
+  const schedule = (shared, stamp, text=marker) => ({user_id:users[0],record_date:day,raw_text:text,exercise_intent:'unknown',is_shared:shared,...(stamp?{expected_updated_at:stamp}:{})})
+  const weight = (shared, stamp, value=70.1) => ({user_id:users[0],record_date:day,weight_kg:value,notes:marker,is_shared:shared,...(stamp?{expected_updated_at:stamp}:{})})
+  const consent = patch => ({share_profile:false,share_schedule:false,share_weight:false,allow_partner_edit:false,...patch})
+  const setConsent = async patch => {settingsChanged=true;await rpc(0,'save_settings',{p_settings:consent(patch)})}
+  let authSettings, scheduleRow, weightRow, safeToMutate=false, settingsChanged=false
   try {
-    await runCase(cases,details,'API_ANON',async()=>{
+    await check('API_AUTH_SETTINGS',async()=>{
+      const response = await fetch(new URL('/auth/v1/settings',setup.url),{headers:{apikey:setup.key}})
+      assert.equal(response.ok,true,'Auth settings must be readable')
+      authSettings = await response.json()
+      assert.equal(authSettings.disable_signup,true,'Signup must be disabled before any signup probe')
+    })
+    await check('API_PASSWORDS',async()=>{
+      const bad = client(setup.url,setup.key)
+      const result = await bad.auth.signInWithPassword({email:setup.emails[0],password:`incorrect-${randomUUID()}`})
+      assert.ok(result.error,'Wrong password must be rejected')
+      assert.equal(result.data.session,null)
+      for (let i=0;i<2;i++) {
+        const data = await ok(api[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]}))
+        assert.ok(data.user?.id)
+        users.push(data.user.id)
+      }
+      assert.notEqual(users[0],users[1])
+    })
+    await check('API_FIXED_ACCOUNTS',async()=>{
+      assert.equal(await rpc(0,'current_account'),'me')
+      assert.equal(await rpc(1,'current_account'),'w')
+      const members=[]
+      for (let i=0;i<2;i++) {
+        const rows = await ok(api[i].from('members').select('space_id,user_id,share_profile,share_schedule,share_weight,allow_partner_edit').eq('user_id',users[i]))
+        assert.equal(rows.length,1,'Fixed account must have one membership')
+        original.push(Object.fromEntries(fields.map(key=>[key,rows[0][key]])))
+        members.push(rows[0])
+      }
+      assert.equal(members[0].space_id,members[1].space_id,'Fixed accounts must share one space')
+    })
+    await check('API_DATA_SAFETY',async()=>{
+      for (let i=0;i<2;i++) for (const table of ['health_profiles','schedules','weights'])
+        if ((await own(i,table)).length) throw Object.assign(new Error('Existing health data'),{code:'EXISTING_HEALTH_DATA'})
+      safeToMutate=true
+    })
+    await check('API_ANON',async()=>{
       const anon=client(setup.url,setup.key)
-      await denied(anon.from('members').select('user_id'))
-      for(const table of ['health_profiles','schedules','weights']) await denied(anon.from(table).select('id'))
-      await denied(anon.rpc('create_space',{p_name:'SYNTHETIC',p_display_name:'SYNTHETIC'}))
+      await denied(anon.from('members').select('user_id'),['42501'])
+      for (const table of ['health_profiles','schedules','weights']) await denied(anon.from(table).select('id'),['42501'])
+      await denied(anon.rpc('create_space',{p_name:'SYNTHETIC',p_display_name:'SYNTHETIC'}),['42501'])
     })
-    await runCase(cases,details,'API_ACCOUNTS',async()=>{
-      for(let i=0;i<3;i++){
-        const data=await ok(clients[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]}))
-        assert.ok(data.user?.id); users.push(data.user.id)
-      }
-      assert.equal(new Set(users).size,3)
-      for(let i=0;i<3;i++) assert.equal((await ok(clients[i].from('members').select('space_id').eq('user_id',users[i]))).length,0,'Use empty dedicated accounts')
-      cleanAccountsVerified = true
+    await check('API_SIGNUP_CLOSED',async()=>{
+      assert.equal(authSettings.disable_signup,true)
+      const probe=client(setup.url,setup.key)
+      const result=await probe.auth.signUp({email:`signup-probe-${randomUUID()}@plans.invalid`,password:`Synthetic-${randomUUID()}`})
+      assert.ok(result.error,'Backend signup must reject direct API calls')
+      assert.equal(result.data.user,null)
+      assert.match(`${result.error.code||''} ${result.error.message||''}`,/signup.{0,30}(disabled|not allowed)|signups? not allowed/i)
     })
-    await runCase(cases,details,'API_INVITES',async()=>{
-      space=await rpc(0,'create_space',{p_name:`SYNTHETIC-${Date.now()}`,p_display_name:'Synthetic A'})
-      const invite=(await rpc(0,'create_invite'))[0].token
-      spareInvite=(await rpc(0,'create_invite'))[0].token
-      assert.equal(invite.length,72)
-      await rpc(1,'join_space',{p_token:invite,p_display_name:'Synthetic B',p_settings:settings(false)})
-      await denied(clients[2].rpc('join_space',{p_token:invite,p_display_name:'Synthetic C',p_settings:settings(false)}))
-      await denied(clients[2].rpc('join_space',{p_token:spareInvite,p_display_name:'Synthetic C',p_settings:settings(false)}))
-      await denied(clients[0].rpc('create_invite'))
+    await check('API_PRIVATE',async()=>{
+      scheduleRow=await save(0,'save_schedule',schedule(false))
+      created.push(['schedules',scheduleRow.id])
+      weightRow=await save(0,'save_weight',weight(false))
+      created.push(['weights',weightRow.id])
+      assert.equal((await byId(1,'schedules',scheduleRow.id)).length,0)
+      assert.equal((await byId(1,'weights',weightRow.id)).length,0)
+      await denied(api[1].rpc('save_schedule',{p_payload:schedule(false,scheduleRow.updated_at),p_id:scheduleRow.id}).single(),['P0001'])
+      await denied(api[1].rpc('save_weight',{p_payload:weight(false,weightRow.updated_at),p_id:weightRow.id}).single(),['P0001'])
+      await denied(api[1].rpc('create_invite'),['42501'])
+      await denied(api[1].rpc('join_space',{p_token:'synthetic',p_display_name:'synthetic',p_settings:{}}),['42501'])
     })
-    await runCase(cases,details,'API_ISOLATION',async()=>{
-      const other=await rpc(2,'create_space',{p_name:'SYNTHETIC OTHER',p_display_name:'Synthetic C'})
-      assert.notEqual(other,space)
-      assert.equal((await select(2,'spaces')).some(row=>row.id===space),false)
-      assert.equal((await select(2,'members')).some(row=>row.space_id===space),false)
+    await check('API_SHARE_REVOKE',async()=>{
+      await setConsent({share_schedule:true,share_weight:true})
+      assert.equal((await byId(1,'schedules',scheduleRow.id)).length,0)
+      scheduleRow=await save(0,'save_schedule',schedule(true,scheduleRow.updated_at),scheduleRow.id)
+      weightRow=await save(0,'save_weight',weight(true,weightRow.updated_at),weightRow.id)
+      assert.equal((await byId(1,'schedules',scheduleRow.id)).length,1)
+      assert.equal((await byId(1,'weights',weightRow.id)).length,1)
+      await setConsent({})
+      assert.equal((await byId(1,'schedules',scheduleRow.id)).length,0)
+      assert.equal((await byId(1,'weights',weightRow.id)).length,0)
+      await setConsent({share_schedule:true,share_weight:true})
+      scheduleRow=await save(0,'save_schedule',schedule(false,scheduleRow.updated_at),scheduleRow.id)
+      weightRow=await save(0,'save_weight',weight(false,weightRow.updated_at),weightRow.id)
+      assert.equal((await byId(1,'schedules',scheduleRow.id)).length,0)
+      assert.equal((await byId(1,'weights',weightRow.id)).length,0)
+      scheduleRow=await save(0,'save_schedule',schedule(true,scheduleRow.updated_at),scheduleRow.id)
+      weightRow=await save(0,'save_weight',weight(true,weightRow.updated_at),weightRow.id)
     })
-    await runCase(cases,details,'API_PRIVATE',async()=>{
-      profile=await save(0,'save_profile',{age:30,health_notes:'SYNTHETIC ONLY',is_shared:false})
-      schedule=await save(0,'save_schedule',scheduleData('SYNTHETIC PRIVATE',false))
-      weight=await save(0,'save_weight',weightData(70.1,false))
-      for(const [table,row] of [['health_profiles',profile],['schedules',schedule],['weights',weight]]){
-        assert.equal((await select(1,table)).length,0); assert.equal((await select(2,table)).length,0)
-        await denied(clients[1].from(table).update({is_shared:true}).eq('id',row.id).select())
-        assert.equal((await ok(clients[2].from(table).select('id').eq('id',row.id))).length,0)
-        await denied(clients[2].from(table).update({is_shared:true}).eq('id',row.id).select())
-      }
+    await check('API_PARTNER_EDIT',async()=>{
+      await denied(api[1].rpc('save_schedule',{p_payload:schedule(true,scheduleRow.updated_at),p_id:scheduleRow.id}).single(),['P0001'])
+      await denied(api[1].rpc('save_weight',{p_payload:weight(true,weightRow.updated_at),p_id:weightRow.id}).single(),['P0001'])
+      await setConsent({share_schedule:true,share_weight:true,allow_partner_edit:true})
+      const staleSchedule=scheduleRow.updated_at, staleWeight=weightRow.updated_at
+      scheduleRow=await save(1,'save_schedule',schedule(true,staleSchedule,`${marker}-PARTNER`),scheduleRow.id)
+      weightRow=await save(1,'save_weight',weight(true,staleWeight,70.2),weightRow.id)
+      assert.equal(scheduleRow.updated_by,users[1])
+      assert.equal(weightRow.updated_by,users[1])
+      await denied(api[0].rpc('save_schedule',{p_payload:schedule(true,staleSchedule),p_id:scheduleRow.id}).single(),['P0001'])
+      await denied(api[0].rpc('save_weight',{p_payload:weight(true,staleWeight),p_id:weightRow.id}).single(),['P0001'])
+      await setConsent({share_schedule:true,share_weight:true})
+      await denied(api[1].rpc('save_schedule',{p_payload:schedule(true,scheduleRow.updated_at),p_id:scheduleRow.id}).single(),['P0001'])
+      await denied(api[1].rpc('save_weight',{p_payload:weight(true,weightRow.updated_at),p_id:weightRow.id}).single(),['P0001'])
     })
-    await runCase(cases,details,'API_SHARE_REVOKE',async()=>{
-      await rpc(0,'save_settings',{p_settings:settings(true)})
-      assert.equal((await select(1,'schedules')).length,0)
-      profile=await save(0,'save_profile',{age:30,health_notes:'SYNTHETIC SHARED',is_shared:true,expected_updated_at:profile.updated_at})
-      sharedSchedule=await save(0,'save_schedule',scheduleData('SYNTHETIC SHARED',true,schedule.updated_at),schedule.id)
-      weight=await save(0,'save_weight',weightData(70.2,true,weight.updated_at),weight.id)
-      for(const table of ['health_profiles','schedules','weights']) assert.equal((await select(1,table)).length,1)
-      for(const [table,row] of [['health_profiles',profile],['schedules',sharedSchedule],['weights',weight]]) assert.equal((await ok(clients[2].from(table).select('id').eq('id',row.id))).length,0)
-      await denied(clients[2].rpc('save_schedule',{p_payload:scheduleData('SYNTHETIC C GUESS',true,sharedSchedule.updated_at),p_id:schedule.id}).single())
-      await rpc(0,'save_settings',{p_settings:settings(false)})
-      for(const table of ['health_profiles','schedules','weights']) assert.equal((await select(1,table)).length,0)
-      await rpc(0,'save_settings',{p_settings:settings(true)})
+    await check('API_CRUD_READBACK',async()=>{
+      assert.equal((await byId(0,'schedules',scheduleRow.id))[0].raw_text,`${marker}-PARTNER`)
+      assert.equal(Number((await byId(0,'weights',weightRow.id))[0].weight_kg),70.2)
+      await rpc(0,'delete_schedule',{p_id:scheduleRow.id})
+      await rpc(0,'delete_weight',{p_id:weightRow.id})
+      assert.equal((await byId(0,'schedules',scheduleRow.id)).length,0)
+      assert.equal((await byId(0,'weights',weightRow.id)).length,0)
+      created.length=0
     })
-    await runCase(cases,details,'API_ROW_REVOKE',async()=>{
-      profile=await save(0,'save_profile',{age:30,health_notes:'SYNTHETIC ROW REVOKED',is_shared:false,expected_updated_at:profile.updated_at})
-      sharedSchedule=await save(0,'save_schedule',scheduleData('SYNTHETIC ROW REVOKED',false,sharedSchedule.updated_at),schedule.id)
-      weight=await save(0,'save_weight',weightData(70.2,false,weight.updated_at),weight.id)
-      for(const table of ['health_profiles','schedules','weights']) assert.equal((await select(1,table)).length,0)
-      profile=await save(0,'save_profile',{age:30,health_notes:'SYNTHETIC SHARED',is_shared:true,expected_updated_at:profile.updated_at})
-      sharedSchedule=await save(0,'save_schedule',scheduleData('SYNTHETIC SHARED',true,sharedSchedule.updated_at),schedule.id)
-      weight=await save(0,'save_weight',weightData(70.2,true,weight.updated_at),weight.id)
-      for(const table of ['health_profiles','schedules','weights']) assert.equal((await select(1,table)).length,1)
-    })
-    await runCase(cases,details,'API_PARTNER_EDIT',async()=>{
-      await denied(clients[1].rpc('save_schedule',{p_payload:scheduleData('SYNTHETIC PARTNER',true,sharedSchedule.updated_at),p_id:schedule.id}).single())
-      await denied(clients[1].rpc('save_weight',{p_payload:weightData(70.4,true,weight.updated_at),p_id:weight.id}).single())
-      await rpc(0,'save_settings',{p_settings:settings(true,true)})
-      const edited=await save(1,'save_schedule',scheduleData('SYNTHETIC PARTNER',true,sharedSchedule.updated_at),schedule.id)
-      const editedWeight=await save(1,'save_weight',weightData(70.4,true,weight.updated_at),weight.id)
-      assert.equal(edited.updated_by,users[1])
-      assert.equal(editedWeight.updated_by,users[1])
-      await denied(clients[0].rpc('save_schedule',{p_payload:scheduleData('STALE',true,sharedSchedule.updated_at),p_id:schedule.id}).single())
-      await denied(clients[0].rpc('save_weight',{p_payload:weightData(70.5,true,weight.updated_at),p_id:weight.id}).single())
-      await rpc(0,'save_settings',{p_settings:settings(true,false)})
-      await denied(clients[1].rpc('save_schedule',{p_payload:scheduleData('REVOKED',true,edited.updated_at),p_id:schedule.id}).single())
-      await denied(clients[1].rpc('save_weight',{p_payload:weightData(70.6,true,editedWeight.updated_at),p_id:weight.id}).single())
-    })
-    await runCase(cases,details,'API_CRUD_READBACK',async()=>{
-      assert.equal((await select(0,'health_profiles','health_notes'))[0].health_notes,'SYNTHETIC SHARED')
-      assert.equal((await select(0,'schedules','raw_text'))[0].raw_text,'SYNTHETIC PARTNER')
-      assert.equal(Number((await select(0,'weights','weight_kg'))[0].weight_kg),70.4)
-      await rpc(0,'delete_schedule',{p_id:schedule.id}); await rpc(0,'delete_weight',{p_id:weight.id})
-      assert.equal((await select(0,'schedules')).length,0); assert.equal((await select(0,'weights')).length,0)
-      schedule=await save(0,'save_schedule',scheduleData('SYNTHETIC ERASE',false))
-      weight=await save(0,'save_weight',weightData(70.3,false))
-    })
-    await runCase(cases,details,'API_ERASE',async()=>{
-      await rpc(0,'erase_own_health_data')
-      for(const table of ['health_profiles','schedules','weights']){
-        assert.equal((await select(0,table)).length,0); assert.equal((await select(1,table)).length,0)
-      }
-      assert.equal((await select(0,'members')).length,2)
-    })
-    await runCase(cases,details,'API_LEAVE_REJOIN',async()=>{
-      await save(0,'save_profile',{age:31,health_notes:'SYNTHETIC OLD CONSENT',is_shared:true})
-      schedule=await save(0,'save_schedule',scheduleData('SYNTHETIC OLD RECORD',true))
-      weight=await save(0,'save_weight',weightData(70.7,true))
-      await rpc(0,'save_settings',{p_settings:settings(true,true)})
-      await rpc(1,'leave_space')
-      assert.equal((await select(1,'members')).length,0); assert.equal((await select(1,'health_profiles')).length,0)
-      assert.equal((await ok(clients[1].from('schedules').select('id').eq('id',schedule.id))).length,0)
-      assert.equal((await ok(clients[1].from('weights').select('id').eq('id',weight.id))).length,0)
-      await denied(clients[1].rpc('save_schedule',{p_payload:scheduleData('SYNTHETIC OLD WRITE',true,schedule.updated_at),p_id:schedule.id}).single())
-      await denied(clients[1].rpc('save_weight',{p_payload:weightData(70.8,true,weight.updated_at),p_id:weight.id}).single())
-      await denied(clients[1].rpc('save_profile',{p_payload:{age:32}}))
-      const remaining=(await select(0,'members','user_id,share_profile,share_schedule,share_weight,allow_partner_edit'))[0]
-      assert.equal(remaining.share_profile||remaining.share_schedule||remaining.share_weight||remaining.allow_partner_edit,false)
-      await denied(clients[2].rpc('join_space',{p_token:spareInvite,p_display_name:'Synthetic C',p_settings:settings(false)}))
-      await rpc(2,'leave_space')
-      const fresh=(await rpc(0,'create_invite'))[0].token
-      await rpc(2,'join_space',{p_token:fresh,p_display_name:'Synthetic C',p_settings:settings(false)})
-      assert.equal((await select(2,'health_profiles')).length,0)
-      assert.equal((await select(2,'schedules')).length,0)
-      assert.equal((await select(2,'weights')).length,0)
-    })
-  } catch {
-    for(const id of ids) if(!cases.some(item=>item.id===id)) cases.push({id,status:'notrun'})
+  } catch (error) {
+    if (error?.code === 'EXISTING_HEALTH_DATA') cases.find(item=>item.id==='API_DATA_SAFETY').status='blocked'
+    if (error?.code !== 'EXISTING_HEALTH_DATA' && !cases.some(item=>item.status==='failed')) { cases.push({id:'API_SETUP',status:'failed'}); details.push({id:'API_SETUP',error}) }
   } finally {
-    for(let i=0;i<3;i++){
-      if(cleanAccountsVerified) try {
-        if((await ok(clients[i].from('members').select('space_id').eq('user_id',users[i]))).length) await rpc(i,'leave_space')
-      } catch(error) { cases.push({id:`API_CLEANUP_${i}`,status:'failed'}); details.push({id:`API_CLEANUP_${i}`,error}) }
-      try { await clients[i].auth.signOut() } catch { /* session may be absent */ }
+    if (safeToMutate) {
+      try {
+        for (const [table,id] of created) {
+          const rows=await byId(0,table,id)
+          if (rows.length) {
+            assert.equal(rows[0].user_id,users[0])
+            assert.ok((rows[0].raw_text||rows[0].notes||'').includes(marker),'Cleanup may remove only this run records')
+            await rpc(0,table==='schedules'?'delete_schedule':'delete_weight',{p_id:id})
+          }
+        }
+        for (const table of ['schedules','weights']) {
+          const rows = await own(0,table)
+          for (const row of rows) if (row.record_date===day && (row.raw_text||row.notes||'').includes(marker))
+            await rpc(0,table==='schedules'?'delete_schedule':'delete_weight',{p_id:row.id})
+        }
+        if(settingsChanged) await rpc(0,'save_settings',{p_settings:original[0]})
+        cases.push({id:'API_CLEANUP',status:'passed'})
+      } catch(error) {
+        if(settingsChanged) try { await setConsent({}) } catch {}
+        cases.push({id:'API_CLEANUP',status:'failed'}); details.push({id:'API_CLEANUP',error})
+      }
     }
-    await report('cloud-api','real-supabase-api',cases,details)
+    for (const id of ids) if (!cases.some(item=>item.id===id)) cases.push({id,status:safeToMutate?'notrun':'blocked'})
+    for (const c of api) try { await c.auth.signOut({scope:'local'}) } catch {}
+    await report('cloud-api','two-fixed-accounts-real-supabase',cases,details)
   }
 }

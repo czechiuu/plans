@@ -6,10 +6,18 @@ const root = document.querySelector('#app')
 const safe = (value) => escapeHtml(value ?? '')
 const date = () => shanghaiDate()
 const state = {
-  session: null, data: null, page: 'today', authPage: location.hash.includes('type=recovery') ? 'recovery' : 'signin',
+  session: null, data: null, page: 'today',
   scheduleDate: date(), scope: 'mine', edit: null, notice: '', error: false, busy: false,
-  invite: null, danger: null, spaceMode: 'create', loading: true, profileDraft: null,
+  danger: null, loading: true, profileDraft: null, loginSlot: 'me',
 }
+let generation = 0
+
+function clearSensitive(session = null) {
+  generation++
+  Object.assign(state, { session, data: null, page: 'today', scheduleDate: date(), scope: 'mine', edit: null, notice: '', error: false, busy: false, danger: null, profileDraft: null, loginSlot: 'me', loading: false })
+  root.replaceChildren()
+}
+const accountLabel = account => ({ me: '我', w: 'W' })[account] || ''
 
 function setNotice(message, error = false) { state.notice = message; state.error = error; render() }
 function message() { return state.notice ? `<div class="notice ${state.error ? 'error' : ''}" role="${state.error ? 'alert' : 'status'}">${safe(state.notice)}</div>` : '' }
@@ -21,26 +29,44 @@ function errorText(error) {
   if (error?.message === 'invalid-date') return '代改伴侣记录时不能修改原日期。'
   if (error?.message === 'measured-date') return '测量时间的日期需要与测量日期一致。'
   if (error?.message === 'empty-schedule') return '请填写至少一项实际日程内容。'
+  if (code === 'ACCOUNT_DENIED') return '这个账号没有使用权限，本机登录已清除。请联系管理员。'
+  if (code === 'ACCOUNT_CHECK_FAILED') return '无法核对固定账号，本机登录已清除。请检查网络后重试。'
+  if (code === 'ACCOUNT_CHANGED') return '账号在其他页面发生变化，旧页面资料已清空。请重新登录。'
+  if (code === 'SIGNOUT_INCOMPLETE') return '退出未完成。页面资料已清空，请重试退出。'
+  if (code === 'SIGNOUT_UNCONFIRMED') return '此设备会话已清除，但服务器退出请求未确认。'
+  if (code === 'INVALID_CURRENT_PASSWORD' || code === 'reauthentication_not_valid') return '当前密码不正确，密码未修改。'
+  if (code === 'invalid_credentials') return '账号或密码不正确。'
+  if (code === 'reauthentication_needed' || code === 'reauth_nonce_missing') return '后台要求额外验证，密码未修改。请联系管理员。'
+  if (code === 'same_password') return '新密码不能与当前密码相同。'
   return '操作未完成。请检查输入和网络连接后重试；如仍失败，请刷新查看最新数据。'
 }
 async function work(action, success = '') {
   if (state.busy) return
+  const started = generation
   state.busy = true; state.notice = ''; render()
-  try { await action(); if (success) state.notice = success; state.error = false }
-  catch (error) { console.error('操作失败', error?.code || error?.name || 'unknown'); state.notice = errorText(error); state.error = true }
-  finally { state.busy = false; render() }
+  try { await action(); if (generation !== started) return; if (success) state.notice = success; state.error = false }
+  catch (error) { if (generation !== started) return; console.error('操作失败', error?.code || error?.name || 'unknown'); state.notice = errorText(error); state.error = true }
+  finally { if (generation === started) { state.busy = false; render() } }
 }
-async function reload() {
+async function reload(expectedGeneration = generation) {
+  if (expectedGeneration !== generation) return
+  const started = generation
   const session = state.session
-  const data = await api.load()
-  if (state.session !== session) return
+  let data
+  try { data = await api.load() }
+  catch (error) {
+    if (started === generation && ['ACCOUNT_DENIED','ACCOUNT_CHECK_FAILED','ACCOUNT_CHANGED'].includes(error?.code)) { clearSensitive(); state.notice = errorText(error); state.error = true; render() }
+    throw error
+  }
+  const current = await api.session()
+  if (started !== generation || state.session?.access_token !== session?.access_token || current?.access_token !== session?.access_token) return
   state.data = data
-  if (!state.data.space) { state.invite = null; state.profileDraft = null; state.page = 'today' }
+  if (!state.data.space) { state.profileDraft = null; state.page = 'today' }
   state.edit = null
 }
 function brand() { return `<div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span>两个人的日常</span></div>` }
 function header() {
-  const name = mine()?.display_name || state.data?.user?.email || ''
+  const name = accountLabel(state.data?.account)
   return `<header class="site-header">${brand()}<div class="header-side">${name ? `<span class="pill">${safe(name)}</span>` : ''}${state.data?.space ? `<span class="pill"><span class="status-dot"></span>${safe(state.data.space.name)}</span>` : ''}</div></header>`
 }
 function layout(content, aside = '') {
@@ -65,17 +91,13 @@ function canEdit(row, type) {
 function updateMeta(row) { return `<span class="fine">${row.updated_at ? `更新 ${safe(instantToLocalDateTime(row.updated_at).replace('T', ' '))}（上海）` : ''}${row.updated_by ? ` · 修改者：${safe(person(row.updated_by))}` : ''}</span>` }
 function nav() { return `<nav class="nav" aria-label="主导航"><div class="nav-inner">${[['today','今日','◉'],['schedule','日程','▦'],['weight','体重','◌'],['settings','设置','⚙']].map(([p,t,i]) => `<button type="button" data-action="page" data-page="${p}" class="${state.page === p ? 'active' : ''}" ${state.page === p ? 'aria-current="page"' : ''}><span class="nav-icon" aria-hidden="true">${i}</span>${t}</button>`).join('')}</div></nav>` }
 function renderUnconfigured() {
-  root.innerHTML = `<div class="shell">${header()}<div class="auth-wrap"><div class="card soft"><p class="eyebrow">私人健康空间 · 第一阶段</p><h1>先连接私人后台</h1><p>当前尚未连接后台，因此不能注册、登录或保存健康资料。请由部署人员配置 Supabase 地址与公开密钥，再完成数据库和权限部署。</p><p class="callout">配置完成后才能使用真实账号和数据；云端权限与跨设备功能仍需在真实环境验收。</p>${configurationError ? `<p class="hint">配置状态：${safe(configurationError)}</p>` : ''}<div class="divider"></div><p class="hint">本阶段支持手动日程、体重、共享设置与私人空间。自动计划、照片和 AI 尚未启用；资料不会发送给外部 AI。</p></div></div></div>`
+  root.innerHTML = `<div class="shell">${header()}<div class="auth-wrap"><div class="card soft"><p class="eyebrow">私人健康空间 · 第一阶段</p><h1>先连接私人后台</h1><p>当前尚未连接后台，因此不能登录或保存健康资料。请由部署人员配置 Supabase 地址与公开密钥，再完成数据库和权限部署。</p><p class="callout">配置完成后才能使用固定账号和真实数据；云端权限与跨设备功能仍需在真实环境验收。</p>${configurationError ? `<p class="hint">配置状态：${safe(configurationError)}</p>` : ''}<div class="divider"></div><p class="hint">本阶段支持手动日程、体重、共享设置与私人空间。自动计划、照片和 AI 尚未启用；资料不会发送给外部 AI。</p></div></div></div>`
 }
 function auth() {
-  const p = state.authPage
-  const title = ({ signin: '欢迎回来', signup: '建立私人账号', reset: '找回密码', recovery: '设置新密码' })[p]
-  const form = p === 'recovery' ? `<form data-form="recovery" class="stack">${field('新密码','password','','password','required minlength="8" autocomplete="new-password"')}${field('再次输入新密码','confirm','','password','required minlength="8" autocomplete="new-password"')}<button class="btn" ${state.busy ? 'disabled' : ''}>保存新密码</button></form>` : `<form data-form="${p}" class="stack">${field('邮箱','email','','email','required autocomplete="email"')}${p !== 'reset' ? field('密码','password','','password',`required minlength="8" autocomplete="${p === 'signin' ? 'current-password' : 'new-password'}"`) : ''}<button class="btn" ${state.busy ? 'disabled' : ''}>${p === 'signin' ? '登录' : p === 'signup' ? '注册' : '发送重置邮件'}</button></form>`
-  root.innerHTML = `<div class="shell">${header()}${message()}<div class="auth-wrap"><div class="card"><p class="eyebrow">给两个人的安静空间</p><h1>${title}</h1><p class="muted">每个人使用自己的账号。只有加入同一个私人空间后，双方才能按各自选择的范围共享记录。</p>${form}<div class="divider"></div><div class="actions">${p !== 'signin' && p !== 'recovery' ? button('返回登录','auth-signin','ghost') : ''}${p !== 'signup' && p !== 'recovery' ? button('创建账号','auth-signup','ghost') : ''}${p === 'signin' ? button('忘记密码','auth-reset','ghost') : ''}</div><p class="hint">健康资料只在连接私人后台后保存。自动计划和 AI 尚未启用。</p></div></div></div>`
+  root.innerHTML = `<div class="shell">${header()}${message()}<div class="auth-wrap"><div class="card"><p class="eyebrow">给两个人的安静空间</p><h1>欢迎回来</h1><p class="muted">请选择你自己的账号并输入密码。登录后会保留此设备的会话，主动退出才会清除。</p><form data-form="signin" class="stack"><fieldset class="account-choice"><legend>账号</legend><label><input type="radio" name="slot" value="me" ${state.loginSlot === 'me' ? 'checked' : ''}> 我</label><label><input type="radio" name="slot" value="w" ${state.loginSlot === 'w' ? 'checked' : ''}> W</label></fieldset>${field('密码','password','','password','required autocomplete="current-password"')}<button class="btn" ${state.busy ? 'disabled' : ''}>登录</button></form><p class="hint" style="margin-top:18px">此页面不开放注册、邮件找回或邀请。无法登录请联系管理员。</p></div></div></div>`
 }
 function space() {
-  const join = state.spaceMode === 'join'
-  root.innerHTML = layout(`<section class="card"><p class="eyebrow">私人空间</p><h1>从这里开始</h1><p class="muted">空间最多两个人。每人使用自己的账号；新记录默认私有，共享由你单独决定。</p><div class="segmented"><button data-action="space-create" class="${!join ? 'active' : ''}">创建空间</button><button data-action="space-join" class="${join ? 'active' : ''}">输入邀请令牌</button></div>${join ? `<form data-form="join" class="stack" style="margin-top:20px">${field('邀请令牌','token','','text','required autocomplete="off"')}${field('你的昵称','display_name','','text','required maxlength="40"') }<div class="card soft"><h3>确认共享范围</h3>${settingsChecks({})}</div><button class="btn" ${state.busy ? 'disabled' : ''}>加入私人空间</button></form>` : `<form data-form="create" class="stack" style="margin-top:20px">${field('空间名称','name','','text','required maxlength="60"')}${field('你的昵称','display_name','','text','required maxlength="40"')}<button class="btn" ${state.busy ? 'disabled' : ''}>创建私人空间</button></form>`}</section>`, `<div class="card soft"><h3>你的资料由你决定</h3><p class="hint">邀请令牌仅用于加入空间。类别共享和每条记录的共享确认都开启后，伴侣才可看到那条记录。</p>${button('退出登录','signout','ghost')}</div>`)
+  root.innerHTML = layout(`<section class="card"><p class="eyebrow">私人空间</p><h1>空间尚未准备好</h1><p class="muted">已登录账号 ${accountLabel(state.data.account)}，但没有关联到预先建立的私人空间。请联系管理员处理，不需要自行创建或使用邀请。</p><div class="actions">${button('刷新状态','refresh','secondary')}${button('退出此设备／切换账号','signout','ghost')}</div></section>${passwordForm()}`)
 }
 function scopeSwitch() { return `<div class="segmented" role="group" aria-label="查看范围">${[['mine','我'],['partner','伴侣'],['all','共同']].map(([v,t]) => `<button type="button" data-action="scope" data-scope="${v}" class="${state.scope === v ? 'active' : ''}" aria-pressed="${state.scope === v}">${t}</button>`).join('')}</div>` }
 function dashboard() {
@@ -138,9 +160,12 @@ function dangerPanel() {
   const leaving = state.danger === 'leave'
   return `<div class="card danger-zone"><h3>${leaving ? '确认退出空间' : '确认删除健康数据'}</h3><p class="hint">${leaving ? '退出会删除你在这个空间中的健康记录并撤销共享。建议先导出自己的数据。' : '这会删除你自己的档案、日程和体重记录，无法在应用中恢复。建议先导出。'}</p><form data-form="danger">${field('输入“确认”继续','confirmation','','text','required autocomplete="off"')}<div class="actions"><button class="btn danger" ${state.busy ? 'disabled' : ''}>${leaving ? '确认退出' : '确认删除'}</button>${button('取消','cancel-danger','secondary')}</div></form></div>`
 }
+function passwordForm() {
+  return `<div class="card"><h2>修改密码</h2><p class="hint">先验证当前密码。保存成功后此设备将退出，请用新密码重新登录。</p><form data-form="password" class="stack">${field('当前密码','current_password','','password','required autocomplete="current-password"')}${field('新密码','new_password','','password','required minlength="8" autocomplete="new-password"')}${field('确认新密码','confirm_password','','password','required minlength="8" autocomplete="new-password"')}<button class="btn" ${state.busy ? 'disabled' : ''}>保存新密码并退出此设备</button></form></div>`
+}
 function settingsPage() {
   const m = mine() || {}
-  return `<div class="card soft"><p class="eyebrow">由你掌控</p><h2>设置与隐私</h2><p class="hint">账号：${safe(state.data.user?.email || '')}。空间内的“我 / 伴侣 / 共同”只是查看范围，不会切换账号。</p><div class="actions">${button('刷新跨设备数据','refresh','secondary')}${button('退出登录','signout','ghost')}</div></div>${profileForm()}${sharedPartnerProfile()}<div class="card"><h2>共享范围</h2><p class="hint">类别开关与每条记录的共享确认缺一不可。代改还需要单独授权；改动会留下修改者和更新时间。</p><form data-form="settings">${settingsChecks(m)}<div class="actions"><button class="btn" ${state.busy ? 'disabled' : ''}>保存共享设置</button></div></form></div><div class="card"><h2>邀请伴侣</h2>${partner() ? `<p class="muted">${safe(partner().display_name)} 已加入。空间最多两个人。</p>` : `<p class="hint">生成一次性邀请令牌，仅私下交给要加入的人。令牌到期后请重新生成。</p>${button('生成邀请令牌','invite','secondary')}${state.invite ? `<div class="code-box" style="margin-top:14px">${safe(state.invite.token)}</div><p class="fine">到期：${safe(instantToLocalDateTime(state.invite.expires_at).replace('T', ' '))}（上海）</p>` : ''}`}</div><div class="card danger-zone"><h2>数据与空间</h2><p class="hint">导出只包含你自己的资料。删除健康数据或退出空间前，建议先导出。</p><div class="actions">${button('导出我的 JSON','export','secondary')}${button('删除我的健康数据','danger-erase','danger secondary')}${button('退出空间','danger-leave','danger secondary')}</div><p class="fine">退出空间不会删除登录账号。</p></div>${dangerPanel()}<div class="card"><h3>尚未启用</h3><p class="hint">自动饮食运动计划、照片识别、AI 处理和自动通知属于后续阶段。当前资料不会发送给外部 AI。</p></div>`
+  return `<div class="card soft"><p class="eyebrow">由你掌控</p><h2>设置与隐私</h2><p class="hint">当前固定账号：${accountLabel(state.data.account)}。日程中的“我 / 伴侣 / 共同”只是查看范围，不会切换账号。</p><div class="actions">${button('刷新跨设备数据','refresh','secondary')}${button('退出此设备／切换账号','signout','ghost')}</div></div>${profileForm()}${sharedPartnerProfile()}<div class="card"><h2>共享范围</h2><p class="hint">类别开关与每条记录的共享确认缺一不可。代改还需要单独授权；改动会留下修改者和更新时间。</p><form data-form="settings">${settingsChecks(m)}<div class="actions"><button class="btn" ${state.busy ? 'disabled' : ''}>保存共享设置</button></div></form></div>${passwordForm()}<div class="card danger-zone"><h2>数据与空间</h2><p class="hint">导出只包含你自己的资料。删除健康数据或退出空间前，建议先导出。</p><div class="actions">${button('导出我的 JSON','export','secondary')}${button('删除我的健康数据','danger-erase','danger secondary')}${button('退出空间','danger-leave','danger secondary')}</div><p class="fine">退出空间会删除本人在空间中的健康数据，但不会删除登录账号；管理员需重新关联空间。</p></div>${dangerPanel()}<div class="card"><h3>尚未启用</h3><p class="hint">自动饮食运动计划、照片识别、AI 处理和自动通知属于后续阶段。当前资料不会发送给外部 AI。</p></div>`
 }
 function app() {
   const content = ({today:dashboard,schedule:schedulePage,weight:weightPage,settings:settingsPage})[state.page]()
@@ -149,7 +174,6 @@ function app() {
 function render() {
   if (!configured) return renderUnconfigured()
   if (state.loading) { root.innerHTML = `<div class="shell">${header()}<div class="auth-wrap"><div class="card" role="status">正在连接私人后台…</div></div></div>`; return }
-  if (state.authPage === 'recovery') return auth()
   if (!state.session) return auth()
   if (!state.data) { root.innerHTML = `<div class="shell">${header()}${message()}<div class="card"><p>资料尚未读到。</p>${button('重试读取','refresh','secondary')}${button('退出登录','signout','ghost')}</div></div>`; return }
   if (!state.data.space) return space()
@@ -161,22 +185,38 @@ function nullable(value) { return value === '' || value == null ? null : value }
 function numberOrNull(value) { return value === '' || value == null ? null : Number(value) }
 function checked(form,name) { return Boolean(form.elements[name]?.checked) }
 function settingsFrom(form) { return Object.fromEntries(['share_profile','share_schedule','share_weight','allow_partner_edit'].map(k => [k,checked(form,k)])) }
+async function exitDevice(success = '已退出此设备，可以选择另一个账号登录。') {
+  const previous = state.session
+  clearSensitive(); state.busy = true; render()
+  try { await api.signOut(); state.notice = success; state.error = false }
+  catch (error) {
+    console.error('退出失败', error?.code || error?.name || 'unknown')
+    if (error?.code === 'SIGNOUT_INCOMPLETE') state.session = await api.session().catch(() => previous)
+    state.notice = success.startsWith('密码已保存') ? `密码已保存，但${errorText(error)}` : errorText(error); state.error = true
+  }
+  state.busy = false
+  render()
+}
 async function submit(form) {
   const v = values(form), kind = form.dataset.form
-  if (kind === 'recovery' && v.password !== v.confirm) return setNotice('两次输入的密码不一致。',true)
+  const started = generation
+  if (kind === 'signin') state.loginSlot = v.slot
+  if (kind === 'password' && v.new_password !== v.confirm_password) return setNotice('两次输入的新密码不一致。',true)
   if (kind === 'danger' && v.confirmation.trim() !== '确认') return setNotice('请准确输入“确认”。',true)
   await work(async () => {
-    if (kind === 'signin') { await api.signIn(v.email.trim(),v.password); state.session = await api.session(); await reload(); return }
-    if (kind === 'signup') { const result = await api.signUp(v.email.trim(),v.password); state.authPage = 'signin'; if (result.needsEmailConfirmation) state.notice = '注册请求已提交，请打开邮箱完成确认后再登录。'; else { state.session = await api.session(); if (state.session) await reload(); state.notice = '账号已创建。' } return }
-    if (kind === 'reset') { await api.resetPassword(v.email.trim()); state.authPage = 'signin'; state.notice = '如果该邮箱已注册，将收到密码重置邮件。'; return }
-    if (kind === 'recovery') { await api.updatePassword(v.password); await api.signOut(); history.replaceState(null,'',location.pathname); state.session = null; state.data = null; state.profileDraft = null; state.authPage = 'signin'; state.notice = '新密码已保存，请重新登录。'; return }
-    if (kind === 'create') { await api.createSpace(v.name.trim(),v.display_name.trim()); await reload(); return }
-    if (kind === 'join') { await api.joinSpace(v.token.trim(),v.display_name.trim(),settingsFrom(form)); await reload(); return }
-    if (kind === 'settings') { await api.saveSettings(settingsFrom(form)); await reload(); return }
+    if (kind === 'signin') { await api.signIn(v.slot,v.password); if (started !== generation) return; state.session = await api.session(); await reload(started); return }
+    if (kind === 'password') {
+      try { await api.updatePassword(v.current_password,v.new_password) }
+      catch (error) { if (error?.code === 'invalid_credentials') throw Object.assign(new Error('当前密码错误'), { code: 'INVALID_CURRENT_PASSWORD' }); throw error }
+      if (started === generation) await exitDevice('密码已保存。此设备已退出，请用新密码重新登录。')
+      return
+    }
+    if (kind === 'settings') { await api.saveSettings(settingsFrom(form)); await reload(started); return }
     if (kind === 'profile') {
       const current = state.data.profile
       await api.saveProfile({ sex:nullable(v.sex), age:numberOrNull(v.age), height_cm:numberOrNull(v.height_cm), baseline_weight_kg:numberOrNull(v.baseline_weight_kg), baseline_date:nullable(v.baseline_date), target_weight_kg:numberOrNull(v.target_weight_kg), target_date:nullable(v.target_date), preferences:nullable(v.preferences), health_notes:nullable(v.health_notes), is_shared:checked(form,'is_shared'), ...(current ? {expected_updated_at:current.updated_at} : {}) })
-      state.profileDraft = null; await reload(); return
+      if (started !== generation) return
+      state.profileDraft = null; await reload(started); return
     }
     if (kind === 'schedule') {
       const r = state.edit?.type === 'schedule' ? state.edit.row : null
@@ -184,17 +224,18 @@ async function submit(form) {
       if (v.start_time && v.end_time && v.end_time <= v.start_time) throw new Error('invalid-time')
       if (r && r.user_id !== state.data.user.id && v.record_date !== r.record_date) throw new Error('invalid-date')
       await api.saveSchedule({user_id:r?.user_id || state.data.user.id,record_date:v.record_date,raw_text:nullable(v.raw_text),start_time:nullable(v.start_time),end_time:nullable(v.end_time),exercise_intent:v.exercise_intent,fixed_arrangements:nullable(v.fixed_arrangements),meal_conditions:nullable(v.meal_conditions),constraints:nullable(v.constraints),is_shared:checked(form,'is_shared'),...(r ? {expected_updated_at:r.updated_at} : {})},r?.id || null)
-      state.scheduleDate = v.record_date; await reload(); return
+      if (started !== generation) return
+      state.scheduleDate = v.record_date; await reload(started); return
     }
     if (kind === 'weight') {
       const r = state.edit?.type === 'weight' ? state.edit.row : null
       if (r && r.user_id !== state.data.user.id && v.record_date !== r.record_date) throw new Error('invalid-date')
       if (v.measured_at && v.measured_at.slice(0,10) !== v.record_date) throw new Error('measured-date')
       await api.saveWeight({user_id:r?.user_id || state.data.user.id,record_date:v.record_date,measured_at:v.measured_at ? localDateTimeToInstant(v.measured_at) : null,weight_kg:Number(v.weight_kg),waist_cm:numberOrNull(v.waist_cm),notes:nullable(v.notes),is_shared:checked(form,'is_shared'),...(r ? {expected_updated_at:r.updated_at} : {})},r?.id || null)
-      await reload(); return
+      await reload(started); return
     }
-    if (kind === 'danger') { if (state.danger === 'leave') await api.leaveSpace(); else await api.eraseOwnHealthData(); state.danger = null; state.invite = null; state.profileDraft = null; await reload(); return }
-  }, ({signin:'登录成功',create:'私人空间已创建',join:'已加入私人空间',settings:'共享设置已保存',profile:'档案已保存',schedule:'日程已保存',weight:'体重已保存',danger:'操作已完成'})[kind] || '')
+    if (kind === 'danger') { if (state.danger === 'leave') await api.leaveSpace(); else await api.eraseOwnHealthData(); if (started !== generation) return; state.danger = null; state.profileDraft = null; await reload(started); return }
+  }, ({signin:'登录成功',settings:'共享设置已保存',profile:'档案已保存',schedule:'日程已保存',weight:'体重已保存',danger:'操作已完成'})[kind] || '')
 }
 function exportJson(data) {
   const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'})
@@ -205,8 +246,6 @@ async function act(el) {
   const action = el.dataset.action
   if (action === 'page') { state.page = el.dataset.page; state.edit = null; state.notice = ''; render(); scrollTo(0,0); return }
   if (action === 'scope') { state.scope = el.dataset.scope; render(); return }
-  if (action.startsWith('auth-')) { state.authPage = action.slice(5); state.notice = ''; render(); return }
-  if (action.startsWith('space-')) { state.spaceMode = action.slice(6); state.notice = ''; render(); return }
   if (action === 'cancel-edit') { state.edit = null; render(); return }
   if (action === 'cancel-danger') { state.danger = null; render(); return }
   if (action.startsWith('danger-')) { state.danger = action.slice(7); render(); return }
@@ -219,12 +258,12 @@ async function act(el) {
     const type = action.slice(7), row = state.data[type === 'schedule' ? 'schedules' : 'weights'].find(r => r.id === el.dataset.id)
     if (!row || !canEdit(row,type)) return setNotice('你没有删除这条记录的权限。',true)
     if (!confirm(`确认删除 ${person(row.user_id)} 在 ${row.record_date} 的${type === 'schedule' ? '日程' : '体重'}记录？`)) return
-    await work(async () => { if (type === 'schedule') await api.deleteSchedule(row.id); else await api.deleteWeight(row.id); await reload() },'记录已删除'); return
+    const started = generation
+    await work(async () => { if (type === 'schedule') await api.deleteSchedule(row.id); else await api.deleteWeight(row.id); await reload(started) },'记录已删除'); return
   }
   if (action === 'refresh') { await work(reload,'数据已刷新'); return }
-  if (action === 'signout') { await work(async () => { await api.signOut(); state.session = null; state.data = null; state.invite = null; state.edit = null; state.profileDraft = null; state.danger = null; state.notice = '已退出登录。' }); return }
-  if (action === 'invite') { await work(async () => { state.invite = await api.createInvite() },'一次性邀请令牌已生成。'); return }
-  if (action === 'export') { await work(async () => { exportJson(await api.exportOwnData()) },'导出文件已开始下载。') }
+  if (action === 'signout') { await exitDevice(); return }
+  if (action === 'export') { const started = generation; await work(async () => { const data = await api.exportOwnData(); if (started === generation) exportJson(data) },'导出文件已开始下载。') }
 }
 
 root.addEventListener('click', event => { const el = event.target.closest('[data-action]'); if (el) act(el) })
@@ -233,9 +272,11 @@ root.addEventListener('change', async event => {
   if (event.target.id === 'schedule-date') { state.scheduleDate = event.target.value; state.edit = null; render(); return }
   if (event.target.id !== 'profile-import' || !event.target.files?.[0]) return
   const file = event.target.files[0]
+  const started = generation
   try {
     if (file.size > 1024 * 1024) throw new Error('large-file')
     const parsed = JSON.parse(await file.text())
+    if (started !== generation) return
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('invalid-file')
     const keys = ['sex','age','height_cm','baseline_weight_kg','baseline_date','target_weight_kg','target_date','preferences','health_notes']
     const picked = Object.fromEntries(keys.filter(key => Object.hasOwn(parsed,key)).map(key => [key,parsed[key]]))
@@ -246,32 +287,30 @@ root.addEventListener('change', async event => {
     for (const key of ['baseline_date','target_date']) if (picked[key] && !validDate(picked[key])) throw new Error('invalid-file')
     state.profileDraft = {...state.data.profile,...picked,is_shared:state.data.profile?.is_shared || false}
     state.notice = '档案内容已填入表单。请逐项核对，点击“保存档案”后才会写入当前账号。'; state.error = false; render()
-  } catch { state.notice = '无法读取该档案文件。请选择本人档案 JSON，并检查字段格式。'; state.error = true; render() }
+  } catch { if (started !== generation) return; state.notice = '无法读取该档案文件。请选择本人档案 JSON，并检查字段格式。'; state.error = true; render() }
 })
 
 async function initialize() {
+  if (location.hash || new URLSearchParams(location.search).has('code')) history.replaceState(null, '', location.pathname)
   if (!configured) { state.loading = false; render(); return }
   api.onAuthChange((session,event) => {
-    if (event === 'PASSWORD_RECOVERY') {
-      state.authPage = 'recovery'
-      state.session = session
-      state.data = null
-      state.profileDraft = null
-    }
     setTimeout(async () => {
-    try { if ((await api.session())?.access_token !== session?.access_token) return }
-    catch { return }
-    if (event === 'PASSWORD_RECOVERY') { state.session = session; state.data = null; state.profileDraft = null; state.authPage = 'recovery'; render(); return }
-    if (state.authPage === 'recovery' && session) return
-    if (!session) { state.session = null; state.data = null; state.invite = null; state.edit = null; state.profileDraft = null; state.danger = null; render(); return }
-    if (state.session?.access_token === session.access_token && state.data) return
-    state.session = session
-    try { await reload(); state.notice = ''; state.error = false } catch(error) { state.notice = errorText(error); state.error = true }
-    render()
+      let current
+      try { current = await api.session() }
+      catch (error) { clearSensitive(); state.notice = errorText(error); state.error = true; render(); return }
+      if (current?.access_token !== session?.access_token) return
+      if (!session) { if (state.session) { clearSensitive(); render() } return }
+      if (state.busy && !state.session) return
+      if (state.session?.user?.id === session.user?.id && state.data) { state.session = session; return }
+      clearSensitive(session); state.loading = true; render()
+      const started = generation
+      try { await reload(started); if (started === generation) { state.notice = ''; state.error = false } }
+      catch (error) { if (started === generation) { state.notice = errorText(error); state.error = true } }
+      finally { if (started === generation) { state.loading = false; render() } }
     }, 0)
   })
-  try { state.session = await api.session(); if (state.session && state.authPage !== 'recovery') await reload() }
-  catch (error) { console.error('读取失败',error?.code || error?.name || 'unknown'); state.notice = errorText(error); state.error = true }
+  try { state.session = await api.session(); if (state.session) await reload() }
+  catch (error) { console.error('读取失败',error?.code || error?.name || 'unknown'); if (!state.notice) { state.notice = errorText(error); state.error = true } }
   finally { state.loading = false; render() }
 }
 initialize()

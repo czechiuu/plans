@@ -1,25 +1,33 @@
 {
-  "generated_at": "2026-10-13T09:37:33.180Z",
-  "scope": "real-supabase-api",
+  "generated_at": "2026-10-13T11:38:43.211Z",
+  "scope": "two-fixed-accounts-real-supabase",
   "passed": 0,
   "failed": 0,
   "blocked": 11,
   "notrun": 0,
   "cases": [
     {
+      "id": "API_AUTH_SETTINGS",
+      "status": "blocked"
+    },
+    {
+      "id": "API_PASSWORDS",
+      "status": "blocked"
+    },
+    {
+      "id": "API_FIXED_ACCOUNTS",
+      "status": "blocked"
+    },
+    {
+      "id": "API_DATA_SAFETY",
+      "status": "blocked"
+    },
+    {
       "id": "API_ANON",
       "status": "blocked"
     },
     {
-      "id": "API_ACCOUNTS",
-      "status": "blocked"
-    },
-    {
-      "id": "API_INVITES",
-      "status": "blocked"
-    },
-    {
-      "id": "API_ISOLATION",
+      "id": "API_SIGNUP_CLOSED",
       "status": "blocked"
     },
     {
@@ -31,10 +39,6 @@
       "status": "blocked"
     },
     {
-      "id": "API_ROW_REVOKE",
-      "status": "blocked"
-    },
-    {
       "id": "API_PARTNER_EDIT",
       "status": "blocked"
     },
@@ -43,11 +47,7 @@
       "status": "blocked"
     },
     {
-      "id": "API_ERASE",
-      "status": "blocked"
-    },
-    {
-      "id": "API_LEAVE_REJOIN",
+      "id": "API_CLEANUP",
       "status": "blocked"
     }
   ]

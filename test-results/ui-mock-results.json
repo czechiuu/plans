@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-10-13T08:39:31.061Z",
-  "scope": "synthetic-ui-memory-api",
-  "passed": 5,
+  "generated_at": "2026-10-13T11:38:06.456Z",
+  "scope": "two-fixed-accounts-synthetic-ui",
+  "passed": 6,
   "failed": 0,
   "blocked": 0,
   "notrun": 0,
   "cases": [
     {
-      "id": "UI_AUTH_SPACE",
+      "id": "UI_FIXED_LOGIN",
       "status": "passed"
     },
     {
@@ -19,11 +19,15 @@
       "status": "passed"
     },
     {
-      "id": "UI_IMPORT_LOGOUT",
+      "id": "UI_PRIVATE_SWITCH",
       "status": "passed"
     },
     {
-      "id": "UI_RECOVERY",
+      "id": "UI_LATE_LOAD",
+      "status": "passed"
+    },
+    {
+      "id": "UI_PASSWORD",
       "status": "passed"
     }
   ]

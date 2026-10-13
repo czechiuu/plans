@@ -12,6 +12,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.js",
     "test:concurrency": "node scripts/verify-concurrency.mjs",
+    "test:auth:public": "node scripts/verify-auth-public.mjs",
     "test:cloud": "node scripts/verify-cloud.mjs",
     "test:browser:unconfigured": "node scripts/verify-unconfigured.mjs",
     "test:browser:mock": "node scripts/verify-ui-mock.mjs",

@@ -2,35 +2,20 @@
 
 更新时间：2026-10-13（Asia/Shanghai）。
 
-## 当前结论
+第一阶段正在改为“我/W”两个固定 Supabase 密码账号。生产项目 `wnzbtitlvteptkvwhavw` 已按序应用 001/002/003，并事务执行管理员初始化；只读回验 12 通过、0 失败。结构完成不代表实际密码登录、共享或网页通过。当前发布的应用源码为 `3ded57c825fa375564d389629dd990858ebf97cf`，远端 main 起点 `952ee259161f32c5d047935b8268e3f84ab19cae`。
 
-第一阶段免费 Supabase 项目已创建、数据库迁移已应用，前端已发布到 [实际网页](https://czechiuu.github.io/plans/)。**仍未完成真实账号业务权限、邮件和两台物理设备验收，不能导入两人的真实健康资料，也不进入第二阶段。** AI、照片和 20:00 自动计划尚未实现。
+| 范围 | 实际状态 |
+|---|---|
+| 云项目与旧库 | 001/002 已提交并核对，结构/ACL 14 通过、0 失败；匿名拒绝 8 通过、0 失败。[结构报告](test-results/cloud-setup-results.json)、[匿名报告](test-results/cloud-anonymous-results.json)。不能代替固定账号业务检查 |
+| 网页 | [当前旧版](https://czechiuu.github.io/plans/) 来自 [运行 38378521147](https://github.com/czechiuu/plans/actions/runs/38378521147)；图标修复后的受影响回归 4 通过、0 失败。[报告](test-results/deployment-regression-results.json) |
+| 固定账号方案 | 003 与管理员初始化已提交，LF 源 MD5 匹配，001/002 历史源 MD5 未变；[12 项回验](test-results/cloud-fixed-setup-results.json)通过、0 失败。登录及共享未验收；本地 `pnpm test` 37 通过、0 失败 |
+| Auth 配置 | 公开注册已在云端关闭并保存；Require current password when updating 已开启；Email、Confirm email 保持开启；Secure password change 保持关闭；Custom SMTP 关闭 |
+| 公开注册云端检查 | 2 通过、0 失败：设置报告禁用注册，未登录注册请求被拒。[报告](test-results/cloud-auth-public-results.json)；不证明固定账号业务 |
+| 新方案云端 API／页面脚本 | 0 通过、0 失败、11／10 阻塞；缺两位密码和已核实可运行前置条件，尚未触碰业务数据。[API](test-results/cloud-api-results.json)、[页面](test-results/cloud-browser-results.json) |
+| 邮件与遗忘密码 | 本轮取消注册/重置邮件需求，不配置 SMTP，也不把投递当门槛；面板仅见恢复邮件按钮，本地管理员改密工具已编写，单测 3 通过、0 失败（含在本地 37 项内）；生产操作未执行 |
+| 本地并发／未配置页／模拟界面 | 5／2／6 通过，各 0 失败；[并发](test-results/concurrency-results.json)、[未配置](test-results/unconfigured-results.json)、[模拟](test-results/ui-mock-results.json)，不算云业务 |
+| 两台物理设备 | 未执行；模拟窗口不算真机 |
 
-项目是 Supabase 免费组织 `czechiuu's Org` 下的 `czechiuu's Project`，ref `wnzbtitlvteptkvwhavw`，区域 ap-south-1 Mumbai、NANO。当前部署的应用源码为 `3ded57c825fa375564d389629dd990858ebf97cf`，其 58 个公开文件已与远端逐一核对哈希。后续纯证据和文档提交可更新 main 记录，但不改变这一版应用产物。此前邮件回跳和邀请/退出并发修复已完成，本轮没有重写。
+旧三账号方案已取消；现有云端报告已改为两固定账号，当前因缺安全输入的两位密码而阻塞。旧邀请并发回归只证明 001/002 历史行为。详见 [验收清单](docs/TEST-CHECKLIST.md)。
 
-本轮主要增加云端配置/匿名/部署报告与截图、刷新六份测试报告和这六份文档，并在 `index.html` 修复图标请求。完整文件差异以提交记录为准。
-
-## 已有证据与边界
-
-| 检查 | 结果 | 证据及边界 |
-|---|---|---|
-| 空库与迁移 | 001、002 顺序提交；14 项结构/ACL 检查通过、0 失败 | [cloud-setup-results.json](test-results/cloud-setup-results.json)。SQL Editor 事务执行，迁移历史保存与仓库一致的 LF 规范化源 SQL；仅证明结构和权限配置 |
-| 真实云端匿名拒绝 | 8 通过、0 失败 | [cloud-anonymous-results.json](test-results/cloud-anonymous-results.json)：7 张表及 `current_space_id` 匿名请求被拒；不证明三账号业务 RLS |
-| 新版已发布网页受影响回归 | 4 通过、0 失败 | [deployment-regression-results.json](test-results/deployment-regression-results.json)：图标、手机登录页、刷新、控制台及资源；[新版手机截图](test-results/deployed-mobile-login-verified.png)。未重跑首发全清单或三账号/真机 |
-| 首发匿名网页检查（历史） | 8 通过、1 失败、3 未运行 | [deployment-results.json](test-results/deployment-results.json)：旧版唯一失败为 `/favicon.ico` 404，已修复并在新版受影响回归通过；3 项需账号或真机 |
-| 本地单元与数据库 | 23 通过、0 失败 | [unit-results.json](test-results/unit-results.json)，PGlite/合成 Auth |
-| 本地 PostgreSQL 多连接 | 5 通过、0 失败；旧 001 漏洞按预期复现 1 项 | [concurrency-results.json](test-results/concurrency-results.json) |
-| 未配置页／模拟界面 | 2／5 通过、各 0 失败 | [unconfigured-results.json](test-results/unconfigured-results.json)、[ui-mock-results.json](test-results/ui-mock-results.json)；模拟只用合成资料 |
-| 三账号真实 Supabase API／真实页面 | 0 通过、0 失败、11／7 项阻塞 | [cloud-api-results.json](test-results/cloud-api-results.json)、[cloud-browser-results.json](test-results/cloud-browser-results.json) 已带项目公共配置和网页地址重跑；现缺 A/B/C 账号凭据及一次性测试账号确认标志 |
-| 真实邮件／两台物理设备 | 未运行 | 尚无专用 A/B/C 测试账号和可用邮件渠道；一台设备的两个窗口不算双设备 |
-
-本地 `.env.local` 仅有两项 `VITE_` 公共配置并被 Git 忽略；GitHub Actions 的两项公共 Variables 已保存。GitHub Pages Source 已设为 GitHub Actions、HTTPS 已开启。[当前部署运行 38378521147](https://github.com/czechiuu/plans/actions/runs/38378521147) 于 2026-10-13 09:44:53—09:45:38 UTC 完成，test-build 与 deploy 均 success，网页地址为 [https://czechiuu.github.io/plans/](https://czechiuu.github.io/plans/)。受影响页面回归 4 项通过、0 失败，控制台、页面和资源错误均为 0，手机无水平溢出；旧版[首发运行 38375922987](https://github.com/czechiuu/plans/actions/runs/38375922987)及其图标 404 报告保留作历史。网页发布不等于业务云测通过。
-
-Auth Site URL 已保存为实际网页地址；Redirect URLs 已保存并回读确认，只有 `/plans/` 与 `/plans/index.html` 两条精确网址，没有宽泛通配。[配置回读报告](test-results/cloud-auth-config-results.json)记录允许注册和邮箱确认开启、匿名登录关闭、Email 启用，这些开关未改。Custom SMTP 当前关闭；用户没有现成 SMTP，已提出个人 QQ 邮箱 SMTP 作为免费候选，待用户选择和配置，实际投递尚未验证。保留邮箱确认，不提升测试邮箱为组织成员绕过限制，也不擅自接入可能收费的服务。
-
-## 接下来
-
-1. 确定合规邮件渠道，准备三个独立、可清理的合成账号；再运行真实 API 11 项和真实页面 7 项，检查共享、撤销、代改、冲突与退出。真实邮箱/密码/令牌不进仓库或报告。
-2. 邮件确认与重置、管理员精确过滤的删除计数、两台物理设备 [5 步验收](docs/DEVICE-ACCEPTANCE.md) 留下实际证据；备份保留规则未核实，保持未知。完成前不导入 `private/` 的真实档案。
-
-跨设备共享变化需手动刷新；没有实时通知。清除健康数据或退出空间不会删除 Auth 账号。详细门槛见 [云端验收清单](docs/CLOUD-ACCEPTANCE.md)。
+接下来新版发布后用两位账号做真实云端、网页和两台设备验收。生产只写合成测试记录，仅按本轮精确 ID 清理。之前不导入真实档案，不推进后续阶段。本人清除或退出不删除 Auth 账号；退出后需管理员重新关联，见 [固定账号说明](docs/FIXED-ACCOUNTS.md)。

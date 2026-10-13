@@ -1,13 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 import { shanghaiDate, validateConfig } from './domain.js'
-import { authRedirectUrl } from './auth-redirect.js'
+import { emails, verifiedUser as verifyFixedUser } from './fixed-account.js'
 
 const url = import.meta.env.VITE_SUPABASE_URL
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
 const validation = validateConfig(url, key)
 export const configured = validation.configured
 export const configurationError = validation.error
-const client = configured ? createClient(url, key) : null
+const client = configured ? createClient(url, key, { auth: { detectSessionInUrl: false } }) : null
 
 function ready() {
   if (!client) throw new Error(configurationError || '尚未配置 Supabase')
@@ -20,12 +20,7 @@ async function result(promise) {
   return data
 }
 
-async function ownUser() {
-  const { data: { user }, error } = await ready().auth.getUser()
-  if (error) throw error
-  if (!user) throw new Error('请先登录')
-  return user
-}
+const verifiedUser = expectedSlot => verifyFixedUser(ready(), expectedSlot)
 
 async function allPages(table, column, value) {
   const rows = []
@@ -46,22 +41,27 @@ export const api = {
     const { data: { subscription } } = ready().auth.onAuthStateChange((event, session) => callback(session, event))
     return () => subscription.unsubscribe()
   },
-  async signIn(email, password) { await result(ready().auth.signInWithPassword({ email, password })) },
-  async signUp(email, password) {
-    const data = await result(ready().auth.signUp({ email, password, options: { emailRedirectTo: authRedirectUrl(window.location.href) } }))
-    return { needsEmailConfirmation: !data.session }
+  async currentAccount() { return (await verifiedUser()).account },
+  async signIn(slot, password) {
+    if (!emails[slot]) throw Object.assign(new Error('请选择固定账号'), { code: 'ACCOUNT_DENIED' })
+    await result(ready().auth.signInWithPassword({ email: emails[slot], password }))
+    await verifiedUser(slot)
   },
-  async signOut() { await result(ready().auth.signOut()) },
-  async resetPassword(email) {
-    const redirectTo = authRedirectUrl(window.location.href)
-    await result(ready().auth.resetPasswordForEmail(email, { redirectTo }))
+  async signOut() {
+    const { error } = await ready().auth.signOut({ scope: 'local' })
+    const { data, error: sessionError } = await ready().auth.getSession()
+    if (sessionError || data?.session) throw Object.assign(new Error('本机退出未完成'), { code: 'SIGNOUT_INCOMPLETE' })
+    if (error) throw Object.assign(new Error('服务器退出请求未确认'), { code: 'SIGNOUT_UNCONFIRMED' })
   },
-  async updatePassword(password) { await result(ready().auth.updateUser({ password })) },
+  async updatePassword(currentPassword, newPassword) {
+    await verifiedUser()
+    await result(ready().auth.updateUser({ password: newPassword, current_password: currentPassword }))
+  },
   async load() {
-    const user = await ownUser()
+    const { user, account } = await verifiedUser()
     const member = await result(ready().from('members').select('space_id').eq('user_id', user.id).maybeSingle())
     const today = shanghaiDate()
-    if (!member) return { user, space: null, members: [], profile: null, profiles: [], schedules: [], weights: [], audit: [], range: { from: today, to: today } }
+    if (!member) return { user, account, space: null, members: [], profile: null, profiles: [], schedules: [], weights: [], audit: [], range: { from: today, to: today } }
     const spaceId = member.space_id
     const [space, members, profiles, schedules, weights, audit] = await Promise.all([
       result(ready().from('spaces').select('id,name').eq('id', spaceId).single()),
@@ -73,14 +73,8 @@ export const api = {
     ])
     const dates = [...schedules, ...weights].map(row => row.record_date).sort()
     const range = { from: dates[0] ?? today, to: dates.at(-1) ?? today }
-    return { user, space, members, profile: profiles.find(row => row.user_id === user.id) ?? null, profiles, schedules, weights, audit, range }
+    return { user, account, space, members, profile: profiles.find(row => row.user_id === user.id) ?? null, profiles, schedules, weights, audit, range }
   },
-  async createSpace(name, displayName) { return result(ready().rpc('create_space', { p_name: name, p_display_name: displayName })) },
-  async createInvite() {
-    const rows = await result(ready().rpc('create_invite'))
-    return rows[0]
-  },
-  async joinSpace(token, displayName, settings = {}) { return result(ready().rpc('join_space', { p_token: token, p_display_name: displayName, p_settings: settings })) },
   async saveSettings(settings) { await result(ready().rpc('save_settings', { p_settings: settings })) },
   async saveProfile(payload) { return result(ready().rpc('save_profile', { p_payload: payload }).single()) },
   async saveSchedule(payload, id = null) { return result(ready().rpc('save_schedule', { p_payload: payload, p_id: id }).single()) },
@@ -88,7 +82,7 @@ export const api = {
   async saveWeight(payload, id = null) { return result(ready().rpc('save_weight', { p_payload: payload, p_id: id }).single()) },
   async deleteWeight(id) { await result(ready().rpc('delete_weight', { p_id: id })) },
   async exportOwnData() {
-    const user = await ownUser()
+    const { user } = await verifiedUser()
     const member = await result(ready().from('members').select('display_name,share_profile,share_schedule,share_weight,allow_partner_edit').eq('user_id', user.id).maybeSingle())
     const [profiles, schedules, weights] = await Promise.all([
       allPages('health_profiles', 'user_id', user.id), allPages('schedules', 'user_id', user.id), allPages('weights', 'user_id', user.id)

@@ -26,7 +26,8 @@ test('local PostgreSQL access and sharing contract', async t => {
     `)
     for (const id of ids) await db.query('insert into auth.users(id) values($1)', [id])
     const migrations = new URL('../supabase/migrations/', import.meta.url)
-    for (const file of (await readdir(migrations)).filter(name => name.endsWith('.sql')).sort()) {
+    // Historical invitation-mode contract: 003 replaces this access model.
+    for (const file of (await readdir(migrations)).filter(name => /^20261013000[12]_.*\.sql$/.test(name)).sort()) {
       await db.exec(await readFile(new URL(file, migrations), 'utf8'))
     }
 

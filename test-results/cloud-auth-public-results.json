@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-10-13T11:29:34.169Z",
+  "scope": "real-public-auth-settings",
+  "passed": 2,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "AUTH_SIGNUP_DISABLED",
+      "status": "passed"
+    },
+    {
+      "id": "AUTH_SIGNUP_REJECTED",
+      "status": "passed"
+    }
+  ]
+}

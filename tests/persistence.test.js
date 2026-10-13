@@ -21,7 +21,8 @@ test('本地PostgreSQL写入后关闭重开仍保存，更正与删除持久化'
       grant usage on schema auth to anon,authenticated;grant execute on function auth.uid() to anon,authenticated;`);
     await db.query('insert into auth.users(id) values($1)',[id]);
     const migrations = new URL('../supabase/migrations/',import.meta.url);
-    for (const file of (await readdir(migrations)).filter(name=>name.endsWith('.sql')).sort()) {
+    // Historical invitation-mode persistence, kept separate from fixed-account tests.
+    for (const file of (await readdir(migrations)).filter(name=>/^20261013000[12]_.*\.sql$/.test(name)).sort()) {
       await db.exec(await readFile(new URL(file,migrations),'utf8'));
     }
     await authenticate();

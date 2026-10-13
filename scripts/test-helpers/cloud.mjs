@@ -2,18 +2,28 @@ import assert from 'node:assert/strict'
 import { createClient } from '@supabase/supabase-js'
 import { validateConfig } from '../../src/domain.js'
 
-export const requiredCloudNames = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', ...'ABC'.split('').flatMap(label => [`TEST_${label}_EMAIL`, `TEST_${label}_PASSWORD`])]
+export const fixedEmails = ['me@plans.invalid', 'w@plans.invalid']
+export const requiredCloudNames = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY', 'TEST_ME_PASSWORD', 'TEST_W_PASSWORD']
+
+export function cloudPublicSetup() {
+  const missing = ['SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY'].filter(name => !process.env[name])
+  if (missing.length) return { blocked:true, reason:`Missing ${missing.join(', ')}` }
+  const { SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: key } = process.env
+  const validation = validateConfig(url, key)
+  if (!validation.configured) return { blocked:true, reason:validation.error }
+  if (new URL(url).hostname !== 'wnzbtitlvteptkvwhavw.supabase.co')
+    return { blocked:true, reason:'Wrong Supabase project' }
+  return { url, key }
+}
 
 export function cloudSetup(extra = []) {
   const missing = [...requiredCloudNames, ...extra].filter(name => !process.env[name])
-  if (process.env.TEST_ACCOUNTS_ARE_DISPOSABLE !== 'YES') missing.push('TEST_ACCOUNTS_ARE_DISPOSABLE=YES')
+  if (process.env.TEST_FIXED_ACCOUNTS_APPROVED !== 'YES') missing.push('TEST_FIXED_ACCOUNTS_APPROVED=YES')
   if (missing.length) return { blocked: true, reason: `Missing ${missing.join(', ')}` }
-  const { SUPABASE_URL: url, SUPABASE_PUBLISHABLE_KEY: key } = process.env
-  const validation = validateConfig(url, key)
-  if (!validation.configured) return { blocked: true, reason: validation.error }
-  const emails = 'ABC'.split('').map(label => process.env[`TEST_${label}_EMAIL`])
-  assert.equal(new Set(emails).size, 3, 'Dedicated account emails must be distinct')
-  return { url, key, emails, passwords: 'ABC'.split('').map(label => process.env[`TEST_${label}_PASSWORD`]) }
+  const publicSetup = cloudPublicSetup()
+  if (publicSetup.blocked) return publicSetup
+  const { url, key } = publicSetup
+  return { url, key, emails: fixedEmails, passwords: [process.env.TEST_ME_PASSWORD, process.env.TEST_W_PASSWORD] }
 }
 
 export function client(url, key) {
@@ -26,7 +36,8 @@ export async function ok(promise) {
   return data
 }
 
-export async function denied(promise) {
+export async function denied(promise, expectedCodes) {
   const { error } = await promise
   assert.ok(error, 'Expected server denial')
+  assert.ok(expectedCodes.includes(error.code), `Expected SQL rejection, got ${error.code || 'no-code'}`)
 }

@@ -1,0 +1,66 @@
+{
+  "observed_at": "2026-10-13T11:41:43Z",
+  "source": "Supabase Dashboard SQL Editor; administrator transaction and read-only post-commit verification reported by parent agent",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "scope": "fixed_accounts_003_and_admin_initialization_structure",
+  "migration_003_source_md5_lf": "d13a863ec3337d16a4a968835d5ee12d",
+  "conditions": [
+    "Existing 001 and 002 migrations verified before applying 003",
+    "Exactly two designated confirmed password Auth accounts existed; other Auth users, members and health records were zero before initialization",
+    "003 and administrator initialization each committed in a transaction"
+  ],
+  "passed": 12,
+  "failed": 0,
+  "blocked": 0,
+  "checks": [
+    {
+      "id": "003_source_matches",
+      "status": "passed"
+    },
+    {
+      "id": "exactly_two_auth_users",
+      "status": "passed"
+    },
+    {
+      "id": "both_confirmed_password_accounts",
+      "status": "passed"
+    },
+    {
+      "id": "fixed_slots_match_auth",
+      "status": "passed"
+    },
+    {
+      "id": "one_space_two_members",
+      "status": "passed"
+    },
+    {
+      "id": "all_sharing_and_edit_off",
+      "status": "passed"
+    },
+    {
+      "id": "no_health_records",
+      "status": "passed"
+    },
+    {
+      "id": "registry_rls",
+      "status": "passed"
+    },
+    {
+      "id": "registry_no_client_privileges",
+      "status": "passed"
+    },
+    {
+      "id": "legacy_entrypoints_closed",
+      "status": "passed"
+    },
+    {
+      "id": "identity_rpc_authenticated_only",
+      "status": "passed"
+    },
+    {
+      "id": "business_gate_uses_fixed_registry",
+      "status": "passed"
+    }
+  ],
+  "boundary": "This verifies database structure and administrator initialization, not password login, two-account RLS behavior, deployed application behavior, device workflow, or password-reset tool."
+}

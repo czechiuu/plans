@@ -1,42 +1,24 @@
 # 数据结构与权限
 
-此文描述已实现的第一阶段；未来实体为设计，尚未建表。
+本地已实现 001、002、003；生产已应用三次迁移，并执行两固定账号初始化。后续阶段实体只是设计，尚未建表。
 
-## 已实现
+| 实体 | 第一阶段内容与边界 |
+|---|---|
+| auth.users | Supabase 托管两位指定密码用户；前端不查询对方邮箱 |
+| fixed_accounts（003） | `me`、`w` 两固定槽位，唯一 Auth user_id 与指定 space_id；RLS 启用，匿名及普通客户端无直接读写权限 |
+| spaces / members | 同一私人空间最多两人，成员昵称及四个共享/代改开关；只有管理员初始化固定空间，普通客户端不能建空间 |
+| invites | 001 历史表保留，不向客户端开放邀请或加入入口；003 撤销相关 RPC 执行权 |
+| health_profiles | 可空的个人基线、目标、偏好、伤情原文；仅本人编辑，基线不算体重记录 |
+| schedules | 每人每天一条手动确认日程，可补录、更正及删除；编辑冲突明确报错 |
+| weights | 每人每天一条真实体重、可选腰围与测量时刻；缺失不补造 |
+| audit_events | 实体、动作、所有者、实际修改者、时间；无健康原文、数值、照片或密钥 |
 
-| 实体 | 主要字段 | 权限与约束 |
-|---|---|---|
-| auth.users | Supabase账号、邮箱与身份 | Auth托管，前端不查询别人的邮箱 |
-| spaces | id、name、created_at | 当前成员可读，只通过RPC创建 |
-| members | space_id、user_id、display_name、4个共享/代改开关 | 每人一个空间，最多两人；只能本人修改自己的开关 |
-| invites | token_hash、expires_at、consumed_at、created_by | 高熵一次token，仅hash入库、24小时有效；不能查询列表；关系退出撤销旧邀请 |
-| health_profiles | 身高、年龄、性别、基线/日期、目标/日期、偏好/伤情原文、is_shared | 未知可空；档案基线不算一次体重记录；仅本人编辑 |
-| schedules | record_date、raw_text、start/end_time、exercise_intent、fixed_arrangements、meal_conditions、constraints、is_shared、version | 每人每天一条确认日程，整合当天安排；同日重复返回冲突 |
-| weights | record_date、measured_at、weight_kg、waist_cm、notes、is_shared | 每人每天一条真实体重；测量时刻如有需与上海记录日一致；补录允许无测量时刻 |
-| audit_events | entity、entity_id、action、user_id、actor_id、created_at | 仅本人/实际修改者在当前空间可读，无原文、数值、照片或密钥 |
+健康表共同字段 `id,space_id,user_id,created_at,updated_at,updated_by`。Auth 与固定槽位、指定空间及成员关系共同决定业务身份。新增默认私有；对方读取 = 同空间 + 所有者类别共享 + 单条 `is_shared`。代改再要求 `allow_partner_edit`，不能更改对方共享确认、所有者或空间。档案和删除仅本人。读使用 RLS，写通过固定 search_path、显式授权的 RPC；匿名无表权限。编辑用 `expected_updated_at` 防静默覆盖。
 
-健康表共同字段：id、space_id、user_id、created_at、updated_at、updated_by。身份由Auth及服务端派生，不能转移给其他人或空间。写权限不授予客户端直接表操作，使用固定search_path、显式授权的RPC。读启用Postgres RLS；匿名无表权限。编辑带expected_updated_at，冲突须重载后人工判断。
+日程、体重与本人导出按页全量加载，不限制历史补录；审计只显示最近 100 条元数据。7 日均值只算实际体重点并显示样本数。日期按 Asia/Shanghai 解释，不用宿主时区猜目标日。
 
-共享读取 = 同一当前空间 + 所有人类别共享开关 + 该记录is_shared。类别开关不使未来新增记录自动共享。代改再要求allow_partner_edit；不能改对方的共享确认或身份。退出后立即取消关系，留守成员的共享/代改开关归零，换人需重新确认。
+003 的 `current_account()` 只返回调用者 `me` 或 `w`。 `current_space_id()` 在两槽齐全、槽位同属指定空间且本人仍是该空间成员时才返回空间 ID。退出后保留固定身份与空空间，删除本人健康记录/成员关系，并将留守成员的共享/代改开关归零；需管理员重关联。本人清除健康记录不删除 Auth 用户；服务商备份保留期限仍待核实，不宣称即时擦除备份。
 
-日程和体重全部分页加载，支持任意历史补录与更正；导出本人记录同样不截断。审计接口仅返回最近100条元数据。7日平均是指定自然日往前6天至当日的实际体重算术平均，展示样本数；缺失不插值。日期字段date，发生时刻timestamptz；呈现与相对日期统一上海，数据库宿主时区不决定目标日。
+001/002 的邀请、加入、退出并发锁序修复作为历史迁移保留；003 撤销普通账号的建空间/创建邀请/加入 RPC 权限。真实多连接回归仅说明 001/002 旧路径。生产 003 与初始化的 [12 项只读回验](../test-results/cloud-fixed-setup-results.json)只证明结构和初始状态，不等于两账号实际业务验收。
 
-## 待后续阶段实现
-
-- schedule_inputs/confirmations：解析原文、提交时刻、歧义、结构化确认与输入版本。
-- plan_versions / plan_items：空间目标日、双人一致发布、来源、输入快照版本、锁定、手改、校验状态。
-- exercises / media_sources：动作库、合法准确示范、授权与人工核对；training_sessions / sets保存实际完成。
-- generation_jobs：应执行时间、固定目标日、唯一任务、领取状态、重试、脱敏错误和原子发布。
-- meals / meal_estimates / photo_assets：草稿/确认、份量修正、餐前餐后关联与去重、私有对象权限。
-- ai_consents / ai_usage：具体用户/provider/purpose/policy版本授权、状态/用量/预算；第一阶段不收泛化授权、不调用AI。
-
-## 迁移与并发
-
-001 是首次建库迁移，002 是保留历史的并发修复。邀请、加入和退出先取得所属空间行锁，再读取当前成员或邀请状态；加入随后才锁邀请行，避免和退出删除邀请形成反向等待。邀请过期按锁后实际时刻判断。等待旧空间锁的退出请求重新校验所属空间，不能清除后来加入的新空间。每人一个空间由成员主键约束，空间容量和邀请消费在同一事务内验证。数据库锁回归见 `scripts/verify-concurrency.mjs`；本地 PostgreSQL 证据不能替代云端实际迁移检查。
-
-## 实际删除边界
-
-- 删一条记录：当前表行删除，保留不含健康内容的操作元数据。
-- 清除本人健康数据：删除本人档案、日程、体重及归属于本人的审计；保留账号和成员关系。代改另一人的审计属于对方记录，不删除对方健康数据。
-- 退出空间：本人健康数据删除、本人成员关系删除、邀请失效；留守者需要重新确认共享。Auth账号未删除。
-- 数据库服务商的备份可能保留历史直到其实际保留周期结束，不声称即时擦除所有备份；云端未启用前无法核验控制台具体备份策略。删除Auth账号和照片阶段的文件清理需后续实现/验收。
+后续才考虑自然语言确认、计划版本和动作媒体、20:00 作业、餐食/照片/AI 授权；第一阶段不建空表。

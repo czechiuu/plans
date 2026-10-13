@@ -1,0 +1,17 @@
+{
+  "observed_at": "2026-10-13T11:46:47Z",
+  "source": "Supabase Dashboard Auth settings; parent agent saved changes and refreshed browser before readback",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "observed_settings": {
+    "allow_new_users_signup": false,
+    "anonymous_signins": false,
+    "confirm_email": true,
+    "email_provider": true,
+    "require_current_password_when_updating": true,
+    "secure_password_change": false,
+    "secure_email_change": true,
+    "custom_smtp": false
+  },
+  "change_scope": "Public signup disabled and require-current-password enabled for this fixed-account phase; other listed toggles retained their prior values.",
+  "boundary": "This is a UI configuration readback, separate from the 12 SQL structure checks and 2 public Auth HTTP checks. It does not prove password login, email delivery, password reset, or application RLS behavior."
+}

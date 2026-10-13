@@ -1,23 +1,19 @@
-# 第一阶段接口约定（开发用）
+# 第一阶段接口约定
 
-前端 `src/main.js` 导入 `src/api.js` 与 `src/domain.js`。无后端配置时展示未配置页，不使用假登录或演示记录。
+前端 `src/main.js` 使用 `src/api.js` 与 `src/domain.js`。未配置时显示错误，不造假登录或演示健康记录。生产只提供固定“我/W”入口；公开注册、建空间、邀请、加入和邮件重置不在当前界面。
 
-`src/api.js` 导出 `configured` 布尔值、`configurationError` 字符串、`api` 对象。
+`src/api.js` 导出 `configured`、`configurationError`、`api`：
 
-- `api.session()` -> session/null；`api.onAuthChange(callback)` -> unsubscribe函数，callback(session,event)，恢复密码使用PASSWORD_RECOVERY事件。
-- `api.signIn(email,password)`，`api.signUp(email,password)` -> `{ needsEmailConfirmation: boolean }`；`api.signOut()`；`api.resetPassword(email)`；`api.updatePassword(password)`。
-- `api.load()` -> `{ user, space, members, profile, profiles, schedules, weights, audit, range }`；未加入空间返回space=null、members/schedules/weights/audit/profiles=[]、profile=null。user是当前真实账号。profiles为RLS允许的档案，profile仍为本人档案；日程和体重全量分页不截断，range={from,to}为实际记录日期边界；audit最近100条。
-- `api.createSpace(name,displayName)` -> uuid；`api.createInvite()` -> `{ token, expires_at }`；`api.joinSpace(token,displayName,settings)` -> uuid。成员唯一空间，空间最多两人，token一次使用。
-- `api.saveSettings(settings)` -> void。settings=`{share_profile,share_schedule,share_weight,allow_partner_edit}`，布尔值默认false。
-- `api.saveProfile(payload)` -> row；payload=`{sex,age,height_cm,baseline_weight_kg,baseline_date,target_weight_kg,target_date,preferences,health_notes,is_shared,expected_updated_at}`。所有未知项null/空；无真实数据默认值，偏好/伤情为用户原文。编辑有expected_updated_at；新建时已有档案则冲突，不静默覆盖。
-- `api.saveSchedule(payload,id=null)` -> row；payload=`{user_id,record_date,raw_text,start_time,end_time,exercise_intent,fixed_arrangements,meal_conditions,constraints,is_shared}`。第一阶段结构化手动确认，不声称完成AI/NL解析。exercise_intent=`unknown|yes|no`。
-- `api.deleteSchedule(id)` -> void；`api.saveWeight(payload,id=null)` -> row；payload=`{user_id,record_date,measured_at,weight_kg,waist_cm,notes,is_shared}`；`api.deleteWeight(id)`。
-- `api.exportOwnData()` -> JSON对象（仅自己的档案、日程、体重、共享设置）；`api.eraseOwnHealthData()` -> void；`api.leaveSpace()` -> void。清除仅本人健康数据；退出会删除本人该空间健康记录并撤销共享，UI先导出/确认。不宣称删除Auth账号。
+- `api.session()` 返回 session/null；`api.onAuthChange(callback)` 返回 unsubscribe，回调为 `callback(session,event)`。
+- `api.signIn(slot,password)` 中 `slot` 仅允许 `me`、`w`，映射到两个内部登录标识；登录后以 `current_account()` 核对槽位。 `api.currentAccount()` 返回调用者 `me`/`w`；不公开另一人 UUID。 `api.signOut()` 清本机会话。
+- `api.updatePassword(currentPassword,newPassword)` 供本人已知当前密码时改密。遗忘密码的管理员路径待核实；不承诺邮件重置。
+- `api.load()` 返回 `{user,account,space,members,profile,profiles,schedules,weights,audit,range}`。退出或无成员关系时 `space=null`，数组为空；固定槽位仍可识别。`profile` 是本人档案，`profiles` 是 RLS 许可的档案；日程、体重按每页 500 全量读取，不静默截断，`range={from,to}` 为实际记录日期边界；审计仅最近 100 项元数据。
+- `api.saveSettings(settings)` 接收 `{share_profile,share_schedule,share_weight,allow_partner_edit}` 布尔值，默认 false。
+- `api.saveProfile(payload)` 接收 `{sex,age,height_cm,baseline_weight_kg,baseline_date,target_weight_kg,target_date,preferences,health_notes,is_shared,expected_updated_at}`；无真实数据默认值，新建时已有档案须冲突。
+- `api.saveSchedule(payload,id=null)` 接收 `{user_id,record_date,raw_text,start_time,end_time,exercise_intent,fixed_arrangements,meal_conditions,constraints,is_shared,expected_updated_at}`；`exercise_intent=unknown|yes|no`。 `api.deleteSchedule(id)` 删除本人记录。
+- `api.saveWeight(payload,id=null)` 接收 `{user_id,record_date,measured_at,weight_kg,waist_cm,notes,is_shared,expected_updated_at}`；`api.deleteWeight(id)`。
+- `api.exportOwnData()` 导出本人档案、日程、体重和共享设置，不截断；`api.eraseOwnHealthData()` 清本人健康资料；`api.leaveSpace()` 退出并撤销关系。退出后需管理员重新关联，不删除 Auth 账号。
 
-load中所有row具有uuid；space=`{id,name}`；members=`{space_id,user_id,display_name,share_profile,share_schedule,share_weight,allow_partner_edit}`；profile属于本人。schedules/weights仅数据库RLS允许读取的记录。共享看板只筛选这些返回结果，不在前端扩大权限。
+`space={id,name}`；`members` 只包含同空间成员的 `space_id,user_id,display_name` 与四个共享/代改开关，不含邮箱。健康表的共同字段为 `id,space_id,user_id,created_at,updated_at,updated_by`；日程另有 `version`。编辑提交 `expected_updated_at`，冲突不可静默覆盖。类别共享及单条 `is_shared` 同时开启才能让对方读；代改另需授权，不能替对方扩大共享或改身份。
 
-健康表包含 `id,space_id,user_id,created_at,updated_at,updated_by`。schedule有`version`，同一人一天一条；weight同一人一天一条，每日平均以7个自然日窗口的真实记录计算，不补缺失日期。更新冲突不得悄悄覆盖：编辑时提交`expected_updated_at`，api使用条件更新并返回冲突错误。
-
-`src/domain.js` 导出：`shanghaiDate(instant=new Date())`、`addDays(yyyyMMdd,n)`、`sevenDayAverage(rows,endDate)` -> `{average,count,startDate,endDate}`（weight_kg非空真实记录）；`escapeHtml(value)`；`validateConfig(url,key)` -> `{configured,error}`；`localDateTimeToInstant(local)`；`instantToLocalDateTime(iso)`。日期不使用宿主时区。
-
-真实初始档案仅存于git忽略的private/文件，通过本人导入、核对后才保存云端，公开代码无预设个人数据。AI处理尚未启用且不向外部AI发送资料。
+`src/domain.js` 提供上海日期、日期加减、7 个自然日实际体重均值及样本数、HTML 转义、公共配置校验与本地时间转换。初始健康资料只在 Git 忽略的私人文件，经本人确认才导入。AI 尚未启用。

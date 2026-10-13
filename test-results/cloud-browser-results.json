@@ -1,21 +1,29 @@
 {
-  "generated_at": "2026-10-13T09:37:52.659Z",
-  "scope": "real-build-real-supabase-browser",
+  "generated_at": "2026-10-13T11:42:41.586Z",
+  "scope": "two-fixed-accounts-real-build",
   "passed": 0,
   "failed": 0,
-  "blocked": 7,
+  "blocked": 10,
   "notrun": 0,
   "cases": [
     {
-      "id": "E2E_CONFIG",
+      "id": "E2E_BUILD",
       "status": "blocked"
     },
     {
-      "id": "E2E_REAL_BUILD",
+      "id": "E2E_AUTH_SETTINGS",
       "status": "blocked"
     },
     {
       "id": "E2E_ACCOUNTS",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_DATA_SAFETY",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_FIXED_LOGIN",
       "status": "blocked"
     },
     {
@@ -31,7 +39,11 @@
       "status": "blocked"
     },
     {
-      "id": "E2E_REOPEN",
+      "id": "E2E_SWITCH",
+      "status": "blocked"
+    },
+    {
+      "id": "E2E_CLEANUP",
       "status": "blocked"
     }
   ]
