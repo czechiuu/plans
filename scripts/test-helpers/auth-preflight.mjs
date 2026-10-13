@@ -2,7 +2,17 @@ function safeCode(error) {
   return /^[a-z_]{1,60}$/u.test(error?.code || '') ? error.code : 'unknown'
 }
 
-export async function readVerifiedPassword({ slot, email, auth, readHidden, write }) {
+async function withinNetworkDeadline(operation, timeoutMs) {
+  let timer
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise((_,reject)=>{timer=setTimeout(()=>reject(Object.assign(new Error('联网核对超时'),{code:'network_timeout'})),timeoutMs)})
+    ])
+  } finally { clearTimeout(timer) }
+}
+
+export async function readVerifiedPassword({ slot, email, auth, readHidden, write, networkTimeoutMs=15000 }) {
   for (let attempt=1;attempt<=3;attempt++) {
     let password=await readHidden(`请输入「${slot}」的密码（不显示输入）：`)
     if (!password) {
@@ -10,7 +20,8 @@ export async function readVerifiedPassword({ slot, email, auth, readHidden, writ
       continue
     }
     let result
-    try { result=await auth.signInWithPassword({ email, password }) }
+    write(`正在联网核对${slot}账号…\n`)
+    try { result=await withinNetworkDeadline(()=>auth.signInWithPassword({ email, password }),networkTimeoutMs) }
     catch (error) { password=null; throw new Error(`认证预检失败（${safeCode(error)}）`) }
     if (result.error) {
       password=null
@@ -24,7 +35,7 @@ export async function readVerifiedPassword({ slot, email, auth, readHidden, writ
       throw new Error('认证账号与固定身份不符')
     }
     let signedOut
-    try { signedOut=await auth.signOut({ scope:'local' }) }
+    try { signedOut=await withinNetworkDeadline(()=>auth.signOut({ scope:'local' }),networkTimeoutMs) }
     catch (error) { password=null; throw new Error(`本地会话清理失败（${safeCode(error)}）`) }
     if (signedOut.error) { password=null; throw new Error(`本地会话清理失败（${safeCode(signedOut.error)}）`) }
     return password

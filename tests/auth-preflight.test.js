@@ -43,3 +43,19 @@ test('input cancellation does not call authentication',async()=>{
   const auth={signInWithPassword:()=>{throw new Error('must not run')}}
   await assert.rejects(readVerifiedPassword({slot:'我',email,auth,readHidden:()=>{throw new Error('Input cancelled')},write:()=>{}}),/Input cancelled/)
 })
+
+test('sign-in timeout returns only a safe code',async()=>{
+  let output=''
+  const auth={signInWithPassword:()=>new Promise(()=>{})}
+  await assert.rejects(readVerifiedPassword({slot:'我',email,auth,readHidden:input,write:text=>output+=text,networkTimeoutMs:10}),error=>{
+    assert.match(error.message,/network_timeout/)
+    assert.equal(error.message.includes('synthetic-test-value'),false)
+    return true
+  })
+  assert.match(output,/正在联网核对/)
+})
+
+test('sign-out timeout does not return a password',async()=>{
+  const auth={signInWithPassword:async()=>({data:{user:{email}}}),signOut:()=>new Promise(()=>{})}
+  await assert.rejects(readVerifiedPassword({slot:'我',email,auth,readHidden:input,write:()=>{},networkTimeoutMs:10}),/network_timeout/)
+})

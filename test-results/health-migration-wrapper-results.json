@@ -1,0 +1,42 @@
+{
+  "started_at": "2026-10-13T15:07:44.245Z",
+  "scope": "Isolated local PostgreSQL; synthetic accounts; no cloud",
+  "cases": {
+    "FIRST_APPLY_EXACT_HISTORY": {
+      "status": "passed",
+      "evidence": "004 DDL and exact original statement committed together"
+    },
+    "SAME_HASH_NO_OP": {
+      "status": "passed",
+      "evidence": "same source rerun kept one history row and same table OID"
+    },
+    "OLD_HISTORY_001_REJECTED": {
+      "status": "passed",
+      "evidence": "altered 001 statement rejected before 004 DDL"
+    },
+    "OLD_HISTORY_002_REJECTED": {
+      "status": "passed",
+      "evidence": "altered 002 statement rejected before 004 DDL"
+    },
+    "OLD_HISTORY_003_REJECTED": {
+      "status": "passed",
+      "evidence": "altered 003 statement rejected before 004 DDL"
+    },
+    "DIFFERENT_004_REJECTED": {
+      "status": "passed",
+      "evidence": "different registered 004 rejected before DDL"
+    },
+    "FIXED_ACCOUNT_PRECONDITION": {
+      "status": "passed",
+      "evidence": "missing fixed member rejected before 004 DDL"
+    }
+  },
+  "passed": 7,
+  "failed": 0,
+  "not_run": 0,
+  "wrapper_sha256": "2232942595076993c579df96a00c3cb942cb05910e91cb643bee4652bbeaa5e3",
+  "migration_004_sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
+  "postgresql_version": "17.10",
+  "generated_at": "2026-10-13T15:08:01.839Z",
+  "script_sha256": "7fce908bca94106c32983a83df2bf95859dbe84374e8e4c3b0124b64a3f302f3"
+}

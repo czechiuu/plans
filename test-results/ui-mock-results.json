@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-13T11:38:06.456Z",
+  "generated_at": "2026-10-13T14:53:43.844Z",
   "scope": "two-fixed-accounts-synthetic-ui",
-  "passed": 6,
+  "passed": 15,
   "failed": 0,
   "blocked": 0,
   "notrun": 0,
@@ -11,7 +11,31 @@
       "status": "passed"
     },
     {
+      "id": "UI_SIX_NAV",
+      "status": "passed"
+    },
+    {
       "id": "UI_SCHEDULE",
+      "status": "passed"
+    },
+    {
+      "id": "UI_MANUAL_PLAN",
+      "status": "passed"
+    },
+    {
+      "id": "UI_GENERATE_PLAN",
+      "status": "passed"
+    },
+    {
+      "id": "UI_TRAINING",
+      "status": "passed"
+    },
+    {
+      "id": "UI_MEAL",
+      "status": "passed"
+    },
+    {
+      "id": "UI_PHOTO_SWITCH",
       "status": "passed"
     },
     {
@@ -23,11 +47,23 @@
       "status": "passed"
     },
     {
+      "id": "UI_RULE_IMPORT",
+      "status": "passed"
+    },
+    {
+      "id": "UI_LOGOUT_PENDING",
+      "status": "passed"
+    },
+    {
       "id": "UI_LATE_LOAD",
       "status": "passed"
     },
     {
       "id": "UI_PASSWORD",
+      "status": "passed"
+    },
+    {
+      "id": "UI_PASSWORD_SWITCH",
       "status": "passed"
     }
   ]

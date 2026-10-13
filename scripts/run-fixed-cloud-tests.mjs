@@ -12,6 +12,7 @@ const publicConfigFile = new URL('../.env.local',import.meta.url)
 const site = 'https://czechiuu.github.io/plans/'
 const expectedProject = 'wnzbtitlvteptkvwhavw.supabase.co'
 const systemNames = ['SystemRoot','WINDIR','PATH','PATHEXT','TEMP','TMP','USERPROFILE','APPDATA','LOCALAPPDATA','HOMEDRIVE','HOMEPATH']
+const networkFetch = (input, init={}) => fetch(input,{...init,signal:init.signal ? AbortSignal.any([init.signal,AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000)})
 
 async function publicConfig() {
   const values = new Map()
@@ -67,11 +68,17 @@ async function reportStatus(name, startedAt, exitCode) {
 
 async function main() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive TTY required')
-  if (process.argv.length>3 || (process.argv[2] && process.argv[2]!=='--browser-only'))
-    throw new Error('仅支持 --browser-only 参数')
-  const browserOnly=process.argv[2]==='--browser-only'
+  const mode=process.argv[2] || 'all'
+  if (process.argv.length>3 || !['all','--browser-only','--health-only'].includes(mode))
+    throw new Error('仅支持 --browser-only 或 --health-only 参数')
   const config=await publicConfig()
-  const answer=await readLine(`${browserOnly?'仅运行浏览器验收。':''}仅在两个固定账号资料为空时写入合成记录，且只清理本次记录。输入 YES 继续：`)
+  const intro=mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
+  const safety=mode==='--health-only'
+    ? '只写本轮标记的合成健康记录，按本轮 ID 清理；无法安全验证的项目会阻塞。'
+    : mode==='--browser-only'
+      ? '仅在测试日期未被占用时写入合成记录；若共享开关可能暴露已有记录，相关测试会阻塞；清理本轮记录并恢复原开关。'
+      : '接口与浏览器测试仅在测试日期未被占用时写入合成记录；若共享开关可能暴露已有记录，相关测试会阻塞；健康测试按本轮 ID 清理。'
+  const answer=await readLine(`${intro}${safety}输入 YES 继续：`)
   if (answer!=='YES') throw new Error('用户取消，未运行云端测试')
   let mePassword, wPassword
   let terminal
@@ -80,7 +87,7 @@ async function main() {
     terminal=protectTerminal()
     const verify=(slot,email)=>readVerifiedPassword({
       slot,email,
-      auth:createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}).auth,
+      auth:createClient(config.url,config.key,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch:networkFetch}}).auth,
       readHidden:label=>{terminal.check();return readHidden(label)},write:text=>process.stdout.write(text)
     })
     process.stdout.write('正在验证我账号。\n')
@@ -92,9 +99,10 @@ async function main() {
     process.stdout.write('W 账号已验证。\n')
     for (const [name,script,browser] of [
       ['cloud-api','scripts/verify-cloud.mjs',false],
+      ['cloud-health','scripts/verify-cloud-health.mjs',false],
       ['cloud-browser','scripts/verify-cloud-browser.mjs',true]
-    ].filter(([, , browser])=>!browserOnly || browser)) {
-      process.stdout.write(browser?'开始浏览器验收。\n':'开始云端接口验收。\n')
+    ].filter(([name])=>mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health'))) {
+      process.stdout.write(name==='cloud-api'?'开始云端接口验收。\n':name==='cloud-health'?'开始健康功能云验收。\n':'开始浏览器云验收。\n')
       let env=childEnvironment(config,mePassword,wPassword,browser)
       const startedAt=Date.now()
       let exitCode

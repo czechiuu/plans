@@ -1,0 +1,78 @@
+{
+  "generated_at": "2026-10-13T15:06:16.904Z",
+  "scope": "two-fixed-accounts-safe-health-subset",
+  "passed": 0,
+  "failed": 0,
+  "blocked": 17,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "HEALTH_SCHEMA",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_FIXED_SCOPE",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_RLS",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_MEAL_CREATE_PRIVATE",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_MEAL_EDIT_CONFLICT",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_MEAL_PARTNER_DENIAL",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_MEAL_DELETE_READBACK",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_TRAINING_CREATE_PRIVATE",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_TRAINING_EDIT_CONFLICT",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_TRAINING_PARTNER_DENIAL",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_TRAINING_DELETE_READBACK",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_RULES_READONLY",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_CLEANUP",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_PLAN_NO_SAFE_JOB_DELETE",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_SHARING_REQUIRES_SETTINGS_CHANGE",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_PHOTO_REQUIRES_STORAGE",
+      "status": "blocked"
+    },
+    {
+      "id": "HEALTH_AI_REQUIRES_CONSENT_AND_BUDGET",
+      "status": "blocked"
+    }
+  ]
+}

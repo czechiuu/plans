@@ -57,7 +57,7 @@ if (buildOnly) {
   const day=addDays(shanghaiDate(),-30)
   const rpc=(i,name,args={})=>ok(api[i].rpc(name,args))
   const own=(i,table)=>ok(api[i].from(table).select('*').eq('user_id',users[i]))
-  let browser, contextA, contextB, pageA, pageB, safeToMutate=false, settingsChanged=false
+  let browser, contextA, contextB, pageA, pageB, safeToMutate=false, settingsChanged=false, existingShared=false
   const pageErrors=[], requestFailures=[], backendHosts=new Set()
   const observe=page=>{
     page.on('pageerror',e=>pageErrors.push(e.name))
@@ -65,7 +65,7 @@ if (buildOnly) {
     page.on('request',r=>{ const host=new URL(r.url()).hostname; if(host.endsWith('.supabase.co')) backendHosts.add(host) })
   }
   const viewDay=async page=>{
-    await page.getByRole('button',{name:'日程',exact:true}).click()
+    await page.getByRole('button',{name:'明日安排',exact:true}).click()
     await page.locator('#schedule-date').fill(day)
   }
   const createSchedule=async(page,text)=>{
@@ -110,8 +110,11 @@ if (buildOnly) {
       assert.notEqual(users[0],users[1])
     })
     await check('E2E_DATA_SAFETY',async()=>{
-      for(let i=0;i<2;i++) for(const table of ['health_profiles','schedules','weights'])
-        if((await own(i,table)).length) throw Object.assign(new Error('Existing health data'),{code:'EXISTING_HEALTH_DATA'})
+      for(let i=0;i<2;i++) for(const table of ['schedules','weights']){
+        const rows=await own(i,table)
+        if(rows.some(row=>row.record_date===day)) throw Object.assign(new Error('Synthetic date occupied'),{code:'SYNTHETIC_DATE_OCCUPIED'})
+        if(rows.some(row=>row.is_shared)) existingShared=true
+      }
       safeToMutate=true
     })
     await check('E2E_FIXED_LOGIN',async()=>{
@@ -130,6 +133,7 @@ if (buildOnly) {
       await pageA.getByText(`${marker}-ME`,{exact:true}).waitFor()
     })
     await check('E2E_PARTNER',async()=>{
+      if(existingShared) throw Object.assign(new Error('Category toggle could expose existing shared rows'),{code:'EXISTING_SHARED_ROWS'})
       await setShare(pageA)
       await pageB.getByRole('button',{name:'设置',exact:true}).click()
       await pageB.locator('[data-action="refresh"]').click()
@@ -151,15 +155,15 @@ if (buildOnly) {
       const stream=await (await pending).createReadStream(), chunks=[]
       for await(const chunk of stream) chunks.push(chunk)
       const exported=JSON.parse(Buffer.concat(chunks).toString('utf8'))
-      assert.equal(exported.schedules.length,1)
-      assert.equal(exported.schedules[0].raw_text,`${marker}-ME`)
-      assert.equal(exported.schedules[0].record_date,day)
+      const synthetic=exported.schedules.filter(row=>row.raw_text===`${marker}-ME`)
+      assert.equal(synthetic.length,1)
+      assert.equal(synthetic[0].record_date,day)
       assert.equal(exported.schedules.some(row=>row.raw_text===`${marker}-W`),false)
     })
     await check('E2E_SWITCH',async()=>{
       let step='SAVE_WEIGHT'
       try {
-      await pageA.getByRole('button',{name:'体重',exact:true}).click()
+      await pageA.getByRole('button',{name:'趋势',exact:true}).click()
       await pageA.locator('[data-action="scope"][data-scope="mine"]').first().click()
       const form=pageA.locator('[data-form="weight"]')
       await form.locator('[name="record_date"]').fill(day)
@@ -178,7 +182,7 @@ if (buildOnly) {
       step='VERIFY_W'
       await pageA.getByRole('button',{name:'设置',exact:true}).click()
       await pageA.getByText('当前固定账号：W',{exact:false}).waitFor()
-      await pageA.getByRole('button',{name:'体重',exact:true}).click()
+      await pageA.getByRole('button',{name:'趋势',exact:true}).click()
       assert.equal(await pageA.getByText(`${marker}-PRIVATE`,{exact:true}).count(),0)
       step='SIGNOUT_W'
       await pageA.getByRole('button',{name:'设置',exact:true}).click()
@@ -192,7 +196,7 @@ if (buildOnly) {
       await login(pageA,'me',setup.passwords[0])
       await viewDay(pageA)
       await pageA.getByText(`${marker}-ME`,{exact:true}).waitFor()
-      await pageA.getByRole('button',{name:'体重',exact:true}).click()
+      await pageA.getByRole('button',{name:'趋势',exact:true}).click()
       await pageA.getByText(`${marker}-PRIVATE`,{exact:true}).waitFor()
       step='FINAL_CHECK'
       assert.deepEqual(pageErrors,[])
@@ -207,7 +211,7 @@ if (buildOnly) {
       }
     })
   } catch(error) {
-    if(error?.code==='EXISTING_HEALTH_DATA') cases.find(item=>item.id==='E2E_DATA_SAFETY').status='blocked'
+    if(['SYNTHETIC_DATE_OCCUPIED','EXISTING_SHARED_ROWS'].includes(error?.code)) cases.find(item=>item.status==='failed').status='blocked'
     else if(!cases.some(item=>item.status==='failed')) {cases.push({id:'E2E_SETUP',status:'failed'});details.push({id:'E2E_SETUP',error})}
   } finally {
     await contextA?.close();await contextB?.close();await browser?.close()
@@ -221,7 +225,6 @@ if (buildOnly) {
         }
         cases.push({id:'E2E_CLEANUP',status:'passed'})
       }catch(error){
-        if(settingsChanged) for(let i=0;i<2;i++) try{await rpc(i,'save_settings',{p_settings:{share_profile:false,share_schedule:false,share_weight:false,allow_partner_edit:false}})}catch{}
         cases.push({id:'E2E_CLEANUP',status:'failed'});details.push({id:'E2E_CLEANUP',error})
       }
     }

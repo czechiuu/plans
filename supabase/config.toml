@@ -1,0 +1,8 @@
+[functions.health-ai]
+verify_jwt = false
+
+[functions.health-photo]
+verify_jwt = false
+
+[functions.health-cron]
+verify_jwt = false

@@ -1,0 +1,1038 @@
+-- Daily health records. This migration requires the two fixed accounts in 003.
+alter table public.members
+  add column share_plan boolean not null default false,
+  add column share_training boolean not null default false,
+  add column share_meal boolean not null default false,
+  add column share_photo boolean not null default false;
+
+alter table public.schedules
+  add column confirmed_data jsonb,
+  add column submitted_at timestamptz,
+  add column parse_version text,
+  add constraint schedule_confirmed_together check (
+    (confirmed_data is null and submitted_at is null and parse_version is null) or
+    (jsonb_typeof(confirmed_data)='object' and submitted_at is not null and
+     char_length(parse_version) between 1 and 40 and length(confirmed_data::text)<=8000)
+  );
+
+create table public.health_rules (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null unique,
+  rules jsonb not null,
+  is_shared boolean not null default false,
+  version integer not null default 1 check (version > 0),
+  training_history_confirmed_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid not null references auth.users(id),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+
+create table public.daily_plans (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null,
+  target_date date not null check (target_date between date '1900-01-01' and date '2100-12-31'),
+  version integer not null check (version > 0),
+  source text not null check (source in ('manual','rules','ai')),
+  status text not null check (status in ('draft','published')),
+  is_current boolean not null default true,
+  is_locked boolean not null default false,
+  is_stale boolean not null default false,
+  is_shared boolean not null default false,
+  input_version text not null check (char_length(input_version) between 1 and 200),
+  content jsonb not null,
+  scheduled_for timestamptz,
+  generated_at timestamptz not null default now(),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid not null references auth.users(id),
+  unique(user_id,target_date,version),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+create unique index daily_plans_one_current on public.daily_plans(user_id,target_date) where is_current;
+create index daily_plans_user_date on public.daily_plans(user_id,target_date desc);
+
+create table public.generation_jobs (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null,
+  target_date date not null,
+  kind text not null check (kind in ('manual','scheduled')),
+  status text not null default 'queued' check (status in ('queued','running','succeeded','failed','exhausted')),
+  scheduled_for timestamptz not null,
+  input_version text not null check (char_length(input_version) between 1 and 200),
+  next_run_at timestamptz not null default now(),
+  attempts integer not null default 0 check (attempts between 0 and 3),
+  max_attempts integer not null default 3 check (max_attempts between 1 and 3),
+  error_code text check (error_code is null or char_length(error_code) <= 80),
+  plan_id uuid references public.daily_plans(id),
+  lease_until timestamptz,
+  claim_token uuid,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id,target_date,kind),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+
+create table public.training_sessions (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null,
+  record_date date not null,
+  status text not null check (status in ('active','paused','completed','stopped')),
+  data jsonb not null,
+  is_shared boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid not null references auth.users(id),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+create index training_sessions_user_date on public.training_sessions(user_id,record_date desc);
+
+create table public.meals (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null,
+  record_date date not null,
+  status text not null check (status in ('draft','confirmed')),
+  data jsonb not null,
+  is_shared boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid not null references auth.users(id),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+create index meals_user_date on public.meals(user_id,record_date desc);
+
+create table public.photo_assets (
+  id uuid primary key default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null,
+  meal_id uuid references public.meals(id) on delete set null,
+  sha256 text not null check (sha256 ~ '^[a-f0-9]{64}$'),
+  storage_path text not null unique,
+  mime text not null check (mime='image/png'),
+  width integer not null check (width between 1 and 4096),
+  height integer not null check (height between 1 and 4096),
+  bytes integer not null check (bytes between 1 and 4194304),
+  is_shared boolean not null default false,
+  deleting boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  updated_by uuid not null references auth.users(id),
+  unique(user_id,sha256),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+
+-- PGlite fixtures have no Supabase Storage schema; production creates a private bucket.
+do $$
+begin
+  if to_regclass('storage.buckets') is not null then
+    if exists(select 1 from storage.buckets where id='health-photos' and public) then
+      raise exception 'Existing health photo bucket is public';
+    end if;
+    insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
+      values('health-photos','health-photos',false,4194304,array['image/png'])
+      on conflict(id) do nothing;
+    if not exists(select 1 from storage.buckets where id='health-photos' and not public
+      and file_size_limit=4194304 and allowed_mime_types=array['image/png']::text[])
+    then raise exception 'Health photo bucket configuration mismatch'; end if;
+  end if;
+end $$;
+
+create table public.ai_consents (
+  id uuid not null unique default gen_random_uuid(),
+  space_id uuid not null,
+  user_id uuid not null,
+  kind text not null check (kind in ('text','photo')),
+  enabled boolean not null default false,
+  provider text not null default 'openai' check (provider='openai'),
+  policy_version text not null check (char_length(policy_version) between 1 and 80),
+  monthly_limit_cents integer not null check (monthly_limit_cents between 0 and 500),
+  consented_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key(user_id,kind),
+  foreign key(space_id,user_id) references public.members(space_id,user_id) on delete cascade
+);
+
+create table public.ai_usage (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  period date not null,
+  kind text not null check (kind in ('text','photo')),
+  reserved_cents integer not null check (reserved_cents >= 0),
+  charged_cents integer check (charged_cents between 0 and 500),
+  status text not null check (status in ('reserved','settled','released')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index ai_usage_user_period on public.ai_usage(user_id,period);
+
+create table public.ai_monthly_budgets (
+  period date primary key,
+  limit_cents integer not null check (limit_cents between 0 and 500),
+  created_at timestamptz not null default now()
+);
+
+create function public.health_schema_version() returns integer
+language sql stable security definer set search_path = public, pg_temp
+as $$ select 4 $$;
+
+create function public.save_confirmed_schedule(p_payload jsonb,p_id uuid default null)
+returns public.schedules language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_row public.schedules; v_data jsonb := p_payload->'confirmed_data';
+begin
+  if public.current_space_id() is null then raise exception 'Space membership required'; end if;
+  if jsonb_typeof(p_payload) is distinct from 'object' or jsonb_typeof(v_data) is distinct from 'object'
+    or length(v_data::text)>8000 or v_data->>'user_slot' is distinct from public.current_account()
+    or v_data->>'record_date' is distinct from p_payload->>'record_date'
+    or jsonb_typeof(v_data->'exercise') is distinct from 'object' or jsonb_typeof(v_data->'meal') is distinct from 'object'
+    or jsonb_typeof(v_data->'constraints') is distinct from 'array'
+    or p_payload->>'submitted_at' is null or char_length(p_payload->>'parse_version') not between 1 and 40
+    or exists(select 1 from jsonb_object_keys(p_payload) k where k not in
+       ('user_id','record_date','raw_text','start_time','end_time','exercise_intent','fixed_arrangements','meal_conditions','constraints','is_shared','expected_updated_at','confirmed_data','submitted_at','parse_version'))
+  then raise exception 'Invalid confirmed schedule'; end if;
+  if (p_payload->>'user_id')::uuid is distinct from auth.uid() then raise exception 'Only owner may confirm'; end if;
+  v_row := public.save_schedule(p_payload - 'confirmed_data' - 'submitted_at' - 'parse_version',p_id);
+  update public.schedules set confirmed_data=v_data,submitted_at=(p_payload->>'submitted_at')::timestamptz,
+    parse_version=p_payload->>'parse_version' where id=v_row.id returning * into v_row;
+  return v_row;
+end $$;
+
+create function public.health_can_read(p_space uuid,p_owner uuid,p_shared boolean,p_category text) returns boolean
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select p_space=public.current_space_id() and (p_owner=auth.uid() or
+    (p_shared and exists(select 1 from public.members m where m.space_id=p_space and m.user_id=p_owner
+      and case p_category when 'plan' then m.share_plan when 'training' then m.share_training
+        when 'meal' then m.share_meal when 'photo' then m.share_photo else false end)))
+$$;
+
+create function public.health_can_edit(p_space uuid,p_owner uuid,p_shared boolean,p_category text) returns boolean
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select p_space=public.current_space_id() and (p_owner=auth.uid() or
+    (public.health_can_read(p_space,p_owner,p_shared,p_category) and
+      exists(select 1 from public.members m where m.space_id=p_space and m.user_id=p_owner and m.allow_partner_edit)))
+$$;
+
+create function public.health_valid_rules(p jsonb) returns boolean
+language sql immutable security definer set search_path = public, pg_temp
+as $$
+  select coalesce(jsonb_typeof(p)='object' and length(p::text)<=16000
+    and jsonb_typeof(p->'confirmed')='boolean'
+    and p->>'equipment' in ('unknown','machines_only','dorm','mixed')
+    and p->>'ankle_status' in ('unknown','recovery_unknown','limited','cleared','no_issue')
+    and not exists(select 1 from jsonb_object_keys(p) k where k not in
+      ('confirmed','equipment','ankle_status','free_weekdays','exercise_minutes','max_session_minutes',
+       'max_gym_visits','weekly_strength_limit','free_day_training_forbidden','free_day_meal_unrestricted',
+       'training_history_complete','meal_portions',
+       'prep_method','meal_notes','limitations','sleep_condition','meal_template'))
+    and (p->'meal_template' is null or p->'meal_template'='null'::jsonb or jsonb_typeof(p->'meal_template')='array')
+    and jsonb_typeof(p->'free_weekdays')='array'
+    and not exists(select 1 from jsonb_array_elements(p->'free_weekdays') x where jsonb_typeof(x.value)<>'number' or x.value::text !~ '^[1-7]$')
+    and (p->'exercise_minutes' is null or p->'exercise_minutes'='null'::jsonb or
+      (p->>'exercise_minutes') ~ '^[0-9]{1,3}$' and (p->>'exercise_minutes')::int between 1 and 240)
+    and (p->'max_session_minutes' is null or p->'max_session_minutes'='null'::jsonb or (p->>'max_session_minutes') ~ '^[0-9]{1,3}$' and (p->>'max_session_minutes')::int between 1 and 240)
+    and (p->'weekly_strength_limit' is null or p->'weekly_strength_limit'='null'::jsonb or (p->>'weekly_strength_limit') ~ '^[0-9]$' and (p->>'weekly_strength_limit')::int between 0 and 7)
+    and (p->'max_gym_visits' is null or p->'max_gym_visits'='null'::jsonb or (p->>'max_gym_visits') ~ '^[0-9]$' and (p->>'max_gym_visits')::int between 0 and 7)
+    and (p->'free_day_training_forbidden' is null or jsonb_typeof(p->'free_day_training_forbidden')='boolean')
+    and (p->'free_day_meal_unrestricted' is null or jsonb_typeof(p->'free_day_meal_unrestricted')='boolean')
+    and (p->'training_history_complete' is null or jsonb_typeof(p->'training_history_complete')='boolean')
+    and (p->'meal_notes' is null or p->'meal_notes'='null'::jsonb or (jsonb_typeof(p->'meal_notes')='string' and length(p->>'meal_notes')<=2000))
+    and (p->'limitations' is null or p->'limitations'='null'::jsonb or (jsonb_typeof(p->'limitations')='string' and length(p->>'limitations')<=2000))
+    and (p->'meal_portions' is null or p->'meal_portions'='null'::jsonb or (jsonb_typeof(p->'meal_portions')='string' and length(p->>'meal_portions')<=2000))
+    and (p->'prep_method' is null or p->'prep_method'='null'::jsonb or (jsonb_typeof(p->'prep_method')='string' and length(p->>'prep_method')<=2000))
+    and (p->'sleep_condition' is null or p->'sleep_condition'='null'::jsonb or (jsonb_typeof(p->'sleep_condition')='string' and length(p->>'sleep_condition')<=2000)), false)
+$$;
+
+create function public.health_valid_plan(p jsonb) returns boolean
+language plpgsql immutable security definer set search_path = public, pg_temp
+as $$
+declare v_meal jsonb; v_food jsonb; v_training jsonb; v_step jsonb; v_item jsonb;
+  v_seconds integer := 0; v_sets integer; v_work integer; v_rest integer; v_transition integer;
+begin
+  if jsonb_typeof(p) is distinct from 'object' or length(p::text)>30000
+    or jsonb_typeof(p->'summary') is distinct from 'string' or length(p->>'summary')>1000
+    or jsonb_typeof(p->'meals') is distinct from 'array' or jsonb_array_length(p->'meals')>8
+    or jsonb_typeof(p->'warnings') is distinct from 'array' or jsonb_array_length(p->'warnings')>20
+    or jsonb_typeof(p->'training') is distinct from 'object'
+    or exists(select 1 from jsonb_object_keys(p) k where k not in ('summary','meals','training','warnings'))
+  then return false; end if;
+  if exists(select 1 from jsonb_array_elements(p->'warnings') x where jsonb_typeof(x.value) is distinct from 'string' or length(x.value #>> '{}')>300)
+  then return false; end if;
+  for v_meal in select value from jsonb_array_elements(p->'meals') loop
+    if jsonb_typeof(v_meal) is distinct from 'object'
+      or not (v_meal ?& array['time','title','foods','prep_method','purchase_or_prep','alternative','notes','snack_reason'])
+      or jsonb_typeof(v_meal->'title') is distinct from 'string' or length(v_meal->>'title')>200
+      or jsonb_typeof(v_meal->'foods') is distinct from 'array' or jsonb_array_length(v_meal->'foods')>15
+      or jsonb_typeof(v_meal->'prep_method') is distinct from 'string' or length(v_meal->>'prep_method')>500
+      or jsonb_typeof(v_meal->'purchase_or_prep') is distinct from 'string' or length(v_meal->>'purchase_or_prep')>500
+      or jsonb_typeof(v_meal->'alternative') is distinct from 'string' or length(v_meal->>'alternative')>500
+      or jsonb_typeof(v_meal->'notes') is distinct from 'string' or length(v_meal->>'notes')>500
+      or (v_meal->'snack_reason'<>'null'::jsonb and
+        (jsonb_typeof(v_meal->'snack_reason') is distinct from 'string' or length(v_meal->>'snack_reason')>300))
+      or (v_meal->'time' is not null and v_meal->'time'<>'null'::jsonb and (v_meal->>'time') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')
+      or exists(select 1 from jsonb_object_keys(v_meal) k where k not in ('time','title','foods','prep_method','purchase_or_prep','alternative','notes','snack_reason'))
+    then return false; end if;
+    for v_food in select value from jsonb_array_elements(v_meal->'foods') loop
+      if jsonb_typeof(v_food) is distinct from 'object' or jsonb_typeof(v_food->'name') is distinct from 'string'
+        or jsonb_typeof(v_food->'portion') is distinct from 'string' or jsonb_typeof(v_food->'unit') is distinct from 'string'
+        or exists(select 1 from jsonb_object_keys(v_food) k where k not in ('name','portion','unit'))
+        or length(v_food::text)>500 then return false; end if;
+    end loop;
+  end loop;
+  v_training := p->'training';
+  if not (v_training ?& array['mode','purpose','time','intensity','equipment','muscles','warmup','items','cooldown','total_seconds'])
+    or v_training->>'mode' not in ('rest','workout') or jsonb_typeof(v_training->'items') is distinct from 'array'
+    or jsonb_typeof(v_training->'purpose') is distinct from 'string' or length(v_training->>'purpose')>300
+    or jsonb_typeof(v_training->'intensity') is distinct from 'string' or length(v_training->>'intensity')>100
+    or jsonb_typeof(v_training->'equipment') is distinct from 'string' or length(v_training->>'equipment')>150
+    or jsonb_typeof(v_training->'warmup') is distinct from 'array' or jsonb_typeof(v_training->'cooldown') is distinct from 'array'
+    or jsonb_typeof(v_training->'muscles') is distinct from 'array'
+    or jsonb_array_length(v_training->'items')>12 or jsonb_array_length(v_training->'warmup')>8
+    or jsonb_array_length(v_training->'cooldown')>8
+    or exists(select 1 from jsonb_object_keys(v_training) k where k not in
+      ('mode','purpose','time','intensity','equipment','muscles','warmup','items','cooldown','total_seconds'))
+  then return false; end if;
+  if v_training->'time' is not null and v_training->'time'<>'null'::jsonb
+    and (v_training->>'time') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' then return false; end if;
+  if exists(select 1 from jsonb_array_elements(v_training->'muscles') x where jsonb_typeof(x.value) is distinct from 'string' or length(x.value #>> '{}')>80)
+  then return false; end if;
+  for v_step in select value from jsonb_array_elements(v_training->'warmup')
+    union all select value from jsonb_array_elements(v_training->'cooldown') loop
+    if jsonb_typeof(v_step) is distinct from 'object' or jsonb_typeof(v_step->'description') is distinct from 'string'
+      or length(v_step->>'description')>300 or (v_step->>'seconds') !~ '^[0-9]{1,4}$'
+    then return false; end if;
+    v_seconds := v_seconds+(v_step->>'seconds')::int;
+  end loop;
+  for v_item in select value from jsonb_array_elements(v_training->'items') loop
+    if jsonb_typeof(v_item) is distinct from 'object'
+      or not (v_item ?& array['exercise_id','sets','reps','work_seconds','rest_seconds','transition_seconds','first_use_check','short_option'])
+      or v_item->>'exercise_id' not in ('machine_leg_press','machine_seated_row','machine_chest_press','machine_seated_leg_curl','machine_lat_pulldown','machine_hip_abduction','machine_ab_crunch','dorm_supported_dumbbell_row','dorm_dumbbell_floor_press','dorm_sit_to_stand','dorm_dead_bug')
+      or (v_item->>'sets') !~ '^[12]$' or (v_item->>'reps') !~ '^[0-9]{1,3}$'
+      or (v_item->>'work_seconds') !~ '^[0-9]{1,4}$' or (v_item->>'rest_seconds') !~ '^[0-9]{1,4}$'
+      or (v_item->>'transition_seconds') !~ '^[0-9]{1,4}$'
+      or jsonb_typeof(v_item->'first_use_check') is distinct from 'string'
+      or jsonb_typeof(v_item->'short_option') is distinct from 'string'
+      or length(v_item::text)>1500 then return false; end if;
+    v_sets := (v_item->>'sets')::int; v_work := (v_item->>'work_seconds')::int;
+    v_rest := (v_item->>'rest_seconds')::int; v_transition := (v_item->>'transition_seconds')::int;
+    if v_work<1 or v_work>120 or (v_sets>1 and v_rest<30) then return false; end if;
+    v_seconds := v_seconds+v_sets*v_work+(v_sets-1)*v_rest+v_transition;
+  end loop;
+  if v_training->>'mode'='rest' and (jsonb_array_length(v_training->'items')<>0 or v_seconds<>0) then return false; end if;
+  if v_training->>'mode'='workout' and (jsonb_array_length(v_training->'items') not between 1 and 3 or v_seconds>3600) then return false; end if;
+  return (v_training->>'total_seconds') ~ '^[0-9]{1,6}$' and (v_training->>'total_seconds')::int=v_seconds;
+end $$;
+
+create function public.health_plan_allowed(p_owner uuid,p_date date,p_content jsonb) returns boolean
+language plpgsql stable security definer set search_path = public, pg_temp
+as $$
+declare v_rules jsonb; v_history_confirmed timestamptz; v_training jsonb := p_content->'training'; v_item jsonb; v_weekday integer; v_schedule public.schedules;
+begin
+  if not public.health_valid_plan(p_content) then return false; end if;
+  select rules,training_history_confirmed_at into v_rules,v_history_confirmed from public.health_rules where user_id=p_owner;
+  v_weekday := extract(isodow from p_date)::integer;
+  if v_rules is not null and v_rules->>'free_day_meal_unrestricted'='true'
+    and exists(select 1 from jsonb_array_elements_text(v_rules->'free_weekdays') d where d::integer=v_weekday)
+    and jsonb_array_length(p_content->'meals')<>0 then return false; end if;
+  if v_training->>'mode'='rest' then return true; end if;
+  if v_rules is null or v_rules->>'confirmed'<>'true' or v_rules->>'equipment'='unknown'
+    or v_rules->>'ankle_status' in ('unknown','recovery_unknown')
+    or v_rules->>'training_history_complete' is distinct from 'true' then return false; end if;
+  if v_history_confirmed is null or
+    ((p_date+1)::timestamp at time zone 'Asia/Shanghai')-v_history_confirmed>interval '48 hours'
+  then return false; end if;
+  select * into v_schedule from public.schedules where user_id=p_owner and record_date=p_date;
+  if v_schedule.exercise_intent='no' or v_schedule.confirmed_data->'exercise'->>'intent'='no'
+    or v_schedule.confirmed_data->'pain' is distinct from 'null'::jsonb
+      and v_schedule.confirmed_data ? 'pain'
+    or v_schedule.confirmed_data->>'fatigue'='high' or v_schedule.confirmed_data->>'sleep'='poor'
+    or (v_schedule.confirmed_data->'exercise'->>'intent'='yes'
+      and v_schedule.confirmed_data->'exercise'->'duration_minutes' is distinct from 'null'::jsonb
+      and v_schedule.confirmed_data->'exercise' ? 'duration_minutes')
+  then return false; end if;
+  if exists(select 1 from public.training_sessions t where t.user_id=p_owner and t.status='completed'
+    and (t.data->>'ended_at')::timestamptz >= (p_date::timestamp at time zone 'Asia/Shanghai')-interval '48 hours'
+    and (t.data->>'ended_at')::timestamptz < ((p_date+1)::timestamp at time zone 'Asia/Shanghai'))
+  then return false; end if;
+  if exists(select 1 from jsonb_array_elements_text(v_rules->'free_weekdays') d where d::integer=v_weekday) then
+    if v_rules->>'free_day_training_forbidden'='true' then return false; end if;
+  end if;
+  if v_rules->'max_session_minutes' is not null and v_rules->'max_session_minutes'<>'null'::jsonb
+    and (v_training->>'total_seconds')::integer > (v_rules->>'max_session_minutes')::integer*60
+  then return false; end if;
+  if v_rules->'exercise_minutes' is not null and v_rules->'exercise_minutes'<>'null'::jsonb
+    and (v_training->>'total_seconds')::integer > (v_rules->>'exercise_minutes')::integer*60
+  then return false; end if;
+  for v_item in select value from jsonb_array_elements(v_training->'items') loop
+    if v_rules->>'equipment'='machines_only' and v_item->>'exercise_id' not like 'machine_%' then return false; end if;
+    if v_rules->>'equipment'='dorm' and v_item->>'exercise_id' not like 'dorm_%' then return false; end if;
+    if v_rules->>'ankle_status'='limited' and v_item->>'exercise_id' in
+      ('machine_leg_press','machine_seated_leg_curl','machine_hip_abduction','dorm_sit_to_stand') then return false; end if;
+  end loop;
+  if v_rules->'weekly_strength_limit' is not null and v_rules->'weekly_strength_limit'<>'null'::jsonb
+    and (select count(*) from (
+      select d.target_date from public.daily_plans d where d.user_id=p_owner and d.is_current
+        and d.target_date between p_date-(v_weekday-1) and p_date+(7-v_weekday)
+        and d.target_date<>p_date and d.content->'training'->>'mode'='workout'
+      union select t.record_date from public.training_sessions t where t.user_id=p_owner and t.status='completed'
+        and t.record_date between p_date-(v_weekday-1) and p_date+(7-v_weekday) and t.record_date<>p_date
+    ) x) >= (v_rules->>'weekly_strength_limit')::integer
+  then return false; end if;
+  if v_rules->'max_gym_visits' is not null and v_rules->'max_gym_visits'<>'null'::jsonb
+    and v_rules->>'equipment'='machines_only'
+    and (select count(*) from (
+      select d.target_date from public.daily_plans d where d.user_id=p_owner and d.is_current
+        and d.target_date between p_date-(v_weekday-1) and p_date+(7-v_weekday)
+        and d.target_date<>p_date and d.content->'training'->>'mode'='workout'
+        and exists(select 1 from jsonb_array_elements(d.content->'training'->'items') i where i.value->>'exercise_id' like 'machine_%')
+      union select t.record_date from public.training_sessions t where t.user_id=p_owner and t.status='completed'
+        and t.record_date between p_date-(v_weekday-1) and p_date+(7-v_weekday) and t.record_date<>p_date
+        and exists(select 1 from jsonb_array_elements(t.data->'sets') i where i.value->>'exercise_id' like 'machine_%')
+    ) x) >= (v_rules->>'max_gym_visits')::integer
+  then return false; end if;
+  return true;
+end $$;
+
+create function public.health_input_version(p_owner uuid,p_date date) returns text
+language sql stable security definer set search_path = public, pg_temp
+as $$
+  select md5(jsonb_build_object(
+    'schedule',(select to_jsonb(s) from public.schedules s where s.user_id=p_owner and s.record_date=p_date),
+    'rules',(select to_jsonb(r) from public.health_rules r where r.user_id=p_owner),
+    'profile',(select to_jsonb(h) from public.health_profiles h where h.user_id=p_owner),
+    'training',(select coalesce(jsonb_agg(to_jsonb(t) order by t.id),'[]'::jsonb)
+      from public.training_sessions t where t.user_id=p_owner and t.record_date between p_date-8 and p_date),
+    'plans',(select coalesce(jsonb_agg(to_jsonb(d) order by d.id),'[]'::jsonb)
+      from public.daily_plans d where d.user_id=p_owner and d.is_current
+        and d.target_date between date_trunc('week',p_date::timestamp)::date
+          and date_trunc('week',p_date::timestamp)::date+6)
+  )::text)
+$$;
+
+create function public.save_health_sharing(p_settings jsonb) returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+begin
+  if public.current_space_id() is null then raise exception 'Space membership required'; end if;
+  if jsonb_typeof(p_settings)<>'object' or (select count(*) from jsonb_object_keys(p_settings))<>4
+    or not (p_settings ?& array['share_plan','share_training','share_meal','share_photo'])
+    or exists(select 1 from jsonb_each(p_settings) e where jsonb_typeof(e.value)<>'boolean')
+  then raise exception 'Invalid sharing settings'; end if;
+  update public.members set share_plan=(p_settings->>'share_plan')::boolean,
+    share_training=(p_settings->>'share_training')::boolean,
+    share_meal=(p_settings->>'share_meal')::boolean,
+    share_photo=(p_settings->>'share_photo')::boolean
+  where user_id=auth.uid() and space_id=public.current_space_id();
+end $$;
+
+create function public.save_health_rules(p_rules jsonb,p_is_shared boolean,p_expected_updated_at timestamptz default null)
+returns public.health_rules language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_row public.health_rules;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  if not public.health_valid_rules(p_rules) or p_is_shared is null then raise exception 'Invalid health rules'; end if;
+  if p_rules->'meal_template' is not null and p_rules->'meal_template'<>'null'::jsonb and
+    (jsonb_array_length(p_rules->'meal_template')<>3 or not public.health_valid_plan(jsonb_build_object(
+      'summary','Confirmed template','meals',p_rules->'meal_template','warnings',jsonb_build_array(),
+      'training',jsonb_build_object('mode','rest','purpose','Template check','time',null,
+        'intensity','none','equipment','none','muscles',jsonb_build_array(),'warmup',jsonb_build_array(),
+        'items',jsonb_build_array(),'cooldown',jsonb_build_array(),'total_seconds',0))))
+  then raise exception 'Invalid meal template'; end if;
+  perform 1 from public.members where user_id=auth.uid() and space_id=v_space for update;
+  if not found then raise exception 'Space membership required'; end if;
+  select * into v_row from public.health_rules where user_id=auth.uid() and space_id=v_space for update;
+  if found then
+    if p_expected_updated_at is distinct from v_row.updated_at then raise exception 'Edit conflict'; end if;
+    update public.health_rules set rules=p_rules,is_shared=p_is_shared,version=version+1,updated_at=clock_timestamp(),updated_by=auth.uid()
+      ,training_history_confirmed_at=case
+        when p_rules->>'training_history_complete'<>'true' then null
+        when v_row.rules->>'training_history_complete'='true' then v_row.training_history_confirmed_at
+        else clock_timestamp() end
+      where id=v_row.id returning * into v_row;
+  else
+    if p_expected_updated_at is not null then raise exception 'Edit conflict'; end if;
+    insert into public.health_rules(space_id,user_id,rules,is_shared,training_history_confirmed_at,updated_by)
+      values(v_space,auth.uid(),p_rules,p_is_shared,
+        case when p_rules->>'training_history_complete'='true' then clock_timestamp() else null end,
+        auth.uid()) returning * into v_row;
+  end if;
+  update public.daily_plans set is_stale=true where user_id=auth.uid() and is_current
+    and target_date>=(now() at time zone 'Asia/Shanghai')::date;
+  return v_row;
+end $$;
+
+create function public.confirm_training_history(p_expected_updated_at timestamptz) returns public.health_rules
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_row public.health_rules;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  perform 1 from public.members where user_id=auth.uid() and space_id=v_space for update;
+  select * into v_row from public.health_rules where user_id=auth.uid() and space_id=v_space for update;
+  if not found or v_row.rules->>'confirmed'<>'true' or v_row.rules->>'training_history_complete'<>'true'
+    then raise exception 'Rules confirmation required'; end if;
+  if p_expected_updated_at is distinct from v_row.updated_at then raise exception 'Edit conflict'; end if;
+  update public.health_rules set training_history_confirmed_at=clock_timestamp(),version=version+1,
+    updated_at=clock_timestamp(),updated_by=auth.uid() where id=v_row.id returning * into v_row;
+  update public.daily_plans set is_stale=true where user_id=auth.uid() and is_current;
+  return v_row;
+end $$;
+
+-- Current plans are immutable versions; a save creates a new version under the member lock.
+create function public.save_daily_plan(p_target_date date,p_content jsonb,p_expected_version integer default null,p_is_shared boolean default false,p_owner uuid default null)
+returns public.daily_plans language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_owner uuid := coalesce(p_owner,auth.uid()); v_old public.daily_plans; v_row public.daily_plans; v_input text;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  if p_target_date is null or p_target_date not between date '1900-01-01' and date '2100-12-31'
+    or p_is_shared is null or not public.health_valid_plan(p_content)
+  then raise exception 'Invalid plan'; end if;
+  perform 1 from public.members where user_id=v_owner and space_id=v_space for update;
+  if not found then raise exception 'not found or access denied'; end if;
+  if not public.health_plan_allowed(v_owner,p_target_date,p_content) then raise exception 'Plan conflicts with confirmed rules'; end if;
+  select * into v_old from public.daily_plans where user_id=v_owner and target_date=p_target_date and is_current for update;
+  if v_owner<>auth.uid() then
+    if not found or not public.health_can_edit(v_space,v_owner,v_old.is_shared,'plan')
+      or p_is_shared is distinct from v_old.is_shared then raise exception 'not found or access denied'; end if;
+  end if;
+  if p_expected_version is distinct from v_old.version then raise exception 'Edit conflict'; end if;
+  if v_old.is_locked or exists(select 1 from public.training_sessions t where t.user_id=v_owner and t.record_date=p_target_date and t.status='completed')
+  then raise exception 'Plan locked or training completed'; end if;
+  v_input := public.health_input_version(v_owner,p_target_date);
+  if v_old.id is not null then update public.daily_plans set is_current=false where id=v_old.id; end if;
+  insert into public.daily_plans(space_id,user_id,target_date,version,source,status,is_shared,input_version,content,updated_by)
+    values(v_space,v_owner,p_target_date,coalesce(v_old.version,0)+1,'manual','published',p_is_shared,v_input,p_content,auth.uid()) returning * into v_row;
+  return v_row;
+end $$;
+
+create function public.set_plan_lock(p_id uuid,p_locked boolean,p_expected_updated_at timestamptz)
+returns public.daily_plans language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_old public.daily_plans; v_row public.daily_plans;
+begin
+  select * into v_old from public.daily_plans where id=p_id and user_id=auth.uid() and space_id=public.current_space_id() and is_current for update;
+  if not found then raise exception 'not found or access denied'; end if;
+  if p_locked is null or p_expected_updated_at is distinct from v_old.updated_at then raise exception 'Edit conflict'; end if;
+  update public.daily_plans set is_locked=p_locked,updated_at=clock_timestamp(),updated_by=auth.uid() where id=p_id returning * into v_row;
+  return v_row;
+end $$;
+
+create function public.request_plan_generation(p_target_date date) returns public.generation_jobs
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_row public.generation_jobs; v_input text;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  if p_target_date is null or p_target_date not between (now() at time zone 'Asia/Shanghai')::date and (now() at time zone 'Asia/Shanghai')::date+31
+  then raise exception 'Invalid target date'; end if;
+  v_input := public.health_input_version(auth.uid(),p_target_date);
+  insert into public.generation_jobs(space_id,user_id,target_date,kind,scheduled_for,input_version)
+    values(v_space,auth.uid(),p_target_date,'manual',now(),v_input)
+    on conflict(user_id,target_date,kind) do update set status='queued',attempts=0,plan_id=null,
+      error_code=null,lease_until=null,claim_token=null,next_run_at=now(),scheduled_for=now(),input_version=v_input,
+      updated_at=clock_timestamp()
+    where public.generation_jobs.status not in ('queued','running')
+      and public.generation_jobs.input_version is distinct from v_input
+    returning * into v_row;
+  if v_row.id is null then select * into v_row from public.generation_jobs
+    where user_id=auth.uid() and target_date=p_target_date and kind='manual'; end if;
+  return v_row;
+end $$;
+
+create function public.retry_generation_job(p_id uuid) returns public.generation_jobs
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_row public.generation_jobs;
+begin
+  select * into v_row from public.generation_jobs where id=p_id and user_id=auth.uid() and space_id=public.current_space_id() for update;
+  if not found then raise exception 'not found or access denied'; end if;
+  if v_row.status<>'failed' or v_row.attempts>=v_row.max_attempts then raise exception 'Retry unavailable'; end if;
+  update public.generation_jobs set status='queued',next_run_at=now(),error_code=null,updated_at=clock_timestamp()
+    where id=p_id returning * into v_row;
+  return v_row;
+end $$;
+
+-- These RPCs have no client grant. Edge functions use service_role only.
+create function public.enqueue_scheduled_plans(p_scheduled_for timestamptz) returns integer
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_count integer;
+begin
+  if p_scheduled_for is null or p_scheduled_for>now()+interval '5 minutes'
+    or p_scheduled_for<now()-interval '24 hours' then raise exception 'Invalid scheduled time'; end if;
+  insert into public.generation_jobs(space_id,user_id,target_date,kind,scheduled_for,input_version)
+    select f.space_id,f.user_id,(p_scheduled_for at time zone 'Asia/Shanghai')::date+1,'scheduled',p_scheduled_for,
+      public.health_input_version(f.user_id,(p_scheduled_for at time zone 'Asia/Shanghai')::date+1)
+    from public.fixed_accounts f join public.members m on m.space_id=f.space_id and m.user_id=f.user_id
+    on conflict(user_id,target_date,kind) do nothing;
+  get diagnostics v_count=row_count;
+  return v_count;
+end $$;
+
+create function public.claim_generation_job(p_id uuid default null) returns public.generation_jobs
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_row public.generation_jobs;
+begin
+  update public.generation_jobs set status='exhausted',error_code='LEASE_EXPIRED',
+    lease_until=null,claim_token=null,updated_at=clock_timestamp()
+    where status='running' and lease_until<now() and attempts>=max_attempts
+      and (p_id is null or id=p_id);
+  select * into v_row from public.generation_jobs j
+    where (p_id is null or j.id=p_id) and j.next_run_at<=now() and j.attempts<j.max_attempts
+      and (j.status in ('queued','failed') or (j.status='running' and j.lease_until<now()))
+    order by j.next_run_at,j.created_at for update skip locked limit 1;
+  if not found then return null; end if;
+  update public.generation_jobs set status='running',attempts=attempts+1,
+    lease_until=now()+interval '2 minutes',claim_token=gen_random_uuid(),updated_at=clock_timestamp()
+    where id=v_row.id returning * into v_row;
+  return v_row;
+end $$;
+
+create function public.finish_generation_job(p_id uuid,p_claim_token uuid,p_content jsonb,p_input_version text,
+  p_source text,p_error_code text default null)
+returns public.generation_jobs language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_job public.generation_jobs; v_old public.daily_plans; v_plan public.daily_plans; v_user uuid; v_space uuid; v_rules jsonb; v_free boolean;
+begin
+  select user_id,space_id into v_user,v_space from public.generation_jobs where id=p_id;
+  if not found then raise exception 'Job lease unavailable'; end if;
+  perform 1 from public.members where user_id=v_user and space_id=v_space for update;
+  if not found then raise exception 'Member unavailable'; end if;
+  select * into v_job from public.generation_jobs where id=p_id for update;
+  if not found or v_job.status<>'running' or v_job.lease_until<now()
+    or p_claim_token is distinct from v_job.claim_token then raise exception 'Job lease unavailable'; end if;
+  if p_source not in ('rules','ai') then raise exception 'Invalid plan source'; end if;
+  if p_error_code is not null or p_content is null then
+    if p_error_code is null or p_error_code !~ '^[A-Z0-9_]{1,80}$' then raise exception 'Invalid error code'; end if;
+    update public.generation_jobs set status=case when attempts>=max_attempts then 'exhausted' else 'failed' end,
+      error_code=p_error_code,next_run_at=now()+make_interval(mins=>attempts*5),lease_until=null,claim_token=null,
+      updated_at=clock_timestamp() where id=p_id returning * into v_job;
+    return v_job;
+  end if;
+  if p_input_version is distinct from v_job.input_version
+    or not public.health_plan_allowed(v_job.user_id,v_job.target_date,p_content)
+  then raise exception 'Invalid or stale generated plan'; end if;
+  select rules into v_rules from public.health_rules where user_id=v_job.user_id;
+  v_free := coalesce(v_rules->>'free_day_meal_unrestricted','false')='true'
+    and exists(select 1 from jsonb_array_elements_text(v_rules->'free_weekdays') d
+      where d::integer=extract(isodow from v_job.target_date)::integer);
+  if v_rules is null or v_rules->>'confirmed'<>'true'
+    or p_content->'meals' is distinct from
+      (case when v_free then '[]'::jsonb else v_rules->'meal_template' end)
+  then raise exception 'Unconfirmed automatic meals'; end if;
+  select * into v_old from public.daily_plans where user_id=v_job.user_id and target_date=v_job.target_date and is_current for update;
+  if v_old.id is not null and v_old.source in ('rules','ai') and not v_old.is_stale
+    and v_old.input_version=p_input_version then
+    update public.generation_jobs set status='succeeded',plan_id=v_old.id,error_code=null,
+      lease_until=null,claim_token=null,updated_at=clock_timestamp() where id=p_id returning * into v_job;
+    return v_job;
+  end if;
+  if v_old.id is not null and v_old.source='manual'
+    and (v_job.kind='scheduled' or v_old.updated_at>v_job.scheduled_for) then
+    update public.generation_jobs set status='exhausted',error_code='PLAN_MANUAL_NEWER',
+      lease_until=null,claim_token=null,updated_at=clock_timestamp() where id=p_id returning * into v_job;
+    return v_job;
+  end if;
+  if p_input_version is distinct from public.health_input_version(v_job.user_id,v_job.target_date)
+  then raise exception 'Invalid or stale generated plan'; end if;
+  if v_old.is_locked or exists(select 1 from public.training_sessions t where t.user_id=v_job.user_id
+    and t.record_date=v_job.target_date and t.status='completed') then
+    update public.generation_jobs set status='exhausted',error_code='PLAN_LOCKED',lease_until=null,claim_token=null,
+      updated_at=clock_timestamp() where id=p_id returning * into v_job;
+    return v_job;
+  end if;
+  if v_old.id is not null then update public.daily_plans set is_current=false where id=v_old.id; end if;
+  insert into public.daily_plans(space_id,user_id,target_date,version,source,status,is_shared,input_version,content,scheduled_for,updated_by)
+    values(v_job.space_id,v_job.user_id,v_job.target_date,coalesce(v_old.version,0)+1,p_source,'published',
+      coalesce(v_old.is_shared,false),p_input_version,p_content,v_job.scheduled_for,v_job.user_id) returning * into v_plan;
+  update public.generation_jobs set status='succeeded',plan_id=v_plan.id,error_code=null,
+    lease_until=null,claim_token=null,updated_at=clock_timestamp() where id=p_id returning * into v_job;
+  return v_job;
+end $$;
+
+create function public.reserve_ai_usage(p_user uuid,p_kind text,p_cents integer) returns uuid
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_period date := date_trunc('month',now() at time zone 'Asia/Shanghai')::date;
+  v_global integer; v_personal integer; v_spent integer; v_id uuid;
+begin
+  if p_cents is null or p_cents not between 1 and 100 or p_kind not in ('text','photo')
+    then raise exception 'Invalid reservation'; end if;
+  select limit_cents into v_global from public.ai_monthly_budgets where period=v_period for update;
+  if not found then raise exception 'AI budget not configured'; end if;
+  select monthly_limit_cents into v_personal from public.ai_consents c
+    join public.fixed_accounts f on f.user_id=c.user_id and f.space_id=c.space_id
+    join public.members m on m.user_id=f.user_id and m.space_id=f.space_id
+    where c.user_id=p_user and c.kind=p_kind and c.enabled for update of c;
+  if not found then raise exception 'AI consent unavailable'; end if;
+  if (select count(*) from public.ai_usage where user_id=p_user and kind=p_kind
+      and created_at>=now()-interval '1 minute')>=3
+    or (select count(*) from public.ai_usage where user_id=p_user and kind=p_kind
+      and created_at>=((now() at time zone 'Asia/Shanghai')::date::timestamp at time zone 'Asia/Shanghai'))>=20
+  then raise exception 'AI rate limit exceeded'; end if;
+  select coalesce(sum(case when status='reserved' then reserved_cents else charged_cents end),0)::integer
+    into v_spent from public.ai_usage where period=v_period;
+  if v_spent+p_cents>v_global then raise exception 'Global AI budget exceeded'; end if;
+  select coalesce(sum(case when status='reserved' then reserved_cents else charged_cents end),0)::integer
+    into v_spent from public.ai_usage where period=v_period and user_id=p_user and kind=p_kind;
+  if v_spent+p_cents>v_personal then raise exception 'Personal AI budget exceeded'; end if;
+  insert into public.ai_usage(user_id,period,kind,reserved_cents,status)
+    values(p_user,v_period,p_kind,p_cents,'reserved') returning id into v_id;
+  return v_id;
+end $$;
+
+create function public.settle_ai_usage(p_id uuid,p_charged_cents integer) returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_old public.ai_usage;
+begin
+  select * into v_old from public.ai_usage where id=p_id for update;
+  if not found or v_old.status<>'reserved' or p_charged_cents not between 0 and v_old.reserved_cents
+  then raise exception 'Invalid AI settlement'; end if;
+  update public.ai_usage set charged_cents=p_charged_cents,
+    status=case when p_charged_cents=0 then 'released' else 'settled' end,
+    updated_at=clock_timestamp() where id=p_id;
+end $$;
+
+create function public.health_valid_record(p_data jsonb,p_kind text) returns boolean
+language plpgsql immutable security definer set search_path = public, pg_temp
+as $$
+declare v_set jsonb; v_item jsonb;
+begin
+  if jsonb_typeof(p_data) is distinct from 'object' or length(p_data::text)>30000 then return false; end if;
+  if p_kind='training' then
+    if not (p_data ?& array['plan_id','status','started_at','active_since','rest_until','rest_remaining_seconds','ended_at','elapsed_seconds','stop_reason','sets'])
+      or jsonb_typeof(p_data->'sets') is distinct from 'array' or jsonb_array_length(p_data->'sets')>100
+      or p_data->>'status' not in ('active','paused','completed','stopped')
+      or (p_data->>'elapsed_seconds') !~ '^[0-9]{1,7}$'
+      or (p_data->>'rest_remaining_seconds') !~ '^[0-9]{1,5}$'
+      or jsonb_typeof(p_data->'started_at') is distinct from 'string'
+      or (p_data->>'status'='active' and jsonb_typeof(p_data->'active_since') is distinct from 'string')
+      or (p_data->>'status'<>'active' and p_data->'active_since'<>'null'::jsonb)
+      or (p_data->>'status'='paused' and p_data->'rest_until'<>'null'::jsonb)
+      or exists(select 1 from jsonb_object_keys(p_data) k where k not in
+        ('plan_id','status','started_at','active_since','rest_until','rest_remaining_seconds','ended_at','elapsed_seconds','stop_reason','sets'))
+    then return false; end if;
+    for v_set in select value from jsonb_array_elements(p_data->'sets') loop
+      if jsonb_typeof(v_set) is distinct from 'object' or not (v_set ?& array['exercise_id','set_index','reps','load_kg','rpe','pain_note','stop_reason','skipped','completed_at'])
+        or v_set->>'exercise_id' not in ('machine_leg_press','machine_seated_row','machine_chest_press','machine_seated_leg_curl','machine_lat_pulldown','machine_hip_abduction','machine_ab_crunch','dorm_supported_dumbbell_row','dorm_dumbbell_floor_press','dorm_sit_to_stand','dorm_dead_bug')
+        or (v_set->>'set_index') !~ '^[0-9]{1,2}$' or (v_set->>'reps') !~ '^[0-9]{1,3}$'
+        or jsonb_typeof(v_set->'skipped') is distinct from 'boolean' or length(v_set::text)>1000
+      then return false; end if;
+    end loop;
+    return true;
+  elsif p_kind='meal' then
+    if not (p_data ?& array['recorded_at','kind','items','eaten_fraction','shared_meal_id','photo_ids','cooking','oil','leftover','estimate'])
+      or jsonb_typeof(p_data->'recorded_at') is distinct from 'string'
+      or jsonb_typeof(p_data->'items') is distinct from 'array' or jsonb_array_length(p_data->'items')>30
+      or (p_data->>'eaten_fraction') !~ '^(0(\.[0-9]{1,3})?|1(\.0{1,3})?)$'
+      or jsonb_typeof(p_data->'photo_ids') is distinct from 'array' or jsonb_array_length(p_data->'photo_ids')>20
+      or exists(select 1 from jsonb_object_keys(p_data) k where k not in
+        ('recorded_at','kind','items','eaten_fraction','shared_meal_id','photo_ids','cooking','oil','leftover','estimate'))
+    then return false; end if;
+    for v_item in select value from jsonb_array_elements(p_data->'items') loop
+      if jsonb_typeof(v_item) is distinct from 'object' or not (v_item ?& array['name','portion','unit'])
+        or jsonb_typeof(v_item->'name') is distinct from 'string'
+        or jsonb_typeof(v_item->'portion') is distinct from 'string'
+        or jsonb_typeof(v_item->'unit') is distinct from 'string' or length(v_item::text)>500
+      then return false; end if;
+    end loop;
+    return true;
+  end if;
+  return false;
+end $$;
+
+create function public.save_training_session(p_payload jsonb,p_id uuid default null)
+returns public.training_sessions language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_old public.training_sessions; v_row public.training_sessions; v_data jsonb := p_payload->'data'; v_date date; v_status text := p_payload->>'status'; v_share boolean;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  if jsonb_typeof(p_payload)<>'object' or not public.health_valid_record(v_data,'training')
+    or v_status is distinct from v_data->>'status' or jsonb_typeof(p_payload->'is_shared')<>'boolean'
+  then raise exception 'Invalid training session'; end if;
+  v_date := ((v_data->>'started_at')::timestamptz at time zone 'Asia/Shanghai')::date;
+  v_share := (p_payload->>'is_shared')::boolean;
+  if p_id is null then
+    if p_payload ? 'expected_updated_at' then raise exception 'Edit conflict'; end if;
+    insert into public.training_sessions(space_id,user_id,record_date,status,data,is_shared,updated_by)
+      values(v_space,auth.uid(),v_date,v_status,v_data,v_share,auth.uid()) returning * into v_row;
+  else
+    select * into v_old from public.training_sessions where id=p_id and space_id=v_space for update;
+    if not found or not public.health_can_edit(v_space,v_old.user_id,v_old.is_shared,'training') then raise exception 'not found or access denied'; end if;
+    if v_old.user_id<>auth.uid() and (v_date<>v_old.record_date or v_share is distinct from v_old.is_shared)
+    then raise exception 'not found or access denied'; end if;
+    if (p_payload->>'expected_updated_at')::timestamptz is distinct from v_old.updated_at then raise exception 'Edit conflict'; end if;
+    update public.training_sessions set record_date=v_date,status=v_status,data=v_data,is_shared=v_share,
+      updated_at=clock_timestamp(),updated_by=auth.uid() where id=p_id returning * into v_row;
+  end if;
+  return v_row;
+end $$;
+
+create function public.delete_training_session(p_id uuid) returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+begin
+  delete from public.training_sessions where id=p_id and user_id=auth.uid()
+    and space_id=public.current_space_id();
+  if not found then raise exception 'not found or access denied'; end if;
+end $$;
+
+create function public.save_meal(p_payload jsonb,p_id uuid default null)
+returns public.meals language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_old public.meals; v_row public.meals; v_data jsonb := p_payload->'data'; v_date date; v_status text := p_payload->>'status'; v_share boolean; v_linked integer;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  if jsonb_typeof(p_payload)<>'object' or not public.health_valid_record(v_data,'meal')
+    or v_status not in ('draft','confirmed') or jsonb_typeof(p_payload->'is_shared')<>'boolean'
+  then raise exception 'Invalid meal'; end if;
+  v_date := ((v_data->>'recorded_at')::timestamptz at time zone 'Asia/Shanghai')::date;
+  v_share := (p_payload->>'is_shared')::boolean;
+  if p_id is null then
+    if p_payload ? 'expected_updated_at' then raise exception 'Edit conflict'; end if;
+    if (select count(*) from jsonb_array_elements_text(v_data->'photo_ids')) <>
+      (select count(distinct value) from jsonb_array_elements_text(v_data->'photo_ids'))
+    then raise exception 'Duplicate meal photo'; end if;
+    if exists(select 1 from jsonb_array_elements_text(v_data->'photo_ids') x
+      where not exists(select 1 from public.photo_assets p where p.id=x::uuid and p.user_id=auth.uid()
+        and p.space_id=v_space and p.meal_id is null and not p.deleting))
+    then raise exception 'Invalid meal photos'; end if;
+    insert into public.meals(space_id,user_id,record_date,status,data,is_shared,updated_by)
+      values(v_space,auth.uid(),v_date,v_status,v_data,v_share,auth.uid()) returning * into v_row;
+    update public.photo_assets set meal_id=v_row.id,updated_at=clock_timestamp()
+      where id::text in (select jsonb_array_elements_text(v_data->'photo_ids')) and user_id=auth.uid() and not deleting;
+    get diagnostics v_linked = row_count;
+    if v_linked<>jsonb_array_length(v_data->'photo_ids') then raise exception 'Invalid meal photos'; end if;
+  else
+    select * into v_old from public.meals where id=p_id and space_id=v_space for update;
+    if not found or not public.health_can_edit(v_space,v_old.user_id,v_old.is_shared,'meal') then raise exception 'not found or access denied'; end if;
+    if v_old.user_id<>auth.uid() and (v_date<>v_old.record_date or v_share is distinct from v_old.is_shared)
+    then raise exception 'not found or access denied'; end if;
+    if v_old.user_id<>auth.uid() and v_data->'photo_ids' is distinct from v_old.data->'photo_ids'
+    then raise exception 'not found or access denied'; end if;
+    if (select count(*) from jsonb_array_elements_text(v_data->'photo_ids')) <>
+      (select count(distinct value) from jsonb_array_elements_text(v_data->'photo_ids'))
+    then raise exception 'Duplicate meal photo'; end if;
+    if exists(select 1 from jsonb_array_elements_text(v_data->'photo_ids') x
+      where not exists(select 1 from public.photo_assets p where p.id=x::uuid and p.user_id=v_old.user_id
+        and p.space_id=v_space and not p.deleting and (p.meal_id is null or p.meal_id=p_id)))
+    then raise exception 'Invalid meal photos'; end if;
+    if (p_payload->>'expected_updated_at')::timestamptz is distinct from v_old.updated_at then raise exception 'Edit conflict'; end if;
+    update public.meals set record_date=v_date,status=v_status,data=v_data,is_shared=v_share,
+      updated_at=clock_timestamp(),updated_by=auth.uid() where id=p_id returning * into v_row;
+    update public.photo_assets set meal_id=p_id,updated_at=clock_timestamp()
+      where id::text in (select jsonb_array_elements_text(v_data->'photo_ids')) and user_id=v_old.user_id and not deleting;
+    get diagnostics v_linked = row_count;
+    if v_linked<>jsonb_array_length(v_data->'photo_ids') then raise exception 'Invalid meal photos'; end if;
+  end if;
+  return v_row;
+end $$;
+
+create function public.reuse_photo_asset(p_id uuid,p_owner uuid,p_space uuid,p_meal_id uuid) returns uuid
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_row public.photo_assets;
+begin
+  select * into v_row from public.photo_assets
+    where id=p_id and user_id=p_owner and space_id=p_space for update;
+  if not found or v_row.deleting or (p_meal_id is not null and v_row.meal_id is not null
+    and v_row.meal_id<>p_meal_id) then raise exception 'Photo unavailable'; end if;
+  if p_meal_id is not null then
+    if not exists(select 1 from public.meals where id=p_meal_id and user_id=p_owner and space_id=p_space)
+    then raise exception 'Meal unavailable'; end if;
+    update public.photo_assets set meal_id=p_meal_id,updated_at=clock_timestamp() where id=p_id;
+  end if;
+  return p_id;
+end $$;
+
+create function public.begin_photo_delete(p_id uuid,p_owner uuid,p_space uuid) returns text
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_path text;
+begin
+  update public.photo_assets set deleting=true,updated_at=clock_timestamp()
+    where id=p_id and user_id=p_owner and space_id=p_space
+    returning storage_path into v_path;
+  if not found then raise exception 'Photo not found'; end if;
+  return v_path;
+end $$;
+
+create function public.unlink_photo_asset(p_id uuid) returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_row public.photo_assets;
+begin
+  select * into v_row from public.photo_assets where id=p_id;
+  if not found then return; end if;
+  if not v_row.deleting then raise exception 'Photo not found'; end if;
+  update public.meals m set data=jsonb_set(m.data,'{photo_ids}',
+      coalesce((select jsonb_agg(x.value) from jsonb_array_elements(m.data->'photo_ids') x
+        where x.value<>to_jsonb(p_id::text)),'[]'::jsonb)),updated_at=clock_timestamp()
+    where m.user_id=v_row.user_id and m.data->'photo_ids' ? p_id::text;
+  select * into v_row from public.photo_assets where id=p_id for update;
+  if not found then return; end if;
+  if not v_row.deleting then raise exception 'Photo not found'; end if;
+  delete from public.photo_assets where id=p_id;
+end $$;
+
+create function public.delete_meal(p_id uuid) returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+begin
+  if exists(select 1 from public.photo_assets p join public.meals m on m.id=p_id
+    where p.meal_id=p_id or p.id::text in (select jsonb_array_elements_text(m.data->'photo_ids')))
+  then raise exception 'Delete photos first'; end if;
+  delete from public.meals where id=p_id and user_id=auth.uid() and space_id=public.current_space_id();
+  if not found then raise exception 'not found or access denied'; end if;
+end $$;
+
+create function public.set_ai_consent(p_kind text,p_enabled boolean,p_monthly_limit_cents integer,p_policy_version text)
+returns public.ai_consents language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id(); v_row public.ai_consents;
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  if p_kind not in ('text','photo') or p_enabled is null or p_monthly_limit_cents not between 0 and 500
+    or char_length(p_policy_version) not between 1 and 80 then raise exception 'Invalid consent'; end if;
+  insert into public.ai_consents(space_id,user_id,kind,enabled,monthly_limit_cents,policy_version,consented_at,revoked_at)
+    values(v_space,auth.uid(),p_kind,p_enabled,p_monthly_limit_cents,p_policy_version,
+      case when p_enabled then now() else null end,case when p_enabled then null else now() end)
+    on conflict(user_id,kind) do update set enabled=excluded.enabled,monthly_limit_cents=excluded.monthly_limit_cents,
+      policy_version=excluded.policy_version,consented_at=excluded.consented_at,revoked_at=excluded.revoked_at,updated_at=clock_timestamp()
+    returning * into v_row;
+  return v_row;
+end $$;
+
+-- Storage objects live outside PostgreSQL. Refuse direct erasure while any remain.
+create or replace function public.erase_own_health_data() returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+begin
+  if public.current_space_id() is null then raise exception 'Space membership required'; end if;
+  if exists(select 1 from public.photo_assets where user_id=auth.uid()) then raise exception 'Delete private photos first'; end if;
+  -- Minimal cost ledger stays until account deletion, so erasure cannot reset a monthly spending cap.
+  delete from public.ai_consents where user_id=auth.uid();
+  delete from public.generation_jobs where user_id=auth.uid();
+  delete from public.training_sessions where user_id=auth.uid();
+  delete from public.meals where user_id=auth.uid();
+  delete from public.daily_plans where user_id=auth.uid();
+  delete from public.health_rules where user_id=auth.uid();
+  delete from public.health_profiles where user_id=auth.uid();
+  delete from public.schedules where user_id=auth.uid();
+  delete from public.weights where user_id=auth.uid();
+  delete from public.audit_events where user_id=auth.uid();
+end $$;
+
+create or replace function public.leave_space() returns void
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_space uuid := public.current_space_id();
+begin
+  if v_space is null then raise exception 'Space membership required'; end if;
+  perform 1 from public.spaces where id=v_space for update;
+  if not found or not exists(select 1 from public.members where user_id=auth.uid() and space_id=v_space)
+  then raise exception 'Space membership required'; end if;
+  perform public.erase_own_health_data();
+  delete from public.invites where space_id=v_space;
+  delete from public.audit_events where actor_id=auth.uid();
+  delete from public.members where user_id=auth.uid() and space_id=v_space;
+  update public.members set share_profile=false,share_schedule=false,share_weight=false,
+    share_plan=false,share_training=false,share_meal=false,share_photo=false,allow_partner_edit=false where space_id=v_space;
+end $$;
+
+create function public.health_mark_stale() returns trigger
+language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare v_user uuid; v_date date;
+begin
+  v_user := case when tg_op='DELETE' then old.user_id else new.user_id end;
+  -- Same owner lock as finish_generation_job: input commits cannot slip past publication.
+  perform 1 from public.members where user_id=v_user for update;
+  if tg_table_name in ('schedules','training_sessions') then
+    v_date := case when tg_op='DELETE' then old.record_date else new.record_date end;
+    update public.daily_plans set is_stale=true where user_id=v_user and is_current and target_date>=v_date;
+  else
+    update public.daily_plans set is_stale=true where user_id=v_user and is_current;
+  end if;
+  return case when tg_op='DELETE' then old else new end;
+end $$;
+create trigger health_schedule_stale after insert or update or delete on public.schedules for each row execute function public.health_mark_stale();
+create trigger health_profile_stale after insert or update or delete on public.health_profiles for each row execute function public.health_mark_stale();
+create trigger health_training_stale after insert or update or delete on public.training_sessions for each row execute function public.health_mark_stale();
+
+alter table public.health_rules enable row level security;
+alter table public.daily_plans enable row level security;
+alter table public.generation_jobs enable row level security;
+alter table public.training_sessions enable row level security;
+alter table public.meals enable row level security;
+alter table public.photo_assets enable row level security;
+alter table public.ai_consents enable row level security;
+alter table public.ai_usage enable row level security;
+alter table public.ai_monthly_budgets enable row level security;
+
+create policy health_rules_read on public.health_rules for select to authenticated using
+  (space_id=public.current_space_id() and user_id=auth.uid());
+create policy daily_plans_read on public.daily_plans for select to authenticated using
+  (space_id=public.current_space_id() and (user_id=auth.uid() or
+    (is_current and public.health_can_read(space_id,user_id,is_shared,'plan'))));
+create policy generation_jobs_read on public.generation_jobs for select to authenticated using
+  (space_id=public.current_space_id() and user_id=auth.uid());
+create policy training_sessions_read on public.training_sessions for select to authenticated using
+  (public.health_can_read(space_id,user_id,is_shared,'training'));
+create policy meals_read on public.meals for select to authenticated using
+  (public.health_can_read(space_id,user_id,is_shared,'meal'));
+create policy photo_assets_read on public.photo_assets for select to authenticated using
+  (not deleting and public.health_can_read(space_id,user_id,is_shared,'photo'));
+create policy ai_consents_read on public.ai_consents for select to authenticated using
+  (space_id=public.current_space_id() and user_id=auth.uid());
+
+revoke all on public.health_rules,public.daily_plans,public.generation_jobs,public.training_sessions,
+  public.meals,public.photo_assets,public.ai_consents,public.ai_usage,public.ai_monthly_budgets from public,anon,authenticated;
+grant select on public.health_rules,public.daily_plans,public.generation_jobs,public.training_sessions,
+  public.meals,public.photo_assets,public.ai_consents to authenticated;
+grant usage on schema public to service_role;
+grant select,insert,update,delete on public.health_rules,public.daily_plans,public.generation_jobs,
+  public.training_sessions,public.meals,public.photo_assets,public.ai_consents,public.ai_usage,
+  public.ai_monthly_budgets to service_role;
+grant select on public.health_profiles,public.schedules,public.weights,public.members,
+  public.fixed_accounts to service_role;
+
+revoke all on function public.health_schema_version(),public.health_can_read(uuid,uuid,boolean,text),
+  public.health_valid_plan(jsonb),public.health_plan_allowed(uuid,date,jsonb),public.health_input_version(uuid,date),
+  public.save_confirmed_schedule(jsonb,uuid),
+  public.health_can_edit(uuid,uuid,boolean,text),public.health_valid_rules(jsonb),public.health_valid_record(jsonb,text),
+  public.save_health_sharing(jsonb),public.save_health_rules(jsonb,boolean,timestamptz),
+  public.confirm_training_history(timestamptz),
+  public.save_daily_plan(date,jsonb,integer,boolean,uuid),public.set_plan_lock(uuid,boolean,timestamptz),
+  public.request_plan_generation(date),public.retry_generation_job(uuid),
+  public.save_training_session(jsonb,uuid),public.delete_training_session(uuid),public.save_meal(jsonb,uuid),public.delete_meal(uuid),
+  public.reuse_photo_asset(uuid,uuid,uuid,uuid),public.begin_photo_delete(uuid,uuid,uuid),public.unlink_photo_asset(uuid),
+  public.set_ai_consent(text,boolean,integer,text),public.health_mark_stale(),
+  public.enqueue_scheduled_plans(timestamptz),public.claim_generation_job(uuid),
+  public.finish_generation_job(uuid,uuid,jsonb,text,text,text),public.reserve_ai_usage(uuid,text,integer),
+  public.settle_ai_usage(uuid,integer)
+  from public,anon,authenticated;
+grant execute on function public.health_schema_version(),public.save_health_sharing(jsonb),
+  public.health_can_read(uuid,uuid,boolean,text),
+  public.save_confirmed_schedule(jsonb,uuid),
+  public.save_health_rules(jsonb,boolean,timestamptz),public.save_daily_plan(date,jsonb,integer,boolean,uuid),
+  public.confirm_training_history(timestamptz),
+  public.set_plan_lock(uuid,boolean,timestamptz),public.request_plan_generation(date),
+  public.retry_generation_job(uuid),public.save_training_session(jsonb,uuid),public.delete_training_session(uuid),public.save_meal(jsonb,uuid),
+  public.delete_meal(uuid),public.set_ai_consent(text,boolean,integer,text) to authenticated;
+grant execute on function public.enqueue_scheduled_plans(timestamptz),public.claim_generation_job(uuid),
+  public.finish_generation_job(uuid,uuid,jsonb,text,text,text),public.reserve_ai_usage(uuid,text,integer),
+  public.settle_ai_usage(uuid,integer),public.health_input_version(uuid,date),
+  public.reuse_photo_asset(uuid,uuid,uuid,uuid),public.begin_photo_delete(uuid,uuid,uuid),public.unlink_photo_asset(uuid) to service_role;

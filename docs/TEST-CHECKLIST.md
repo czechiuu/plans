@@ -1,25 +1,49 @@
-# 第一阶段验收清单与证据
+# 验收清单与证据
 
-截至 2026-10-13（Asia/Shanghai）。通过只记实际执行；模拟、本地、结构、匿名、云端业务和真机分别统计，不能相互替代。固定账号方案本地与真实 API 已有报告；浏览器最终复测仍待安全输入。
+截至2026-10-13。只统计实际执行；本地、模拟、真实云端和真机不可互相代替。新报告附时间与源码摘要，报告/截图不含密码、密钥、会话或真实健康资料。
 
-| 环境/项目 | 当前结果 | 证据及边界 |
+## 本轮本地与媒体
+
+| 运行 | 通过 | 失败 | 证据 |
+|---|---:|---:|---|
+| `pnpm test` | 56 | 0 | [单元/PGlite/合成Auth](../test-results/unit-results.json) |
+| `pnpm test:concurrency` | 5 | 0 | [历史邀请多连接](../test-results/concurrency-results.json) |
+| `pnpm test:concurrency:health` | 11 | 0 | [健康多连接](../test-results/health-concurrency-results.json) |
+| 004部署包隔离PG核验 | 7 | 0 | [历史匹配/幂等/回滚](../test-results/health-migration-wrapper-results.json) |
+| `pnpm test:browser:unconfigured` | 2 | 0 | [独立空配置页面](../test-results/unconfigured-results.json) |
+| `pnpm test:browser:mock` | 15 | 0 | [合成界面](../test-results/ui-mock-results.json) |
+| 逐个人工动作核对与嵌入播放 | 11 | 0 | [来源、许可方式及核对](EXERCISE-SOURCES.md) |
+
+未配置测试用独立Vite子进程，明确设 `VITE_SUPABASE_URL=""` 和 `VITE_SUPABASE_PUBLISHABLE_KEY=""`，`E2E_BASE_URL` 指向该端口。模拟界面用另一进程及合成接口，不触云库。两者不能共用已配置/未配置前提。测试后关闭各自进程，未改真实配置。
+
+本轮本地覆盖退出等待、快速切换/旧请求、日程确认、训练/休息保存、手动饮食确认与汇总、照片净化边界、AI无效输出/超时、预算并发、权限/代改、版本冲突、重试和重复发布。数据库并发用真实PostgreSQL多连接；合成图片不对真实健康图调用AI。
+
+## 生产与真实服务
+
+| 项目 | 本轮结果 | 方法/限制 |
 |---|---|---|
-| 本地单元、PGlite/合成 Auth | 41 通过、0 失败 | [unit-results.json](../test-results/unit-results.json)；含固定账号、管理员改密 3 项及 API 竞态 3 项，后两者均包含在 41 中；第三账号隔离只在本地合成夹具验证 |
-| 本地 PostgreSQL 多连接 | 历史 001/002 回归 5 通过、0 失败 | [concurrency-results.json](../test-results/concurrency-results.json)，不等于生产 003 |
-| 未配置页浏览器 | 2 通过、0 失败 | [unconfigured-results.json](../test-results/unconfigured-results.json) |
-| 合成界面 | 6 通过、0 失败 | [ui-mock-results.json](../test-results/ui-mock-results.json)，模拟水印，不算真实云端 |
-| 云端 001/002 结构与权限 | 14 通过、0 失败 | [cloud-setup-results.json](../test-results/cloud-setup-results.json) |
-| 真实云端匿名拒绝 | 8 通过、0 失败 | [cloud-anonymous-results.json](../test-results/cloud-anonymous-results.json) |
-| 真实云端公开注册关闭 | 2 通过、0 失败 | [cloud-auth-public-results.json](../test-results/cloud-auth-public-results.json)，不证明固定账号业务 |
-| Auth 配置保存与刷新后回读 | 配置已确认；不计入测试通过数 | [cloud-fixed-auth-config-results.json](../test-results/cloud-fixed-auth-config-results.json)：注册/匿名关闭、Email/确认开启、改密需当前密码开启；与 SQL 12 项分开 |
-| 固定账号版部署/匿名页 | 8 通过、0 失败 | [fixed-deployment-results.json](../test-results/fixed-deployment-results.json)，[运行 38393501421](https://github.com/czechiuu/plans/actions/runs/38393501421) 成功；桌面/手机匿名页、资源与运行错误，不含密码登录 |
-| 旧三账号 API/页面 | 上一方案退出当前门槛 | 现有云端脚本和报告已改为两固定账号；不沿用旧统计 |
-| 生产 003/管理员初始化 | 12 通过、0 失败 | [cloud-fixed-setup-results.json](../test-results/cloud-fixed-setup-results.json)：两指定账号同一空间、默认共享/代改全关；只证明结构和初始化 |
-| 两固定账号真实云端 API | 11 通过、0 失败 | [cloud-api-results.json](../test-results/cloud-api-results.json)，真实密码/空间、私有/共享/撤销、代改审计/冲突及合成数据清理；不含网页 |
-| 真实网页当前 | 9 通过、1 失败、0 阻塞 | [cloud-browser-results.json](../test-results/cloud-browser-results.json)：实际登录、保存刷新、共享、导出、清理通过；`E2E_SWITCH` 切账号超时。前两轮失败见 [首次](../test-results/cloud-browser-first-attempt.json)、[第二次](../test-results/cloud-browser-second-attempt.json)，第三次 [快照](../test-results/cloud-browser-third-attempt.json)；受控本地 [时序复现](../test-results/browser-login-race-results.json) 1 通过、0 失败，不代替真实复测 |
-| 管理员清理回读 | 8 通过、0 失败 | [cloud-cleanup-readback-results.json](../test-results/cloud-cleanup-readback-results.json)：当前空间1、成员2、Auth2、固定槽2，健康三表0、共享/代改全关；不证明备份擦除 |
-| 人工验收门槛 | 邮件/邀请 4 项取消；后台清理回读 1 项通过；改密、管理员重置、双物理设备 3 项未运行 | [人工门槛](../test-results/cloud-manual-gates.json)；双设备按[流程](DEVICE-ACCEPTANCE.md)执行 |
+| 004与三项Edge Function | 未执行 | 一次包核对历史并事务登记，回读权限/摘要 |
+| `pnpm test:cloud` | 新版未执行 | 安全输入两密码；旧版[11/0](../test-results/cloud-api-results.json)不转为新版证据 |
+| `pnpm test:browser:cloud` | 新版未执行 | 正式HTTPS实际构建；旧版[9/1](../test-results/cloud-browser-results.json)待复测 |
+| `pnpm test:cloud:health` | 0通过、0失败、17阻塞 | [报告](../test-results/cloud-health-results.json)，缺凭据/004未部署，非零退出 |
+| 照片上传/权限/删除回读 | 未执行 | 真实私有存储；直接接口本人/伴侣/匿名、撤销、去重、精确ID清理 |
+| 日程→生成→次日查看→训练/餐食→趋势 | 未执行 | 最新部署与真实服务，合成输入，不改已有个人设置 |
+| OpenAI真实调用 | 未配置、未执行 | 密钥/预算/本人文字与图片授权缺一即拒绝；核对用量 |
+| 20:00服务端任务 | 未启用、未执行 | 浏览器全关观察应执行/开始/完成/目标日；跨午夜与独立失败另测 |
+| 两台物理设备 | 未执行 | [最短步骤](DEVICE-ACCEPTANCE.md)，手机尺寸模拟不算真机 |
 
-当前线上 [GitHub Pages](https://czechiuu.github.io/plans/) 是固定账号版源码 `d9447478fa326b43fe8e6d74f61a2fcc1c133c5e`，来自 [运行 38393501421](https://github.com/czechiuu/plans/actions/runs/38393501421)。匿名发布页 8 项、真实 API 11 项已通过；浏览器整条流程因切账号超时仍未通过。公开注册已关闭；邮件投递不是本轮门槛。生产测试只写合成数据，按本轮唯一标记和精确 ID 清理；不导入真实档案。
+新增健康脚本只建本轮marker+精确ID的餐食/停止训练，不改既有规则/共享。训练用超出计划有效日期上限的合成日期，避免使真实计划过期。计划生成、共享配置、图片、AI需要独立受控验收，脚本未覆盖项记阻塞，不能把子集叫完整链路。
 
-原先 14 项长期需求中，第一阶段只交付双人固定账号、私有档案、手动日程、体重、共享/代改、导出/清除/退出。自然语言、20:00 自动生成、计划版本、运动动画、饮食照片/AI、完整日程→计划→动画→记录流程均属后续阶段，当前未实现。资料/权限安全要求仍是第一阶段必须通过的验收，不因阶段缩小而放松。
+实际部署仍为[基础版](https://czechiuu.github.io/plans/)，[运行38393501421](https://github.com/czechiuu/plans/actions/runs/38393501421)。历史结构/注册关闭/清理报告是过去观察，不保证当前健康表为空。第三用户只用隔离合成Auth，不开放生产注册。
+
+邮件确认、邀请、邮件找回：**需求取消**，不是通过。改密/管理员重置/双设备门槛见[报告](../test-results/cloud-manual-gates.json)。生产只按本轮标记和ID清理，不全量清空；当前表删除不等于备份擦除。
+
+## 必须继续核对
+
+- 相对日期按提交时上海时间，人物/日期不明须确认；伤情未知不当已康复。
+- 每人每日幂等且版本保留；20:00后修改标待更新；手动/锁定/完成不被覆盖。
+- 组间休息、动作、转场和热身放松均计入总时长；受控动作匹配器械，自由日/伤情/负荷遵守确定性规则。
+- 草稿不入账；同餐修改不新增，摄入比例只乘一次，未知热量不当0。
+- 图片每次下载鉴权；已传输字节不能追回；删除失败可重试不虚报成功。
+- 体重仅真实手动记录，七日均值标样本数/缺口，无到期保证或两人排名。
+- 无密钥/真实资料公开；未授权不发AI。AI、到点定时与真机未验收前不称完整版。

@@ -1,0 +1,102 @@
+{
+  "generated_at": "2026-10-13T14:02:41.794Z",
+  "scope": "Public exercise media only; Chrome headless watch page and origin-bearing iframe; no account or health data",
+  "method": "Each watch video was opened and visually checked; each YouTube iframe was clicked and its video time advanced with readyState=4 and no media error",
+  "passed": 11,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "machine_leg_press",
+      "source": "https://www.kenoshaymca.org/y-videos/",
+      "watch_url": "https://www.youtube.com/watch?v=QwBvFgAVOTo",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "machine_seated_row",
+      "source": "https://www.kenoshaymca.org/y-videos/",
+      "watch_url": "https://www.youtube.com/watch?v=Hu1Pqz-6OIU",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "machine_chest_press",
+      "source": "https://www.kenoshaymca.org/y-videos/",
+      "watch_url": "https://www.youtube.com/watch?v=0La1aFp-hKA",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "machine_seated_leg_curl",
+      "source": "https://www.lwsb.com/fitness-center-tutorials/",
+      "watch_url": "https://www.youtube.com/watch?v=80AV3aCz65M",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "machine_lat_pulldown",
+      "source": "https://www.kenoshaymca.org/y-videos/",
+      "watch_url": "https://www.youtube.com/watch?v=tK35eqRNrPM",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "machine_hip_abduction",
+      "source": "https://www.kenoshaymca.org/y-videos/",
+      "watch_url": "https://www.youtube.com/watch?v=RNLTuarDpTA",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "machine_ab_crunch",
+      "source": "https://www.kenoshaymca.org/y-videos/",
+      "watch_url": "https://www.youtube.com/watch?v=nlqEDo8odJM",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "dorm_supported_dumbbell_row",
+      "source": "https://www.youtube.com/watch?v=q65uDGJ9ZPs",
+      "watch_url": "https://www.youtube.com/watch?v=q65uDGJ9ZPs",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "dorm_dumbbell_floor_press",
+      "source": "https://support.runna.com/en/articles/6413209-floor-dumbbell-bench-press-exercise-tutorial",
+      "watch_url": "https://www.youtube.com/watch?v=vagdk94bFn4",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "dorm_sit_to_stand",
+      "source": "https://www.youtube.com/watch?v=29WFLqHgYZ0",
+      "watch_url": "https://www.youtube.com/watch?v=29WFLqHgYZ0",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    },
+    {
+      "id": "dorm_dead_bug",
+      "source": "https://www.nasm.org/resource-center/exercise-library/dead-bug",
+      "watch_url": "https://www.youtube.com/watch?v=bxn9FBrt4-A",
+      "visual_match": "passed",
+      "watch_playback": "passed",
+      "iframe_playback": "passed"
+    }
+  ],
+  "limits": [
+    "Gym equipment videos show specific models; local machine setup requires onsite guidance",
+    "Dorm row video braces on a fixed gym rack; a dorm support surface must be independently checked for stability",
+    "Playback and embed availability were checked today, not guaranteed permanently"
+  ]
+}

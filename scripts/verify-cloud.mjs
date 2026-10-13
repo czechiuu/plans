@@ -24,9 +24,9 @@ if (setup.blocked) {
   const save = (i, name, payload, id=null) => ok(api[i].rpc(name,{p_payload:payload,p_id:id}).single())
   const schedule = (shared, stamp, text=marker) => ({user_id:users[0],record_date:day,raw_text:text,exercise_intent:'unknown',is_shared:shared,...(stamp?{expected_updated_at:stamp}:{})})
   const weight = (shared, stamp, value=70.1) => ({user_id:users[0],record_date:day,weight_kg:value,notes:marker,is_shared:shared,...(stamp?{expected_updated_at:stamp}:{})})
-  const consent = patch => ({share_profile:false,share_schedule:false,share_weight:false,allow_partner_edit:false,...patch})
+  const consent = patch => ({...original[0],share_schedule:false,share_weight:false,allow_partner_edit:false,...patch})
   const setConsent = async patch => {settingsChanged=true;await rpc(0,'save_settings',{p_settings:consent(patch)})}
-  let authSettings, scheduleRow, weightRow, safeToMutate=false, settingsChanged=false
+  let authSettings, scheduleRow, weightRow, safeToMutate=false, settingsChanged=false, existingShared=false
   try {
     await check('API_AUTH_SETTINGS',async()=>{
       const response = await fetch(new URL('/auth/v1/settings',setup.url),{headers:{apikey:setup.key}})
@@ -59,8 +59,11 @@ if (setup.blocked) {
       assert.equal(members[0].space_id,members[1].space_id,'Fixed accounts must share one space')
     })
     await check('API_DATA_SAFETY',async()=>{
-      for (let i=0;i<2;i++) for (const table of ['health_profiles','schedules','weights'])
-        if ((await own(i,table)).length) throw Object.assign(new Error('Existing health data'),{code:'EXISTING_HEALTH_DATA'})
+      for (let i=0;i<2;i++) for (const table of ['schedules','weights']) {
+        const rows=await own(i,table)
+        if (rows.some(row=>row.record_date===day)) throw Object.assign(new Error('Synthetic date occupied'),{code:'SYNTHETIC_DATE_OCCUPIED'})
+        if (i===0 && rows.some(row=>row.is_shared)) existingShared=true
+      }
       safeToMutate=true
     })
     await check('API_ANON',async()=>{
@@ -90,6 +93,7 @@ if (setup.blocked) {
       await denied(api[1].rpc('join_space',{p_token:'synthetic',p_display_name:'synthetic',p_settings:{}}),['42501'])
     })
     await check('API_SHARE_REVOKE',async()=>{
+      if (existingShared) throw Object.assign(new Error('Category toggle could expose existing shared rows'),{code:'EXISTING_SHARED_ROWS'})
       await setConsent({share_schedule:true,share_weight:true})
       assert.equal((await byId(1,'schedules',scheduleRow.id)).length,0)
       scheduleRow=await save(0,'save_schedule',schedule(true,scheduleRow.updated_at),scheduleRow.id)
@@ -132,8 +136,8 @@ if (setup.blocked) {
       created.length=0
     })
   } catch (error) {
-    if (error?.code === 'EXISTING_HEALTH_DATA') cases.find(item=>item.id==='API_DATA_SAFETY').status='blocked'
-    if (error?.code !== 'EXISTING_HEALTH_DATA' && !cases.some(item=>item.status==='failed')) { cases.push({id:'API_SETUP',status:'failed'}); details.push({id:'API_SETUP',error}) }
+    if (['SYNTHETIC_DATE_OCCUPIED','EXISTING_SHARED_ROWS'].includes(error?.code)) cases.find(item=>item.status==='failed').status='blocked'
+    if (!['SYNTHETIC_DATE_OCCUPIED','EXISTING_SHARED_ROWS'].includes(error?.code) && !cases.some(item=>item.status==='failed')) { cases.push({id:'API_SETUP',status:'failed'}); details.push({id:'API_SETUP',error}) }
   } finally {
     if (safeToMutate) {
       try {
@@ -153,7 +157,6 @@ if (setup.blocked) {
         if(settingsChanged) await rpc(0,'save_settings',{p_settings:original[0]})
         cases.push({id:'API_CLEANUP',status:'passed'})
       } catch(error) {
-        if(settingsChanged) try { await setConsent({}) } catch {}
         cases.push({id:'API_CLEANUP',status:'failed'}); details.push({id:'API_CLEANUP',error})
       }
     }

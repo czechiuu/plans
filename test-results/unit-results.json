@@ -1,11 +1,78 @@
 {
-  "recorded_at_utc": "2026-10-13T12:24:34Z",
-  "execution_finished_before_utc": "2026-10-13T12:24:34Z",
-  "execution_time_basis": "The command completed before this UTC clock reading; command output has no absolute finish time.",
+  "recorded_at_utc": "2026-10-13T14:57:08.513Z",
+  "execution_finished_before_utc": "2026-10-13T14:57:08.513Z",
+  "execution_time_basis": "pnpm test completed successfully before this UTC clock reading.",
   "command": "pnpm test",
-  "tests": 41,
-  "passed": 41,
+  "tests": 56,
+  "passed": 56,
   "failed": 0,
   "exit_code": 0,
-  "scope": "Local synthetic unit, PostgreSQL contract, migration, date, build-config and persistence tests; not real Supabase acceptance"
+  "scope": "Local synthetic unit and PostgreSQL tests; no real Supabase account or device acceptance.",
+  "source_manifest": {
+    "algorithm": "SHA-256 of UTF-8 sorted path + NUL + file SHA-256 + LF lines",
+    "sha256": "ee871d2c0583aa9cc465be178327a5d452dabdff7b82ade2df0413e52bd9a0a5",
+    "file_count": 15,
+    "files": [
+      {
+        "path": "shared/ai-schema.js",
+        "sha256": "62abd4d2d34d52e17266774272a3f96837e019bda4da2baf66f6b52fe9db04d6"
+      },
+      {
+        "path": "shared/exercises.js",
+        "sha256": "1e94fdd2cd14e15dda02000f373d4a816e811cd07e56077c687c9428d75252e1"
+      },
+      {
+        "path": "shared/health.js",
+        "sha256": "94981671d4f39496c5f703e4c86095d24326d0b13ccb30466d717a5aeec38d6e"
+      },
+      {
+        "path": "shared/png.js",
+        "sha256": "be0130ae65275bbb05278844fd2a1c94fe447967a6871bf8f6e09a715741162c"
+      },
+      {
+        "path": "src/api.js",
+        "sha256": "d8cef14d3c9e773beda68e717c80bcacd2f4e6466ccdf387c69c67d4e1da37af"
+      },
+      {
+        "path": "src/auth-password.js",
+        "sha256": "fcd37037540d26e93f5b6603e0659aea64105f02e8b79aa3e3232b0693a6a678"
+      },
+      {
+        "path": "src/auth-redirect.js",
+        "sha256": "9752d19746a5b598f3c693a56869a35688df6417cf1cec5efa6ec7f7d6248658"
+      },
+      {
+        "path": "src/domain.js",
+        "sha256": "546e54fc7caf0b2d0b6f2559769dd90600c30a001ea656b69e7e71b9212b83b4"
+      },
+      {
+        "path": "src/fixed-account.js",
+        "sha256": "f519633b5270a66eed6fe0f091d43ac3f93bd895347e654120e52e34e066735a"
+      },
+      {
+        "path": "src/main.js",
+        "sha256": "641200a7cdb7ff67dbfdb106139b7bf66d6c7a433b420c9a37e932fe8b526037"
+      },
+      {
+        "path": "src/style.css",
+        "sha256": "55a6d24cbc7a0804eb71fbf9f8e5b3af1e70f0091ce0f93426af5e3d025a430a"
+      },
+      {
+        "path": "supabase/migrations/202610130001_initial.sql",
+        "sha256": "2c35065b6aa8e8cc5fe35a78278430b9b57d16f7876b55150fefeb1904b34e8d"
+      },
+      {
+        "path": "supabase/migrations/202610130002_space_lock_order.sql",
+        "sha256": "7661f20a83975d5ee1cb7d7f1f34d2ab338ac591fe02fabfe5b63bbb4244f7ff"
+      },
+      {
+        "path": "supabase/migrations/202610130003_fixed_accounts.sql",
+        "sha256": "6f27ce2bef9fb6a788418277dc32783ff5e381f75b83ea3b624b4401bf2344cd"
+      },
+      {
+        "path": "supabase/migrations/202610130004_health_daily.sql",
+        "sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585"
+      }
+    ]
+  }
 }

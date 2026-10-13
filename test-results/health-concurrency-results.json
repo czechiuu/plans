@@ -1,0 +1,57 @@
+{
+  "started_at": "2026-10-13T14:50:42.487Z",
+  "generated_at": "2026-10-13T14:50:53.030Z",
+  "scope": "Isolated local PostgreSQL; synthetic fixed accounts only; no production connection",
+  "cases": {
+    "CLIENT_RLS_SERVICE_BOUNDARY": {
+      "status": "passed",
+      "evidence": "client role non-elevated; service-only RPC and direct write rejected"
+    },
+    "DUPLICATE_QUEUE_AND_CLAIM": {
+      "status": "passed",
+      "evidence": "same-date queue idempotent; SKIP LOCKED single claim; one plan persisted"
+    },
+    "LEASE_FENCING": {
+      "status": "passed",
+      "evidence": "expired token rejected after reclaim; duplicate finish rejected"
+    },
+    "FINITE_RETRY": {
+      "status": "passed",
+      "evidence": "three attempts exhausted; fourth claim unavailable"
+    },
+    "INPUT_UPDATE_VS_PUBLISH": {
+      "status": "passed",
+      "evidence": "stale publish rejected"
+    },
+    "PHOTO_ATTACH_DELETE_LOCK_ORDER": {
+      "status": "passed",
+      "evidence": "deletion marker committed while attachment waited; attachment rejected; unlink left no dangling reference"
+    },
+    "MANUAL_SAVE_DURING_RUNNING": {
+      "status": "passed",
+      "evidence": "manual save after claim persists once; older automatic finish converges without overwrite"
+    },
+    "MANUAL_SCHEDULED_PUBLISH_RACE": {
+      "status": "passed",
+      "evidence": "manual and scheduled jobs claimed separately; second finish waited and reused first plan id"
+    },
+    "SHARE_REVOKE_AND_LEAVE": {
+      "status": "passed",
+      "evidence": "default private; grant permits edit; actual blocked edit/revoke race serialized; leave removes record"
+    },
+    "MONTHLY_BUDGET_RACE": {
+      "status": "passed",
+      "evidence": "second connection blocked on budget row; over-limit rejected; released capacity reusable"
+    },
+    "FINISH_VS_LEAVE": {
+      "status": "passed",
+      "evidence": "both lock orders observed: finish then leave, leave then finish; no deadlock or post-leave plan"
+    }
+  },
+  "passed": 11,
+  "failed": 0,
+  "not_run": 0,
+  "postgresql_version": "17.10",
+  "migration_004_sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
+  "script_sha256": "653f5bedfc56576fcd1a1d8c5a395af0323d5ce262a5905a7d0943fff7d36825"
+}
