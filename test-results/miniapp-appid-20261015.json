@@ -39,5 +39,17 @@
   "production_data_writes": 0,
   "paid_ai_calls": 0,
   "consent_or_budget_changes": 0,
-  "source_package": "dist-native/plans-native-source-20261015.zip"
+  "source_package": "dist-native/plans-native-source-20261015.zip",
+  "source_commit": "7abbed8e89331576df6dcd66429650439e935050",
+  "ci": {
+    "status": "success",
+    "url": "https://github.com/czechiuu/plans/actions/runs/38606536500"
+  },
+  "wechat_admin": {
+    "checked": "2026-10-15",
+    "status": "login_required",
+    "url": "https://mp.weixin.qq.com/",
+    "handoff": "official admin QR login; not experience QR",
+    "configuration_changes": 0
+  }
 }
