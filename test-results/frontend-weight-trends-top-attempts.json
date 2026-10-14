@@ -1,0 +1,15 @@
+{
+  "scope": "Reported local browser setup attempt and actual final report; first report was overwritten by the same test runner, retained here as an agent-reported summary",
+  "first_attempt": {
+    "passed": 0,
+    "setup_failed": 1,
+    "notrun": 3,
+    "reason": "Sandbox denied loopback connection before any browser case"
+  },
+  "final_report": "frontend-weight-shortcut-results.json",
+  "final": {
+    "passed": 3,
+    "failed": 0,
+    "notrun": 0
+  }
+}

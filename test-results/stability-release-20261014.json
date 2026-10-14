@@ -1,0 +1,182 @@
+{
+  "generated_at": "2026-10-14T12:17:04.870Z",
+  "source_commit": "44a176234aac6498dc1f6736ff873834e075a26a",
+  "site": "https://czechiuu.github.io/plans/",
+  "frontend": {
+    "source_commit": "44a176234aac6498dc1f6736ff873834e075a26a",
+    "run": "https://github.com/czechiuu/plans/actions/runs/38561891982",
+    "push_ci": "https://github.com/czechiuu/plans/actions/runs/38561168295",
+    "deployed": true,
+    "status": "verified",
+    "anonymous_passed": 8,
+    "anonymous_failed": 0,
+    "mobile_top_shortcut": {
+      "button_count": 1,
+      "before_weekly": true,
+      "top": 184.515625,
+      "bottom": 230.515625,
+      "viewport_width": 390,
+      "viewport_height": 844,
+      "document_width": 375,
+      "form_shanghai_date": "2026-10-14",
+      "form_shared": false
+    },
+    "asset_sha256": {
+      "js": "a86a8680eaff46ebd1420032c36ec46e6f692b50fa90e09aa0afa745d44b9673",
+      "css": "d83b1e0ef21a827eec5686643fd8678175656df58c391f297d52bf6bba781eed"
+    }
+  },
+  "ci": {
+    "run": "https://github.com/czechiuu/plans/actions/runs/38561168295",
+    "status": "success",
+    "local_unit": {
+      "passed": 103,
+      "failed": 0
+    },
+    "local_postgres_concurrency": {
+      "passed": 37,
+      "failed": 0
+    },
+    "first_unit": {
+      "passed": 101,
+      "failed": 2,
+      "log": "stability-unit-20261014.tap"
+    },
+    "final_unit_log": "stability-unit-serial-final-20261014.tap",
+    "backend_fix_run": "https://github.com/czechiuu/plans/actions/runs/38556880332"
+  },
+  "database": {
+    "version": "202610140010",
+    "name": "generation_budget_rounds",
+    "md5": "794cd74aec7b33fa75500dc9571488ed",
+    "readback_utc": "2026-10-14T11:35:21.937277+00:00",
+    "publication_rls": true,
+    "anon_select": false,
+    "authenticated_select": false
+  },
+  "functions": {
+    "health-ai": {
+      "source_commit": "1c3444ddc8a8dd6b625b99d3994c2fae736f49fe",
+      "bytes": 278994,
+      "sha256": "efc98c696c663bc9336eb546536cef3b171f26fe4892cc14e09c933c8266cab1",
+      "download_matches": true
+    },
+    "health-cron": {
+      "source_commit": "1c3444ddc8a8dd6b625b99d3994c2fae736f49fe",
+      "bytes": 333395,
+      "sha256": "77641e3f4019edad7e099bc828e1de8fe7006d7bf3fae950d96cd86df56729b1",
+      "download_matches": true
+    },
+    "health-photo": {
+      "source_commit": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
+      "bytes": 229702,
+      "sha256": "5c3bbd09fd54ad322d326963d14fb47d424b64b503dbaab2c439326c7adce984",
+      "download_matches": true,
+      "changed": false
+    }
+  },
+  "edge_public": {
+    "passed": 14,
+    "failed": 0
+  },
+  "provider": {
+    "new_paid_calls": 0,
+    "new_charges_cents": 0,
+    "existing_deepseek_used_cents": 9,
+    "existing_deepseek_cap_cents": 10,
+    "protected_settings_hash_before": "5d71b1f0d3cdff354d4d78e8aacc421c",
+    "protected_settings_hash_after": "5d71b1f0d3cdff354d4d78e8aacc421c",
+    "settings_unchanged": true
+  },
+  "cron": {
+    "state": "passed_actual_2000_and_duplicate_2005",
+    "target_date": "2026-10-15",
+    "natural_start": "2026-10-14T12:00:00.045195+00:00",
+    "manual_invocations": 0,
+    "both_published": true,
+    "webapp_test_tab_closed": true,
+    "first_tick": {
+      "enqueued": 2,
+      "attempted": 2,
+      "failures": [],
+      "ai_count": 4,
+      "probe_count": 5,
+      "deepseek_spent": 9
+    },
+    "outcomes": [
+      {
+        "slot": "me",
+        "status": "succeeded",
+        "target_date": "2026-10-15",
+        "plan_version": 1,
+        "publication_count": 1,
+        "meal_count": 3,
+        "training_mode": "rest",
+        "generated_at": "2026-10-14T12:00:03.446776+00:00"
+      },
+      {
+        "slot": "w",
+        "status": "succeeded",
+        "target_date": "2026-10-15",
+        "plan_version": 1,
+        "publication_count": 1,
+        "meal_count": 3,
+        "training_mode": "rest",
+        "generated_at": "2026-10-14T12:00:04.089965+00:00"
+      }
+    ],
+    "duplicate_tick": {
+      "observed_at": "2026-10-14T12:05:24.480419+00:00",
+      "enqueued": 0,
+      "attempted": 0,
+      "failures": [],
+      "unchanged_jobs": 2,
+      "unchanged_plans": 2,
+      "publication_count_per_person": 1,
+      "ai_count": 4,
+      "probe_count": 5,
+      "deepseek_spent": 9
+    },
+    "post_cleanup_tick": {
+      "created": "2026-10-14T12:10:00.098507+00:00",
+      "enqueued": 0,
+      "attempted": 0,
+      "failures": []
+    }
+  },
+  "physical_phones": {
+    "state": "notrun",
+    "checklist": "docs/DEVICE-ACCEPTANCE.md"
+  },
+  "media": {
+    "preserved": "3 continuous GIFs and 8 external original video entries",
+    "prior_real_report": "exercise-gif-iab-results.json",
+    "full_ui_historical": {
+      "passed": 6,
+      "failed": 1,
+      "rerun": false
+    }
+  },
+  "cleanup": {
+    "synthetic_weight": {
+      "remaining": 0,
+      "audit_remaining": 0,
+      "guard": "exact ID, source, owner, date, value, updated_at; preserve on change"
+    },
+    "cron_fixture": {
+      "preview_rolled_back": true,
+      "committed": true,
+      "observed_at": "2026-10-14T12:11:00.049444+00:00",
+      "rules_remaining": 0,
+      "schedules_remaining": 0,
+      "plans_remaining": 0,
+      "retained_succeeded_jobs": 2,
+      "retained_input_snapshots": 2,
+      "retained_publications": 2,
+      "reason": "Retained provenance and current-anchor replay barrier; visible synthetic data removed",
+      "unknown_old_creation_receipts_preserved": 1
+    },
+    "old_jobs_hash_before": "a4b5e1aa97aab431b68e0c433cbf6bc0",
+    "old_jobs_hash_after": "a4b5e1aa97aab431b68e0c433cbf6bc0"
+  }
+}

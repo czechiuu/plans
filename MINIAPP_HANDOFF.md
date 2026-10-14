@@ -27,6 +27,14 @@
 
 `health-ai` 现有 `parse-schedule`、`estimate-meal`、`adjust-plan`、`generate-plan`、`status` 都是 `POST /functions/v1/health-ai` 的 `action`，请求体上限 16 KiB；服务端重核本人、用途同意、预算与开关。照片上传完整请求上限 5 MiB，`file` 必须是净化后的 `image/png` 且文件不超过 4 MiB；相机临时 JPEG 不能只改扩展名上传。原生 `uploadFile` 需带相同鉴权头，上传返回的 JSON 文本须解析并核对 `photo_id`。函数错误为带 HTTP 状态的 `{error:'大写错误码'}`，例如 `AUTH_REQUIRED`、`ACCOUNT_DENIED`、`ORIGIN_DENIED`、`INVALID_REQUEST`、`INVALID_PNG`、`PHOTO_NOT_FOUND`、`AI_CONSENT_REQUIRED`、`AI_BUDGET_EXCEEDED`。401/403、冲突、超时和未知发送结果不能当成功；付费请求不可自动换供应商或盲目重发。免费规则计划无需 AI 授权；付费 AI 仍须本人逐用途同意和既有预算。
 
+其中三个易漏的请求/返回契约如下；`estimate-meal` 与 `adjust-plan` 已在上表说明：
+
+| action | 请求 | 成功返回 |
+|---|---|---|
+| `parse-schedule` | `{action:'parse-schedule',raw_text,submitted_at,provider}`；原文 UTF-8 最多 3000 字节，提交时间传有效 ISO 时刻，`provider` 仅 `openai/deepseek`。 | `{draft,ai_request_id,raw_text,needs_confirmation:true,parse_version:'health-schedule-v1',submitted_at}`；草稿仍须本人逐项核对并另存。 |
+| `generate-plan` | `{action:'generate-plan',job_id,provider}`；`provider` 为 `rules/openai/deepseek`，须与已有 job 绑定值一致。 | `{job_id,status,plan_id,error_code}`；本次实际完成时还可能有 `ai_request_id`（可为 `null`），重用已完成 job 时没有此字段，不能以是否存在该字段判定计划成功。 |
+| `status` | `{action:'status'}`。 | `{schema_version:7,plan_provider,global_budget_configured,providers}`；每个 `openai/deepseek` 项含 `configured,model,budget_configured,health_enabled,consents,usage`，各用途同意项为 `enabled,monthly_limit_cents`，用量项为 `charged_cents,reserved_cents`。不返回全站预算数值或他人用量。 |
+
 ## 小程序网络域名与密钥边界
 
 `src/domain.js` 限定项目 URL 为 `https://<项目编号>.supabase.co`；本项目当前公开 API 主机是 `https://wnzbtitlvteptkvwhavw.supabase.co`。项目编号和域名是公开地址，密钥值仍不写本文。原生小程序若沿用现有路径，在微信后台须分别核对并登记该主机：
@@ -44,3 +52,23 @@
 微信官方[小程序网络说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)及 [`wx.request`](https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html)、[`wx.uploadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/upload/wx.uploadFile.html)、[`wx.downloadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html)是上线核对入口；腾讯官方的[小程序域名配置说明](https://cloud.tencent.com/document/product/269/68378)也区分 request、uploadFile、downloadFile 白名单。当前未取得 AppID，未确认 Supabase 默认域名能否登记或满足主体/备案要求，也未做原生真机网络测试，**不能据此宣称可发布**。开发工具放宽域名校验不能代替正式版真机。三个外部 GIF 与八个原视频留下一阶段媒体适配：保留来源和链接，不下载或重新托管，不把链接当作已在小程序内可播放。
 
 接入后按[双人真机清单](docs/DEVICE-ACCEPTANCE.md)验证两台物理设备、两份会话、共享撤销、照片私有下载、冲突和退出。测试只用精确标记的合成记录，清理按回执 ID 与所有者执行。
+
+## 小程序页面与现有网页对应
+
+| 原生页面 | 复用的网页模块与接口 |
+|---|---|
+| 登录 | 固定“我 / W”选择、Supabase Auth 密码登录、会话/槽位核对与本机退出；不接微信登录。 |
+| 今日 | 网页“今日”的当前计划、日程、最近体重与本人/伴侣可见范围；读取 `daily_plans`、`schedules`、`weights`，沿用 RLS。 |
+| 明日安排 | 网页“明日安排”的原文、确认结构、规则或已授权 AI 生成、job 状态与计划版本；复用日程和计划 RPC/`health-ai`。 |
+| 记录 | 网页餐食、体重、羽毛球/其他实际活动表单；复用 `save_meal`、照片函数、`save_weight`、`save_training_session` 及精确创建请求 ID。 |
+| 趋势 | 网页“趋势”的实际体重、腰围、训练和活动统计；只从有权读取的实际记录计算，缺失日期留白。 |
+| 训练详情 | 网页“训练”的计划动作、逐组完成、暂停/恢复/停止；复用 `daily_plans` 与 `training_sessions`。三个 GIF 和八个原视频的原生展示留下一阶段。 |
+| 设置 | 网页类别共享、代改许可、AI 用途同意与费用状态；复用现有设置/授权 RPC 和 `health-ai` status，不改变默认私有与预算。 |
+
+这些是页面映射，不是已开发页面。现有站内刷新提示不是微信每日推送；本轮不承诺每日推送，也不先接微信登录。
+
+## 仍需本人准备的最少资料
+
+- 已有小程序的 AppID，以及对应主体和可操作服务器域名设置的管理员权限；核对现有 Supabase 主机能否登记为合法域名、主体/备案等条件。尚未确认前不假定可发布，也不为此新注册或购买。
+- 两台真实手机与“我 / W”两位固定账号由本人分别安全登录；密码仅在各自设备输入，不发送到聊天或文档。
+- 如需配置既有后端或发布体验版，由现有后端运营管理员使用自己的权限操作；service_role、cron secret 与 AI 密钥始终只在服务端。付费供应商用途只有本人明确授权且现有预算允许才启用，不代替 W 授权、不提高额度。

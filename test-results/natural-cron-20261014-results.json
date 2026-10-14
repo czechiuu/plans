@@ -1,0 +1,109 @@
+{
+  "generated_at": "2026-10-14T12:12:02.002Z",
+  "scope": "Production natural pg_cron at real Shanghai 20:00; synthetic fixed-account schedules/rules; no manual cron/enqueue or AI invocation",
+  "passed": 4,
+  "failed": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "ME_NATURAL_NEXT_DAY_PLAN",
+      "status": "passed"
+    },
+    {
+      "id": "W_NATURAL_NEXT_DAY_PLAN",
+      "status": "passed"
+    },
+    {
+      "id": "NEXT_SCHEDULED_TICK_NO_REPUBLISH",
+      "status": "passed"
+    },
+    {
+      "id": "LEDGER_AND_PROTECTED_SETTINGS_UNCHANGED",
+      "status": "passed"
+    }
+  ],
+  "cron": {
+    "state": "passed_actual_2000_and_duplicate_2005",
+    "target_date": "2026-10-15",
+    "natural_start": "2026-10-14T12:00:00.045195+00:00",
+    "manual_invocations": 0,
+    "both_published": true,
+    "webapp_test_tab_closed": true,
+    "first_tick": {
+      "enqueued": 2,
+      "attempted": 2,
+      "failures": [],
+      "ai_count": 4,
+      "probe_count": 5,
+      "deepseek_spent": 9
+    },
+    "outcomes": [
+      {
+        "slot": "me",
+        "status": "succeeded",
+        "target_date": "2026-10-15",
+        "plan_version": 1,
+        "publication_count": 1,
+        "meal_count": 3,
+        "training_mode": "rest",
+        "generated_at": "2026-10-14T12:00:03.446776+00:00"
+      },
+      {
+        "slot": "w",
+        "status": "succeeded",
+        "target_date": "2026-10-15",
+        "plan_version": 1,
+        "publication_count": 1,
+        "meal_count": 3,
+        "training_mode": "rest",
+        "generated_at": "2026-10-14T12:00:04.089965+00:00"
+      }
+    ],
+    "duplicate_tick": {
+      "observed_at": "2026-10-14T12:05:24.480419+00:00",
+      "enqueued": 0,
+      "attempted": 0,
+      "failures": [],
+      "unchanged_jobs": 2,
+      "unchanged_plans": 2,
+      "publication_count_per_person": 1,
+      "ai_count": 4,
+      "probe_count": 5,
+      "deepseek_spent": 9
+    },
+    "post_cleanup_tick": {
+      "created": "2026-10-14T12:10:00.098507+00:00",
+      "enqueued": 0,
+      "attempted": 0,
+      "failures": []
+    }
+  },
+  "cleanup": {
+    "synthetic_weight": {
+      "remaining": 0,
+      "audit_remaining": 0,
+      "guard": "exact ID, source, owner, date, value, updated_at; preserve on change"
+    },
+    "cron_fixture": {
+      "preview_rolled_back": true,
+      "committed": true,
+      "observed_at": "2026-10-14T12:11:00.049444+00:00",
+      "rules_remaining": 0,
+      "schedules_remaining": 0,
+      "plans_remaining": 0,
+      "retained_succeeded_jobs": 2,
+      "retained_input_snapshots": 2,
+      "retained_publications": 2,
+      "reason": "Retained provenance and current-anchor replay barrier; visible synthetic data removed",
+      "unknown_old_creation_receipts_preserved": 1
+    },
+    "old_jobs_hash_before": "a4b5e1aa97aab431b68e0c433cbf6bc0",
+    "old_jobs_hash_after": "a4b5e1aa97aab431b68e0c433cbf6bc0"
+  },
+  "limits": [
+    "Rules generation only; current budget does not allow another paid AI reservation",
+    "The test webapp tab was closed; server cron logs establish the trigger",
+    "No physical phone was operated",
+    "Failure/retry paths covered in isolated automated regressions, not intentionally fault-injected into production"
+  ]
+}

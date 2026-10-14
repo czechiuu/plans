@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-10-14T12:17:04.871Z",
+  "scope": "Actual final deployed website, existing Me session, read-only navigation at 390x844; no health write or AI call; not physical phones",
+  "source_commit": "44a176234aac6498dc1f6736ff873834e075a26a",
+  "passed": 2,
+  "failed": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "TRENDS_TOP_SINGLE_VISIBLE_NO_OVERFLOW",
+      "status": "passed"
+    },
+    {
+      "id": "EXISTING_FORM_SHANGHAI_TODAY_PRIVATE",
+      "status": "passed"
+    }
+  ],
+  "evidence": {
+    "button_count": 1,
+    "before_weekly": true,
+    "top": 184.515625,
+    "bottom": 230.515625,
+    "viewport_width": 390,
+    "viewport_height": 844,
+    "document_width": 375,
+    "form_shanghai_date": "2026-10-14",
+    "form_shared": false
+  }
+}

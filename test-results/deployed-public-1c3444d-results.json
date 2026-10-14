@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-10-14T11:40:17.359Z",
+  "scope": "published-anonymous-page-only",
+  "site": "https://czechiuu.github.io/plans/",
+  "source_sha_supplied": "1c3444ddc8a8dd6b625b99d3994c2fae736f49fe",
+  "deployment_run_supplied": "https://github.com/czechiuu/plans/actions/runs/38557453497",
+  "passed": 8,
+  "failed": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "PUBLIC_HTTP_REDIRECT",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_HTTPS_HTML",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_SUBPATH_ASSETS",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_MOBILE_LOGIN",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_DESKTOP_LOGIN",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_REFRESH",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_AUTH_CALLBACK_URL",
+      "status": "passed"
+    },
+    {
+      "id": "PUBLIC_RUNTIME_ERRORS",
+      "status": "passed"
+    }
+  ],
+  "asset_sha256": {
+    "js": "de0150d0bd6c425b2167ca9245d84e46d607f2b2125483c16ba6ecd9e72ff5e2",
+    "css": "d83b1e0ef21a827eec5686643fd8678175656df58c391f297d52bf6bba781eed"
+  },
+  "runtime_error_counts": {
+    "page_errors": 0,
+    "console_errors": 0,
+    "request_failures": 0,
+    "asset_http_errors": 0
+  },
+  "screenshots": [
+    "test-results/public-mobile-login.png",
+    "test-results/public-desktop-login.png"
+  ],
+  "limitations": [
+    "No real password or authenticated account was used",
+    "No health data, AI call, or physical device was tested"
+  ]
+}

@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-10-14T06:27:20.096Z",
-  "generated_at": "2026-10-14T06:27:33.119Z",
+  "started_at": "2026-10-14T11:42:49.631Z",
+  "generated_at": "2026-10-14T11:42:59.997Z",
   "scope": "Production public HTTP rejection checks only; no real account, upload, paid AI, or private data",
   "cases": {
     "PHOTO_ANON_GET": {
@@ -92,8 +92,8 @@
   "failed": 0,
   "not_run": 0,
   "previous_photo_run": {
-    "started_at": "2026-10-14T05:28:36.660Z",
-    "generated_at": "2026-10-14T05:28:49.760Z",
+    "started_at": "2026-10-14T06:27:20.096Z",
+    "generated_at": "2026-10-14T06:27:33.119Z",
     "passed": 14,
     "failed": 0,
     "not_run": 0

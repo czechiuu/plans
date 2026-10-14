@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-10-14T11:53:50.809Z",
+  "scope": "Actual published website in IAB, existing Me Auth session, synthetic weight only; one browser viewport, not physical phones or W account",
+  "source_commit": "1c3444ddc8a8dd6b625b99d3994c2fae736f49fe",
+  "passed": 4,
+  "failed": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "HOME_TO_EXISTING_PRIVATE_FORM",
+      "status": "passed"
+    },
+    {
+      "id": "SAVE_NOTICE_TREND_AND_RECORD_REFRESH",
+      "status": "passed"
+    },
+    {
+      "id": "TREND_SHORTCUT_CLEARS_EDIT",
+      "status": "passed"
+    },
+    {
+      "id": "390_MOBILE_NO_OVERFLOW",
+      "status": "passed"
+    }
+  ],
+  "viewport": {
+    "width": 390,
+    "document_width": 375
+  },
+  "synthetic_weight_cleaned": true,
+  "screenshots": [
+    "private/weight-home-actual-iab-mobile.jpg",
+    "private/weight-trends-actual-iab-mobile.jpg",
+    "private/weight-saved-actual-iab-mobile.jpg"
+  ]
+}

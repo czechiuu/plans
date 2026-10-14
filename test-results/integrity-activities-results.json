@@ -25,7 +25,9 @@
     "202610130005_ai_providers.sql",
     "202610140006_integrity.sql",
     "202610140007_daily_flow.sql",
-    "202610140008_activities.sql"
+    "202610140008_activities.sql",
+    "202610140009_input_snapshots.sql",
+    "202610140010_generation_budget_rounds.sql"
   ],
-  "generated_at": "2026-10-14T05:02:47.472Z"
+  "generated_at": "2026-10-14T11:21:07.867Z"
 }
