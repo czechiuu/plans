@@ -7,6 +7,9 @@
     "PRIVATE_VERSIONED_PLAN_EVIDENCE": {
       "status": "passed"
     },
+    "SAME_INPUT_NEW_PUBLICATION": {
+      "status": "passed"
+    },
     "SOURCE_WRITE_CAPTURE_RACE": {
       "status": "passed"
     },
@@ -17,10 +20,10 @@
       "status": "passed"
     }
   },
-  "passed": 5,
+  "passed": 6,
   "failed": 0,
   "not_run": 0,
   "migration_sha256": "ca9c664f14d2e09d4259d1d3c01502b12eee5d4e67425d633bc8a2aeff75c879",
   "wrapper_sha256": "38758d570960f81c37adfaa682c8e08c5eb07c1833f14b426bb94f27f0248741",
-  "generated_at": "2026-10-14T05:57:18.616Z"
+  "generated_at": "2026-10-14T11:19:24.569Z"
 }

@@ -7,7 +7,7 @@ import {localPostgres} from './with-local-postgres.mjs'
 import {buildRulePlan} from '../shared/health.js'
 
 const users=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222']
-const ids=['HISTORICAL_HASH_AND_WRAPPER','PRIVATE_VERSIONED_PLAN_EVIDENCE','SOURCE_WRITE_CAPTURE_RACE','SNAPSHOT_CLEANUP_AND_LEAVE','WRAPPER_HISTORY_TAMPER']
+const ids=['HISTORICAL_HASH_AND_WRAPPER','PRIVATE_VERSIONED_PLAN_EVIDENCE','SAME_INPUT_NEW_PUBLICATION','SOURCE_WRITE_CAPTURE_RACE','SNAPSHOT_CLEANUP_AND_LEAVE','WRAPPER_HISTORY_TAMPER']
 const report={scope:'Isolated PostgreSQL with synthetic input; no cloud or paid calls',cases:Object.fromEntries(ids.map(id=>[id,{status:'not_run'}])),passed:0,failed:0,not_run:ids.length}
 const clients=[]
 let server
@@ -31,7 +31,7 @@ try{
   create schema supabase_migrations;create table supabase_migrations.schema_migrations(version text primary key,statements text[],name text);`)
  for(let i=0;i<2;i++)await admin.query('insert into auth.users values($1,$2,now(),$3)',[users[i],['me@plans.invalid','w@plans.invalid'][i],'SYNTHETIC'])
  const dir=new URL('../supabase/migrations/',import.meta.url)
- for(const name of (await readdir(dir)).filter(x=>x.endsWith('.sql')&&!x.includes('0009_')).sort()){
+ for(const name of (await readdir(dir)).filter(x=>x.endsWith('.sql')&&!x.includes('0009_')&&!x.includes('0010_')).sort()){
   const sql=(await readFile(new URL(name,dir),'utf8')).replace(/\r\n/g,'\n')
   await admin.query(sql);await admin.query('insert into supabase_migrations.schema_migrations values($1,$2,$3)',[name.slice(0,12),[sql],name.slice(13,-4)])
  }
@@ -59,6 +59,7 @@ try{
   select space_id,user_id,$1::date+1,'scheduled',now(),public.health_input_version(user_id,$1::date+1),'rules','exhausted',3,'MEAL_TEMPLATE_UNCONFIRMED' from fixed_accounts returning *`,[target])).rows
  const oldHashes=(await admin.query('select user_id,public.health_input_version(user_id,$1) hash from fixed_accounts order by user_id',[target])).rows
  const wrapper=await readFile(new URL('../supabase/admin/apply-input-snapshots-009.sql',import.meta.url),'utf8')
+ const wrapper010=await readFile(new URL('../supabase/admin/apply-generation-budget-010.sql',import.meta.url),'utf8')
  const migration=await readFile(new URL('../supabase/migrations/202610140009_input_snapshots.sql',import.meta.url))
  report.migration_sha256=createHash('sha256').update(migration).digest('hex')
  report.wrapper_sha256=createHash('sha256').update(wrapper).digest('hex')
@@ -72,6 +73,13 @@ try{
   await admin.query(wrapper.replace(/\r?\n/g,'\r\n'))
   assert.deepEqual((await admin.query('select * from generation_jobs order by id')).rows,state)
   assert.equal(await rpc(one,'health_input_snapshot_schema_version'),9)
+  await admin.query(wrapper010)
+  assert.equal((await admin.query("select count(*)::int n from supabase_migrations.schema_migrations where version='202610140010'")).rows[0].n,1)
+  await admin.query(wrapper010.replace(/\r?\n/g,'\r\n'))
+  assert.equal((await admin.query("select count(*)::int n from supabase_migrations.schema_migrations where version='202610140010'")).rows[0].n,1)
+  await assert.rejects(admin.query(wrapper010.replace('A snapshot records immutable input','A snapshot records mutable input')),
+    /Migration source mismatch: 202610140010/)
+  await admin.query('rollback')
  })
  let job,oldSnapshot
  await run(ids[1],async()=>{
@@ -100,6 +108,35 @@ try{
   assert.equal((await one.query('select * from generation_input_snapshots where job_id=$1',[job.id])).rowCount,2)
  })
  await run(ids[2],async()=>{
+  const firstPlan=oldSnapshot.plan_id,secondPlan=job.plan_id
+  const original=oldSnapshot.source_snapshot
+  await admin.query('delete from schedules where user_id=$1 and record_date=$2',[users[0],target])
+  await admin.query('insert into schedules select * from jsonb_populate_record(null::schedules,$1::jsonb)',[JSON.stringify(original.schedule)])
+  await admin.query('update plan_input_revisions set revision=$3 where user_id=$1 and target_date=$2',
+    [users[0],target,original.target_revision])
+  assert.equal(await rpc(service,'health_input_version',[users[0],target],['::uuid','::date']),oldSnapshot.input_version)
+  job=await request(one)
+  assert.equal(job.input_version,oldSnapshot.input_version)
+  job=await finish(job)
+  assert.notEqual(job.plan_id,firstPlan);assert.notEqual(job.plan_id,secondPlan)
+  assert.equal((await one.query('select * from generation_input_snapshots where job_id=$1 and input_version=$2',
+    [job.id,oldSnapshot.input_version])).rows[0].plan_id,firstPlan)
+  const published=(await service.query('select plan_id,claim_token,attempt from generation_publications where job_id=$1 order by published_at',[job.id])).rows
+  assert.deepEqual(published.map(x=>x.plan_id),[firstPlan,secondPlan,job.plan_id])
+  assert.equal((await request(one)).plan_id,job.plan_id)
+  await assert.rejects(rpc(service,'finish_generation_job',
+    [job.id,published[2].claim_token,JSON.stringify(content),job.input_version,'rules',null],
+    ['::uuid','::uuid','::jsonb','::text','::text','::text']),/Job lease unavailable/)
+  assert.equal((await service.query('select count(*)::int n from generation_publications where job_id=$1',[job.id])).rows[0].n,3)
+  await admin.query('delete from daily_plans where id=$1',[firstPlan])
+  const retained=(await one.query('select * from generation_input_snapshots where job_id=$1 and input_version=$2',
+    [job.id,oldSnapshot.input_version])).rows[0]
+  assert.equal(retained.plan_id,null)
+  assert.deepEqual(retained.source_snapshot,oldSnapshot.source_snapshot)
+  assert.equal((await service.query('select count(*)::int n from generation_publications where job_id=$1',[job.id])).rows[0].n,3)
+  schedule=(await one.query('select to_jsonb(s) v from schedules s where user_id=$1 and record_date=$2',[users[0],target])).rows[0].v
+ })
+ await run(ids[3],async()=>{
   const pidOne=(await one.query('select pg_backend_pid() p')).rows[0].p,pidOther=(await other.query('select pg_backend_pid() p')).rows[0].p
   await one.query('begin');let held=true
   try{
@@ -118,7 +155,7 @@ try{
    assert.equal(snapshot.input_version,await rpc(service,'health_input_version',[users[0],target],['::uuid','::date']))
   }finally{if(held)await one.query('rollback')}
  })
- await run(ids[3],async()=>{
+ await run(ids[4],async()=>{
   await admin.query('delete from generation_jobs where id=$1',[job.id])
   assert.equal((await admin.query('select count(*)::int n from generation_input_snapshots where job_id=$1',[job.id])).rows[0].n,0)
   await request(one);await request(two)
@@ -128,7 +165,7 @@ try{
   await rpc(two,'leave_space')
   assert.equal((await admin.query('select count(*)::int n from generation_input_snapshots')).rows[0].n,0)
  })
- await run(ids[4],async()=>{
+ await run(ids[5],async()=>{
   await admin.query("update supabase_migrations.schema_migrations set statements=array['SYNTHETIC tamper'] where version='202610140008'")
   await assert.rejects(admin.query(wrapper),/Migration history mismatch/)
   await admin.query('rollback')

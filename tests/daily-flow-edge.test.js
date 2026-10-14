@@ -16,6 +16,7 @@ test('bound rules generation and retries never consult changed preferences or ca
     if(name==='claim_generation_job') return {maybeSingle:async()=>({data:job})}
     if(name==='health_input_version') return {data:'SYNTHETIC'}
     assert.equal(name,'finish_generation_job')
+    if(args.p_error_code){assert.equal(args.p_error_code,'INVALID_REQUEST');return {single:async()=>({data:{status:'failed'}})}}
     assert.equal(args.p_source,'rules');assert.equal(args.p_content.meals.length,3)
     return {single:async()=>({data:{status:'succeeded',plan_id:id,error_code:null}})}
   }}
@@ -23,9 +24,31 @@ test('bound rules generation and retries never consult changed preferences or ca
   try{
     assert.equal((await generate({user,admin,id,slot:'me'},id,'rules')).status,'succeeded')
     job.status='failed'
-    assert.equal((await generate({user,admin,id,slot:'me'},id)).status,'succeeded')
+    assert.equal((await generate({user,admin,id,slot:'me'},id,'rules')).status,'succeeded')
     assert.ok(events.every(x=>['claim_generation_job','health_input_version','finish_generation_job'].includes(x)))
     await assert.rejects(generate({user,admin,id,slot:'me'},id,'deepseek'),/INVALID_REQUEST/)
+  }finally{globalThis.fetch=oldFetch}
+})
+
+test('claim controls provider and input version when the preflight row changes',async()=>{
+  const id='11111111-1111-4111-8111-111111111111',events=[]
+  const preflight={id,user_id:id,target_date:'2026-10-14',status:'queued',provider:'deepseek',input_version:'OLD'}
+  const claimed={...preflight,provider:'rules',input_version:'NEW',claim_token:id}
+  const user={from(table){return {select(){return this},eq(){return this},neq(){return this},gte(){return this},lte(){return this},
+    async maybeSingle(){return {data:table==='generation_jobs'?preflight:null}},async range(){return {data:[]}}}}}
+  const admin={rpc(name,args){
+    events.push(name)
+    if(name==='claim_generation_job')return {maybeSingle:async()=>({data:claimed})}
+    if(name==='health_input_version')return {data:'NEW'}
+    assert.equal(name,'finish_generation_job')
+    assert.equal(args.p_source,'rules');assert.equal(args.p_input_version,'NEW')
+    return {single:async()=>({data:{status:'succeeded',plan_id:id,error_code:null}})}
+  }}
+  const oldFetch=globalThis.fetch;globalThis.fetch=async()=>{throw new Error('Rules must not make a paid request')}
+  try{
+    assert.equal((await generate({user,admin,id,slot:'me'},id,'rules')).status,'succeeded')
+    assert.deepEqual(events.filter(x=>x==='reserve_ai_provider_usage'),[])
+    assert.deepEqual(events.filter(x=>x==='begin_ai_request'),[])
   }finally{globalThis.fetch=oldFetch}
 })
 

@@ -285,19 +285,22 @@ export async function probeDeepSeek(admin,photoBytes,{scheduleOnly=false}={}){
 export async function generate(ctx,jobId,expectedProvider=null){
   if(!uuid.test(jobId??'')) throw new Error('INVALID_REQUEST')
   const existing=await ctx.user.from('generation_jobs').select('id,status,plan_id,lease_until,provider').eq('id',jobId).eq('user_id',ctx.id).maybeSingle()
-  const provider=existing.data?.provider
-  if(!['rules','openai','deepseek'].includes(provider)) throw new Error('AI_DISABLED')
-  if(expectedProvider!==null&&expectedProvider!==provider) throw new Error('INVALID_REQUEST')
   if(existing.error||!existing.data) throw new Error('JOB_NOT_AVAILABLE')
   if(!['queued','failed'].includes(existing.data.status) &&
-    !(existing.data.status==='running' && existing.data.lease_until && Date.parse(existing.data.lease_until)<Date.now()))
+    !(existing.data.status==='running' && existing.data.lease_until && Date.parse(existing.data.lease_until)<Date.now())){
+    if(!['rules','openai','deepseek'].includes(existing.data.provider)) throw new Error('AI_DISABLED')
+    if(expectedProvider!==null&&expectedProvider!==existing.data.provider) throw new Error('INVALID_REQUEST')
     return {job_id:jobId,status:existing.data.status,plan_id:existing.data.plan_id,error_code:null}
+  }
   const claimed=await ctx.admin.rpc('claim_generation_job',{p_id:jobId}).maybeSingle()
   if(claimed.error||!claimed.data) throw new Error('JOB_NOT_AVAILABLE')
   const job=claimed.data
   if(job.user_id!==ctx.id) throw new Error('JOB_NOT_AVAILABLE')
+  const provider=job.provider
   let source=provider==='rules'?'rules':'ai'
   try{
+    if(!['rules','openai','deepseek'].includes(provider)) throw new Error('AI_DISABLED')
+    if(expectedProvider!==null&&expectedProvider!==provider) throw new Error('INVALID_REQUEST')
     const currentInput=await ctx.admin.rpc('health_input_version',{p_owner:ctx.id,p_date:job.target_date})
     if(currentInput.error||currentInput.data!==job.input_version) throw new Error('INVALID_GENERATED_PLAN')
     const current=await ctx.user.from('daily_plans').select('source,input_version,is_stale,content')

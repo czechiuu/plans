@@ -7,7 +7,7 @@ import { localPostgres } from './with-local-postgres.mjs';
 
 const { Client } = pg;
 const ids = ['PROVIDER_AND_PURPOSE_BOUNDARY', 'GLOBAL_CROSS_PROVIDER_RACE',
-  'DEEPSEEK_PROBE_CAP_RACE', 'WRAPPER_CRLF_AND_REPEAT', 'WRAPPER_HISTORY_GUARD','DAILY_WRAPPER_APPLY_REPLAY','DAILY_WRAPPER_HISTORY_SOURCE_GUARDS'];
+  'DEEPSEEK_PROBE_CAP_RACE', 'MIXED_DEEPSEEK_CAP_RACE', 'WRAPPER_CRLF_AND_REPEAT', 'WRAPPER_HISTORY_GUARD','DAILY_WRAPPER_APPLY_REPLAY','DAILY_WRAPPER_HISTORY_SOURCE_GUARDS'];
 const report = { started_at: new Date().toISOString(), generated_at: null,
   scope: 'Isolated local PostgreSQL with synthetic fixed accounts; no cloud or paid AI calls',
   cases: Object.fromEntries(ids.map(id => [id, { status: 'not_run' }])),
@@ -76,7 +76,7 @@ try {
   await admin.query('create schema supabase_migrations');
   await admin.query('create table supabase_migrations.schema_migrations(version text primary key,statements text[],name text)');
   const migrationDir = new URL('../supabase/migrations/', import.meta.url);
-  const allNames = (await readdir(migrationDir)).filter(name=>name.endsWith('.sql')).sort();
+  const allNames = (await readdir(migrationDir)).filter(name=>name.endsWith('.sql')&&!name.includes('0010_')).sort();
   const names = allNames.filter(name => /^20261013000[1-5]_.*\.sql$/.test(name));
   assert.equal(names.length, 5);
   for (const name of names.slice(0, 4)) {
@@ -149,7 +149,8 @@ try {
     await denied(admin.query(modified),/Migration source mismatch: 202610140006/);await admin.query('rollback');
   });
   if(report.cases.DAILY_WRAPPER_APPLY_REPLAY.status!=='passed') throw new Error('Daily migration setup failed');
-  report.applied_migrations=allNames;
+  await admin.query(await readFile(new URL('../supabase/migrations/202610140010_generation_budget_rounds.sql',import.meta.url),'utf8'));
+  report.applied_migrations=[...allNames,'202610140010_generation_budget_rounds.sql'];
   const me = await connect('authenticated', userIds[0]);
   const serviceA = await connect('service_role');
   const serviceB = await connect('service_role');
@@ -160,6 +161,7 @@ try {
   await admin.query("insert into public.ai_provider_budgets(period,provider,limit_cents) values($1,'openai',200),($1,'deepseek',10)", [period]);
   await me.query("select public.set_ai_provider_consent('openai','parse_schedule',true,500,'2026-10-13-openai-health-v1')");
   await run('PROVIDER_AND_PURPOSE_BOUNDARY', async () => {
+    await denied(me.query('select public.ai_budget_spent($1)',[period]),/permission denied/);
     await denied(me.query("select public.reserve_ai_probe('parse_schedule',1)"), /permission denied/);
     await denied(me.query("select public.reserve_ai_provider_usage($1,'openai','parse_schedule',1)", [userIds[0]]), /permission denied/);
     await denied(me.query("select public.set_ai_provider_consent('deepseek','parse_schedule',true,10,'2026-10-13-deepseek-health-v1')"), /Provider health data is not enabled/);
@@ -192,6 +194,38 @@ try {
       assert.match((await pending).error?.message ?? '', /DeepSeek probe budget exceeded/);
       assert.equal(Number((await admin.query('select coalesce(sum(reserved_cents),0) cents from public.ai_probe_usage')).rows[0].cents), 6);
     } catch (error) { await serviceA.query('rollback').catch(() => {}); throw error; }
+  });
+  await run('MIXED_DEEPSEEK_CAP_RACE', async () => {
+    await admin.query('delete from public.ai_usage');
+    await admin.query('delete from public.ai_probe_usage');
+    await admin.query("update public.ai_provider_settings set health_enabled=true where provider='deepseek'");
+    await me.query("select public.set_ai_provider_consent('deepseek','parse_schedule',true,10,'2026-10-13-deepseek-health-v1')");
+    await serviceA.query('begin');
+    try {
+      const formal=(await serviceA.query("select public.reserve_ai_provider_usage($1,'deepseek','parse_schedule',6) id",[userIds[0]])).rows[0].id;
+      const pending=serviceB.query("select public.reserve_ai_probe('parse_schedule',5)").then(()=>({ok:true}),error=>({error}));
+      await blockedBy(admin,pidB,pidA);
+      await serviceA.query('commit');
+      assert.match((await pending).error?.message??'',/DeepSeek probe budget exceeded/);
+      await serviceA.query('select public.settle_ai_usage($1,4)',[formal]);
+      await serviceB.query("select public.reserve_ai_probe('parse_schedule',6)");
+      await denied(serviceA.query("select public.reserve_ai_provider_usage($1,'deepseek','parse_schedule',1)",[userIds[0]]),
+        /Provider AI budget exceeded/);
+      assert.equal((await admin.query("select public.ai_budget_spent($1,'deepseek') n",[period])).rows[0].n,10);
+      assert.equal((await admin.query('select count(*)::int n from ai_usage where provider=$1',["deepseek"])).rows[0].n,1);
+      assert.equal((await admin.query('select count(*)::int n from ai_probe_usage')).rows[0].n,1);
+      await admin.query('delete from public.ai_usage');
+      await admin.query('delete from public.ai_probe_usage');
+      await serviceA.query('begin');
+      await serviceA.query("select public.reserve_ai_probe('parse_schedule',6)");
+      const opposite=serviceB.query("select public.reserve_ai_provider_usage($1,'deepseek','parse_schedule',5)",[userIds[0]])
+        .then(()=>({ok:true}),error=>({error}));
+      await blockedBy(admin,pidB,pidA);
+      await serviceA.query('commit');
+      assert.match((await opposite).error?.message??'',/Provider AI budget exceeded/);
+      assert.equal((await admin.query('select count(*)::int n from ai_usage')).rows[0].n,0);
+      assert.equal((await admin.query('select count(*)::int n from ai_probe_usage')).rows[0].n,1);
+    } catch(error) { await serviceA.query('rollback').catch(()=>{});throw error; }
   });
 } catch (error) {
   report.setup_error = { name: error.name, code: error.code ?? null,

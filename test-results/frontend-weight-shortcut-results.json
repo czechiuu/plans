@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-10-14T11:06:44.991Z",
+  "scope": "synthetic-mobile-private-weight-entry",
+  "passed": 3,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "WEIGHT_HOME_SHORTCUT",
+      "status": "passed"
+    },
+    {
+      "id": "WEIGHT_SAVE_REFRESH",
+      "status": "passed"
+    },
+    {
+      "id": "WEIGHT_TREND_SHORTCUT",
+      "status": "passed"
+    }
+  ]
+}

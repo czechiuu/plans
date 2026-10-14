@@ -26,7 +26,7 @@ test('deployment review exposes exactly four complete files with precise hashes,
     assert.match(result.headers['content-security-policy'], /default-src 'none'/)
     const textareas = [...result.body.matchAll(/<textarea\b[^>]*\breadonly[^>]*>([\s\S]*?)<\/textarea>/g)]
     assert.equal(textareas.length, 4)
-    const paths = ['supabase/admin/apply-input-snapshots-009.sql', ...['health-ai', 'health-photo', 'health-cron'].map(name => `supabase/bundles/${name}.js`)]
+    const paths = ['supabase/admin/apply-generation-budget-010.sql', ...['health-ai', 'health-photo', 'health-cron'].map(name => `supabase/bundles/${name}.js`)]
     for (const [index, path] of paths.entries()) {
       const bytes = await readFile(new URL(`../${path}`, import.meta.url))
       const original = textareas[index][1].replace(/&gt;/g, '>').replace(/&lt;/g, '<').replace(/&amp;/g, '&')

@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-10-14T05:59:14.859Z",
-  "generated_at": "2026-10-14T05:59:22.888Z",
+  "started_at": "2026-10-14T11:20:48.336Z",
+  "generated_at": "2026-10-14T11:20:58.743Z",
   "scope": "Isolated local PostgreSQL with synthetic fixed accounts; no cloud or paid AI calls",
   "cases": {
     "PROVIDER_AND_PURPOSE_BOUNDARY": {
@@ -10,6 +10,9 @@
       "status": "passed"
     },
     "DEEPSEEK_PROBE_CAP_RACE": {
+      "status": "passed"
+    },
+    "MIXED_DEEPSEEK_CAP_RACE": {
       "status": "passed"
     },
     "WRAPPER_CRLF_AND_REPEAT": {
@@ -25,7 +28,7 @@
       "status": "passed"
     }
   },
-  "passed": 7,
+  "passed": 8,
   "failed": 0,
   "not_run": 0,
   "postgresql_version": "17.10",
@@ -42,7 +45,8 @@
     "202610140006_integrity.sql",
     "202610140007_daily_flow.sql",
     "202610140008_activities.sql",
-    "202610140009_input_snapshots.sql"
+    "202610140009_input_snapshots.sql",
+    "202610140010_generation_budget_rounds.sql"
   ],
-  "script_sha256": "5fd3af271181053e3f8370b52d04044ddc15a8450bb8002360dd4c298ccd18f2"
+  "script_sha256": "312e83a68e62d7465ac6b6636a05672e2d9dfbec718a56cf0348a9083c6ce0ba"
 }

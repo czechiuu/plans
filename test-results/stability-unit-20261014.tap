@@ -1,0 +1,140 @@
+✔ 008 external activity validation, ownership, edit conflicts and durable create replay (8660.0197ms)
+✔ 005 provider and purpose grants are private and revoked independently (6754.2724ms)
+✔ 005 provider/probe spending shares the global budget and requires exact consent (8028.5939ms)
+✔ administrator budget script preserves lower caps and existing spending (2552.9873ms)
+✔ password update keeps the initiating JWT across an asynchronous account switch (1.4024ms)
+✔ wrong password retries only this slot, then clears local session (1.5591ms)
+✔ three invalid credentials stop before cloud tests (1.6292ms)
+✔ other auth failures do not retry or reveal server text (0.3548ms)
+✔ input cancellation does not call authentication (0.2689ms)
+✔ sign-in timeout returns only a safe code (22.3666ms)
+✔ sign-out timeout does not return a password (15.7775ms)
+✔ 邮件回跳保留部署页路径：http://localhost:5173/ (1.1428ms)
+✔ 邮件回跳保留部署页路径：https://example.test/ (0.2262ms)
+✔ 邮件回跳保留部署页路径：https://example.test/plans/ (0.1284ms)
+✔ 邮件回跳保留部署页路径：https://example.test/plans/index.html (0.2223ms)
+✔ 邮件回跳保留部署页路径：https://example.test/plans/index.html?source=synthetic#access_token=synthetic (0.2016ms)
+✔ 邮件回跳保留部署页路径：https://example.test/plans/?code=synthetic#type=recovery (0.1188ms)
+✔ 拒绝非网页地址或带凭据的地址 (0.4214ms)
+✔ 构建前读取env.local拒绝私钥，不把密钥印进错误 (533.1392ms)
+✔ 正式部署未配置必须非零退出，不能发布空后台配置 (601.0138ms)
+✔ each missing personal consent or insufficient purpose budget is blocked with a non-sensitive code (2.0176ms)
+✔ provider configuration failures are explicit, and malformed accounting fails rather than reducing cost (0.5166ms)
+✔ schema and account checks classify missing RPCs and mismatch without exposing server response text (0.2882ms)
+✔ the fixed approval counts cumulative monthly charges and reservations across every restart (0.4614ms)
+✔ importing safety checks never installs a network interceptor or runs cloud preflight (0.2036ms)
+✔ bound rules generation and retries never consult changed preferences or call AI (9.5746ms)
+✔ claim controls provider and input version when the preflight row changes (1.8476ms)
+✔ no-template rules give three labelled meals and protect W Tuesday without compensating Wednesday (0.8255ms)
+✔ confirmed strength uses its exact time window while badminton does not add strength (1.8654ms)
+✔ a Sunday target includes five lunch portions and staged storage only for me (0.6877ms)
+✔ 007 SQL permits confirmed timed strength and rejects shifted, oversized or badminton strength plans (8030.4539ms)
+✔ 007 synthetic SQL daily flow preserves history, owner boundaries, stale snapshots, undo and budgets (7511.7519ms)
+▶ local PostgreSQL access and sharing contract
+  ✔ anonymous has no health access or RPC (82.4948ms)
+  ✔ third account cannot read or mutate another space (82.3201ms)
+  ✔ invitation is single use and space holds at most two (102.9197ms)
+  ✔ private rows stay private and direct writes are denied (260.1558ms)
+  ✔ sharing needs category and row consent, partner edit needs separate consent (356.5884ms)
+  ✔ invalid ranges and identity transfer fail; leaving revokes prior consent and invites (359.2709ms)
+✔ local PostgreSQL access and sharing contract (6826.3747ms)
+✔ standard job UUID reaches claim while a missing UUID segment is rejected (2.3133ms)
+✔ synthetic probe without a server key is explicitly blocked (0.7754ms)
+✔ real health DeepSeek calls stay disabled before any reservation or provider request (1.455ms)
+✔ synthetic probe uses four fixed tasks, peak-price reservations and no health rows (129.9809ms)
+✔ 上海跨午夜日期由时刻决定，不使用宿主时区 (1.1793ms)
+✔ 日期加减支持跨年与闰年，拒绝不存在的日期 (0.7467ms)
+✔ 七日平均只计自然日窗口内的实际体重，不补缺失值或计腰围 (2.2287ms)
+✔ 记录时间按上海时间转UTC，可逆且校验真实日期和时刻 (1.2357ms)
+✔ 未经配置不建立客户端；拒绝私钥、HTTP与错误项目地址 (1.2273ms)
+✔ 用户文字转义，不能插入脚本或HTML属性 (0.3504ms)
+✔ 动作库覆盖 11 个约定 ID，且可按 ID 精确索引 (1.7746ms)
+✔ 每个动作保留文字指导和可用性出口 (1.8424ms)
+✔ 三个连续 GIF 精确对应动作，来源与使用限制明确 (0.4665ms)
+✔ 其余八个动作保留核验过的原视频入口与来源 (0.3317ms)
+✔ delayed old getUser failure cannot sign out a newly selected account (5.0225ms)
+✔ delayed old registry response cannot sign out a newly selected account (1.0325ms)
+✔ old email mismatch cannot sign out the new session (0.8099ms)
+▶ fixed accounts initialize once, preserve records, and retain owner-controlled sharing
+  ✔ new members are private and registry is administrator-only (148.9598ms)
+  ✔ old creation and invitation RPCs are closed to every client (111.5851ms)
+  ✔ category, row, and partner-edit revocations keep their old behavior (263.8753ms)
+  ✔ administrator rerun preserves all health rows and existing settings (134.8551ms)
+  ✔ leaving removes business access but keeps slot for administrator relink (199.4452ms)
+✔ fixed accounts initialize once, preserve records, and retain owner-controlled sharing (7804.4147ms)
+✔ legacy third member stays outside fixed-account RLS and RPC (6958.8993ms)
+✔ administrator initialization rejects unconfirmed, extra, or conflicting accounts without writing (2363.9553ms)
+✔ 动作目录只声明 GIF 或原视频，不将旧 SVG 当完整教学 (1.6089ms)
+✔ 本人导出包含跨页快照，不包含伴侣快照 (20.7025ms)
+✔ 009 未部署时拒绝生成缺项导出 (1.8047ms)
+✔ 009 快照读取失败时显式报错 (0.9267ms)
+✔ DeepSeek business photo sends real image input once and cached repeats do not reserve twice (90.4403ms)
+✔ revocation after reservation prevents transmission and releases an unsent hold (2.1652ms)
+✔ disabled AI consent makes no provider request or budget reservation (0.4997ms)
+✔ images cannot be sent under a text or schedule consent (0.4306ms)
+✔ provider failure or timeout is explicit and never settles a fabricated response (3.3349ms)
+✔ complete three-meal Chinese input is sent intact with an output and cost ceiling (2.3768ms)
+✔ meal estimate accepts a standard UUID and rejects a missing-segment UUID (90.1436ms)
+✔ 004 fixed-space RLS, private defaults, sharing, editing and erasure (9102.4007ms)
+✔ scheduled jobs anchor target to scheduled time and budget is atomic (6149.3942ms)
+✔ input version changes for same-second profile edits and deleted nonlatest training (2291.1738ms)
+✔ SDK preflight and errors preserve the allowed origin (54.0775ms)
+✔ cron denies anonymous calls and exposes only aggregated safe failure codes (137.9755ms)
+✔ rule plans are conservative with unknown history and respect confirmed free days (5.5356ms)
+✔ structured AI output requires complete response and verified catalog IDs (2.4853ms)
+✔ photo validator rejects a CRC-correct PNG with invalid compressed image data (56.3068ms)
+✖ deployment review exposes exactly four complete files with precise hashes, on loopback only (111.399ms)
+✔ adjustment finish returns one draft object with the real PostgREST client (172.2978ms)
+✔ a stale adjustment is one object and never asks for confirmation (5.9418ms)
+✔ finish rejection records a singular failed row without changing JSON RPC shapes (6.679ms)
+✔ confirmed mass intervals sum independently, including separately measured oil, and fraction applies once (2.163ms)
+✔ an unknown item or unmeasured additions never become zero in a whole-meal total (0.5577ms)
+✔ numeric strings, reversed bounds, missing provenance, negative and nonfinite values are invalid (2.1292ms)
+✔ zero, full intake and decimal labels preserve explicit quantities without rounding or guessing (0.3396ms)
+✔ invalid meal-level input and arithmetic overflow fail explicitly (0.8661ms)
+✖ 本地PostgreSQL写入后关闭重开仍保存，更正与删除持久化 (14242.5595ms)
+✔ generates exact cleanup without inventing missing API timestamps or deleting the review plan (5.177ms)
+✔ rejects a baseline job in the deletion set (1.8722ms)
+✔ rejects an uncorroborated restoration plan (0.9277ms)
+✔ requires exact, separately confirmed evidence before including an older UI receipt (1.5983ms)
+✔ deletes only a rule with its exact recorded revision and leaves other data unchanged (5742.6385ms)
+✔ rejects an invalid rule revision instead of embedding it in SQL (14.5191ms)
+✔ PL/pgSQL variables do not shadow cleanup target or rule query aliases (7382.0788ms)
+✔ reset updates only the selected existing fixed user password (2.0785ms)
+✔ reset refuses extra Auth users before making a change (0.8084ms)
+✔ reset refuses a mismatched fixed-account registry before making a change (0.2674ms)
+ℹ tests 103
+ℹ suites 0
+ℹ pass 101
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 25081.6516
+
+✖ failing tests:
+
+test at tests\integrity-deployment-review.test.js:8:1
+✖ deployment review exposes exactly four complete files with precise hashes, on loopback only (111.399ms)
+  Error: connect EACCES 127.0.0.1:56088
+      at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16) {
+    errno: -4092,
+    code: 'EACCES',
+    syscall: 'connect',
+    address: '127.0.0.1',
+    port: 56088
+  }
+
+test at tests\persistence.test.js:8:1
+✖ 本地PostgreSQL写入后关闭重开仍保存，更正与删除持久化 (14242.5595ms)
+  Error [RuntimeError]: Aborted(). Build with -sASSERTIONS for more info.
+      at abort (file:///G:/Codex/ChatGPT/%E6%AF%8F%E5%A4%A9%E5%B7%A5%E4%BD%9C/pair-health/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/dist/index.js:1:78230)
+      at __abort_js (file:///G:/Codex/ChatGPT/%E6%AF%8F%E5%A4%A9%E5%B7%A5%E4%BD%9C/pair-health/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/dist/index.js:2:68975)
+      at wasm://wasm/0267bb86:wasm-function[13300]:0x698125
+      at wasm://wasm/0267bb86:wasm-function[9913]:0x54d4be
+      at wasm://wasm/0267bb86:wasm-function[5321]:0x3b91a6
+      at wasm://wasm/0267bb86:wasm-function[1399]:0x10c93e
+      at wasm://wasm/0267bb86:wasm-function[1397]:0x10b8cc
+      at wasm://wasm/0267bb86:wasm-function[4543]:0x348a84
+      at wasm://wasm/0267bb86:wasm-function[1387]:0x109b91
+      at wasm://wasm/0267bb86:wasm-function[10102]:0x55ccb0
