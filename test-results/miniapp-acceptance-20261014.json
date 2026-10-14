@@ -42,7 +42,14 @@
     },
     "shared_build": "passed",
     "web_build": "passed",
-    "ci": "pending source push"
+    "ci": {
+      "status": "success",
+      "url": "https://github.com/czechiuu/plans/actions/runs/38576868518",
+      "source_commit": "bb7090f538fff8201256578897a2b976bf42a6e5",
+      "unit_and_all_concurrency_gates": "passed",
+      "miniapp_build": "passed",
+      "web_deploy": "skipped"
+    }
   },
   "budget_readback": {
     "checked_at": "2026-10-14T13:41:24.140577Z",
@@ -91,5 +98,6 @@
     "no registration/purchase/payment/notification",
     "no AI or W consent/limit changes",
     "keep urlCheck:true"
-  ]
+  ],
+  "source_commit": "bb7090f538fff8201256578897a2b976bf42a6e5"
 }
