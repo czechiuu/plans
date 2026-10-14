@@ -175,7 +175,23 @@ export const api = {
     body.append('is_shared', String(isShared))
     return result(bound().functions.invoke('health-photo?action=upload', { body }))
   },
-  async downloadPhoto(id) { return result(bound().functions.invoke(`health-photo?action=download&photo_id=${encodeURIComponent(id)}`, { method: 'GET' })) },
+  async downloadPhoto(id) {
+    const token=mutationToken
+    if (!token) throw Object.assign(new Error('会话已变化'),{code:'ACCOUNT_CHANGED'})
+    const endpoint=new URL('functions/v1/health-photo',url)
+    endpoint.searchParams.set('action','download')
+    endpoint.searchParams.set('photo_id',id)
+    // FunctionsClient reads image/png as text; use the binary response for private photos.
+    const response=await fetch(endpoint,{method:'GET',headers:{Authorization:`Bearer ${token}`,apikey:key},signal:AbortSignal.timeout(30000)})
+    if (!response.ok) {
+      const body=await response.json().catch(()=>null)
+      const code=typeof body?.error==='string' && /^[A-Z0-9_]{1,80}$/.test(body.error) ? body.error : 'PHOTO_DOWNLOAD_FAILED'
+      throw Object.assign(new Error('照片读取失败'),{code})
+    }
+    if (response.headers.get('content-type')?.split(';')[0].trim().toLowerCase()!=='image/png')
+      throw Object.assign(new Error('照片响应格式错误'),{code:'PHOTO_INVALID_RESPONSE'})
+    return response.blob()
+  },
   async deletePhoto(id) { await result(bound().functions.invoke(`health-photo?action=delete&photo_id=${encodeURIComponent(id)}`, { method: 'DELETE' })) },
   async exportOwnData() {
     const { user } = await verifiedUser()

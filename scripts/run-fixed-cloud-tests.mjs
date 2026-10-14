@@ -72,13 +72,14 @@ async function reportStatus(name, startedAt, exitCode) {
 async function main() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive TTY required')
   const mode=process.argv[2] || 'all'
-  if (process.argv.length>3 || !['all','--browser-only','--health-only','--daily-flow','--daily-flow-ui-only'].includes(mode))
-    throw new Error('仅支持 --browser-only、--health-only、--daily-flow 或 --daily-flow-ui-only 参数')
-  if(['--daily-flow','--daily-flow-ui-only'].includes(mode)&&process.env.TEST_DAILY_FLOW_APPROVED!=='YES')
+  if (process.argv.length>3 || !['all','--browser-only','--health-only','--daily-flow','--daily-flow-ui-only','--daily-ui-only'].includes(mode))
+    throw new Error('不支持的云端测试模式')
+  const freeDailyUi=['--daily-flow-ui-only','--daily-ui-only'].includes(mode)
+  if((mode==='--daily-flow'||freeDailyUi)&&process.env.TEST_DAILY_FLOW_APPROVED!=='YES')
     throw new Error('日常链路验收需要显式 TEST_DAILY_FLOW_APPROVED=YES；可能保留本轮计划和任务待管理员按精确 ID 清理')
   const config=await publicConfig()
-  const intro=mode==='--daily-flow'?`依次运行日常链路合成验收和免费的真实网页关键流程。${process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'?'已明确允许 DeepSeek 合成业务，本轮费用不超过 5 美分；本人分用途同意仍须已存在。':'付费 AI 不运行。'}`:mode==='--daily-flow-ui-only'?'只运行免费的真实网页健康流程验收，不运行已通过的付费日常接口验收。':mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
-  const safety=['--daily-flow','--daily-flow-ui-only'].includes(mode)
+  const intro=mode==='--daily-flow'?`依次运行日常链路合成验收和免费的真实网页关键流程。${process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'?'已明确允许 DeepSeek 合成业务，本轮费用不超过 5 美分；本人分用途同意仍须已存在。':'付费 AI 不运行。'}`:mode==='--daily-flow-ui-only'?'先暂时撤销我账号日程解析授权、把该用途限额降至已用值验证拒绝，随后恢复原设置；不改 W 和夜间方式。再运行免费的真实网页健康流程验收；不运行已通过的付费日常接口验收。':mode==='--daily-ui-only'?'只运行免费的真实网页健康流程验收，不重跑授权或付费接口检查。若失败，可在此窗口输入 RETRY 重试免费网页流程；结束或取消后清除内存中的密码。':mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
+  const safety=mode==='--daily-flow'||freeDailyUi
     ? '只写本轮合成记录，按精确 ID 清理；部分规则、计划和任务须管理员按本轮记录清理。网页流程会独立检查数据前置，不满足就阻塞。'
     : mode==='--health-only'
     ? '只写本轮标记的合成健康记录，按本轮 ID 清理；无法安全验证的项目会阻塞。'
@@ -108,21 +109,28 @@ async function main() {
       ['cloud-api','scripts/verify-cloud.mjs',false],
       ['cloud-health','scripts/verify-cloud-health.mjs',false],
       ['daily-flow-cloud','scripts/verify-daily-flow-cloud.mjs',false],
+      ['cloud-health-policy','scripts/verify-cloud-health-policy.mjs',false],
       ['cloud-health-ui','scripts/verify-cloud-health-ui.mjs',true],
       ['cloud-browser','scripts/verify-cloud-browser.mjs',true]
-    ].filter(([name])=>mode==='--daily-flow'?['daily-flow-cloud','cloud-health-ui'].includes(name):mode==='--daily-flow-ui-only'?name==='cloud-health-ui':!['daily-flow-cloud','cloud-health-ui'].includes(name)&&(mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health')))) {
-      process.stdout.write(name==='cloud-api'?'开始云端接口验收。\n':name==='cloud-health'?'开始健康功能云验收。\n':name==='daily-flow-cloud'?'开始合成日常链路验收，规则计划等待现有后台调度。\n':name==='cloud-health-ui'?'开始免费的真实网页健康流程验收，先独立核对本轮合成数据。\n':'开始浏览器云验收。\n')
-      let env=childEnvironment(config,mePassword,wPassword,browser)
-      if(mode==='--daily-flow-ui-only')delete env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED
-      const startedAt=Date.now()
-      let exitCode
-      try { exitCode=await runChild(script,env) }
-      finally { env.TEST_ME_PASSWORD='';env.TEST_W_PASSWORD='' }
-      env=null
-      const status=await reportStatus(name,startedAt,exitCode)
+    ].filter(([name])=>mode==='--daily-flow'?['daily-flow-cloud','cloud-health-ui'].includes(name):mode==='--daily-flow-ui-only'?['cloud-health-policy','cloud-health-ui'].includes(name):mode==='--daily-ui-only'?name==='cloud-health-ui':!['daily-flow-cloud','cloud-health-policy','cloud-health-ui'].includes(name)&&(mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health')))) {
+      process.stdout.write(name==='cloud-api'?'开始云端接口验收。\n':name==='cloud-health'?'开始健康功能云验收。\n':name==='daily-flow-cloud'?'开始合成日常链路验收，规则计划等待现有后台调度。\n':name==='cloud-health-policy'?'开始本人授权撤销、限额拒绝和原设置恢复验收。\n':name==='cloud-health-ui'?'开始免费的真实网页健康流程验收，先独立核对本轮合成数据。\n':'开始浏览器云验收。\n')
+      let exitCode,status
+      do {
+        let env=childEnvironment(config,mePassword,wPassword,browser)
+        if(freeDailyUi)delete env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED
+        if(mode==='--daily-flow-ui-only'&&name==='cloud-health-policy')env.TEST_DAILY_FLOW_POLICY_APPROVED='YES'
+        const startedAt=Date.now()
+        try { exitCode=await runChild(script,env) }
+        finally { env.TEST_ME_PASSWORD='';env.TEST_W_PASSWORD='' }
+        env=null
+        status=await reportStatus(name,startedAt,exitCode)
+        process.stdout.write(`${name}：${status}\n`)
+        terminal.check()
+        if(mode!=='--daily-ui-only'||exitCode===0)break
+        if(await readLine('本轮未通过。修复后输入 RETRY 只重试免费网页；其它输入结束并清除密码：')!=='RETRY')break
+        terminal.check()
+      } while(true)
       results.push({name,exitCode,status})
-      process.stdout.write(`${name}：${status}\n`)
-      terminal.check()
     }
   } finally {
     mePassword=null;wPassword=null

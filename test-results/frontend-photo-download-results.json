@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-10-14T08:18:21.751Z",
+  "scope": "synthetic-private-png-transport",
+  "passed": 2,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "PNG_BINARY_DOWNLOAD",
+      "status": "passed"
+    },
+    {
+      "id": "PHOTO_DENIED_CODE",
+      "status": "passed"
+    }
+  ]
+}

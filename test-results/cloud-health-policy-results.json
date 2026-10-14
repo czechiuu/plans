@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-10-14T08:10:57.521Z",
+  "scope": "two-fixed-accounts-synthetic-negative-policy",
+  "passed": 3,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "POLICY_CONSENT_REVOCATION",
+      "status": "passed"
+    },
+    {
+      "id": "POLICY_PERSONAL_BUDGET",
+      "status": "passed"
+    },
+    {
+      "id": "POLICY_RESTORE_ISOLATION",
+      "status": "passed"
+    }
+  ]
+}
