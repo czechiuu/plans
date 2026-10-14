@@ -1,0 +1,41 @@
+<view class="page stack">
+  <view wx:if="{{offline}}" class="offline">当前离线，训练记录尚未同步。请联网后刷新或重试；不会自动重复提交。</view>
+  <view class="row"><text class="title">训练</text><button class="secondary" bindtap="settings">设置</button></view>
+  <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{notice}}" class="success">{{notice}}</view>
+  <view wx:if="{{loading}}" class="hint">正在读取记录…</view>
+  <view class="card"><text class="hint">计划不是完成记录。每组次数、重量与不适由本人保存。</text><button class="secondary" bindtap="refreshPage">刷新</button></view>
+  <view wx:if="{{pendingStart}}" class="card"><text>开始训练的结果待确认，重试将使用同一个请求。</text><button bindtap="start" disabled="{{busy}}">重试开始训练</button></view>
+  <view wx:if="{{session}}" class="card stack">
+    <text class="title">{{session.data.status == 'paused' ? '训练已暂停' : '训练进行中'}}</text>
+    <text>已进行 {{elapsed}} · {{rest}}</text><text class="hint">已记录 {{session.data.sets.length}} 组，刷新后可恢复。</text>
+    <text wx:if="{{!sessionPlan}}" class="error">这次训练的计划当前不可读取；可暂停或结束，不能继续记组。</text>
+    <view class="row"><button wx:if="{{session.data.status == 'active'}}" class="secondary" data-action="pause" bindtap="change" disabled="{{busy}}">暂停</button><button wx:else class="secondary" data-action="resume" bindtap="change" disabled="{{busy}}">继续</button><button class="secondary" data-action="finish" bindtap="change" disabled="{{busy}}">完成训练</button></view>
+    <input class="field" placeholder="因不适停止的原因" value="{{stopReason}}" bindinput="stopInput" />
+    <button class="secondary" data-action="stop" bindtap="change" disabled="{{busy}}">因不适停止</button>
+    <view wx:if="{{session.data.status == 'active' && items.length}}" class="stack">
+      <text class="title">保存一组实际训练</text>
+      <picker range="{{items}}" range-key="name" value="{{formExercise}}" bindchange="selectExercise"><view class="field">动作：{{items[formExercise].name}}</view></picker>
+      <text class="hint">下一组：{{items[formExercise].done + 1}} / {{items[formExercise].sets}}</text>
+      <input class="field" type="number" placeholder="实际次数" data-key="reps" value="{{form.reps}}" bindinput="formInput" />
+      <input class="field" type="digit" placeholder="实际重量 kg（可空）" data-key="load_kg" value="{{form.load_kg}}" bindinput="formInput" />
+      <input class="field" type="digit" placeholder="主观用力 RPE（可空）" data-key="rpe" value="{{form.rpe}}" bindinput="formInput" />
+      <input class="field" placeholder="疼痛或不适（可空）" data-key="pain_note" value="{{form.pain_note}}" bindinput="formInput" />
+      <label>跳过这一组 <switch checked="{{form.skipped}}" bindchange="skipChange" /></label>
+      <button bindtap="saveSet" disabled="{{busy}}">保存这一组</button>
+    </view>
+    <view wx:for="{{savedSets}}" wx:key="key" class="row"><text>{{item.name}} · 第 {{item.set_index}} 组 · {{item.skipped ? '跳过' : item.reps + ' 次'}} {{item.load}} {{item.rpe}} {{item.pain}}</text></view>
+  </view>
+  <view class="card stack"><text class="title">今天的推荐安排</text>
+    <block wx:if="{{plan}}"><text>{{plan.content.summary}}</text><text wx:if="{{plan.is_stale}}" class="error">输入已变化，请先核对计划。</text></block>
+    <text wx:else class="empty">今天还没有训练计划。</text>
+    <block wx:if="{{training && training.mode == 'workout'}}">
+      <text>目的：{{training.purpose}} · {{training.time}} · {{training.intensity}}</text><text>器械：{{training.equipment}} · 预计 {{training.total_seconds}} 秒</text>
+      <text class="title">热身</text><view wx:for="{{warmup}}" wx:key="index">{{item.description}} · {{item.seconds}} 秒</view>
+      <text class="title">主动作</text><view wx:for="{{recommendedItems}}" wx:key="exercise_id" class="card"><text>{{item.name}} · {{item.sets}} 组 × {{item.reps}} 次</text><text class="hint">每组动作 {{item.work_seconds}} 秒 · 组间休息 {{item.rest_seconds}} 秒 · 换器械 {{item.transition_seconds}} 秒</text><text wx:if="{{item.first_use_check}}">首次检查：{{item.first_use_check}}</text><text wx:if="{{item.short_option}}">时间不足：{{item.short_option}}</text><button class="secondary" data-id="{{item.exercise_id}}" bindtap="exercise">查看动作说明</button></view>
+      <text class="title">放松</text><view wx:for="{{cooldown}}" wx:key="index">{{item.description}} · {{item.seconds}} 秒</view>
+      <button wx:if="{{!session && !pendingStart && !plan.is_stale && plan.is_current}}" bindtap="start" disabled="{{busy}}">开始训练</button>
+    </block><text wx:elif="{{training}}">今日为休息安排：{{training.purpose}}</text>
+  </view>
+  <view class="card stack"><text class="title">其他可选动作</text><text class="hint">动作库仅供查看，不自动加入今日计划。</text><view wx:for="{{catalog}}" wx:key="id" class="row"><text>{{item.name}}</text><button class="secondary" data-id="{{item.id}}" bindtap="exercise">查看说明</button></view></view>
+  <view class="card stack"><text class="title">已保存的训练</text><view wx:for="{{recent}}" wx:key="id">{{item.date}} · {{item.outcome}} · {{item.sets}} 组</view><text wx:if="{{!recent.length}}" class="empty">暂无真实训练记录。</text></view>
+</view>

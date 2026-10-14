@@ -1,0 +1,24 @@
+<view class="page stack">
+  <view wx:if="{{offline}}" class="offline">当前离线，第三方动作示范可能无法加载。</view>
+  <view class="row"><text class="title">动作说明</text><button class="secondary" bindtap="settings">设置</button></view>
+  <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{notice}}" class="success">{{notice}}</view>
+  <block wx:if="{{exercise}}">
+    <view class="card stack"><text class="title">{{exercise.name}}</text><text>{{exercise.equipment}} · {{exercise.musclesText}}</text><text class="hint">首次使用需请现场教练核对器械和动作范围。</text><text>{{exercise.firstUseReminder}}</text></view>
+    <view class="card stack"><text class="title">文字步骤</text><text>起始：{{exercise.start}}</text><text>动作：{{exercise.movement}}</text><text class="hint">简述：{{exercise.textFallback}}</text><text class="title">动作要点</text><view wx:for="{{exercise.cues}}" wx:key="index">· {{item}}</view><text class="title">常见错误</text><view wx:for="{{exercise.errors}}" wx:key="index">· {{item}}</view><text class="title">停止信号</text><view wx:for="{{exercise.stopSignals}}" wx:key="index" class="error">· {{item}}</view><text wx:if="{{exercise.alternatives.length}}">已有替代动作：{{exercise.alternativesText}}</text></view>
+    <view class="card stack"><text class="title">动作示范</text>
+      <block wx:if="{{exercise.demo.mediaType == 'external_gif'}}">
+        <text class="hint">按需查看连续 GIF；仅个人／非商业使用，来源 AscendAPI / ExerciseDB。</text>
+        <text class="hint">动作示范：AscendAPI / ExerciseDB · {{exercise.demo.gifSource}}</text><button class="secondary" data-kind="attribution" bindtap="copySource">复制来源网站</button>
+        <button wx:if="{{mediaState == 'closed'}}" bindtap="showMedia">查看动作示范</button>
+        <block wx:else><text wx:if="{{mediaState == 'loading'}}">动作示范加载中…</text><text wx:if="{{mediaState == 'error'}}" class="error">动作示范加载失败，请重试；也可复制原视频地址。</text>
+          <image wx:if="{{mediaState != 'error'}}" class="demo" src="{{exercise.demo.gifUrl}}" mode="aspectFit" data-attempt="{{mediaAttempt}}" bindload="mediaLoaded" binderror="mediaFailed" />
+          <view class="row"><button wx:if="{{mediaState == 'error'}}" bindtap="showMedia">重试</button><button class="secondary" bindtap="closeMedia">收起</button></view>
+        </block>
+      </block>
+      <text wx:else class="hint">视频暂不可用；请按上面的文字步骤操作，并由现场教练核对。</text>
+      <text wx:if="{{exercise.demo.url}}" class="hint">原视频来源：{{exercise.demo.provider}}</text>
+      <text wx:if="{{exercise.demo.url}}" class="hint">{{exercise.demo.license}}</text>
+      <button wx:if="{{exercise.demo.url}}" class="secondary" bindtap="copySource">复制原视频地址</button>
+    </view>
+  </block>
+</view>

@@ -1,4 +1,6 @@
-# 原生微信小程序交接（尚未实现）
+# 原生微信小程序交接（源码已实现，注册和体验发布待完成）
+
+2026-10-14 新增独立 `miniprogram/`，原生五主页面及六个次级页面复用下列接口。用户确认尚未注册：AppID、后台域名登记、微信开发工具编译、实体手机和体验二维码均未验证。导入及使用见 [项目说明](miniprogram/README.md)，实际执行/阻塞/双人手机清单见 [本轮验收](docs/MINIAPP-ACCEPTANCE.md)。保留下面的服务端契约，不另造 API。小程序当前仅接受 publishable 公共 key，不接受管理密钥。
 
 本清单按当前 `src/api.js`、`src/fixed-account.js`、001–010 迁移及 `health-ai`/`health-photo` 函数整理。010 增加的是服务端生成发布关联与预算计算，不改客户端 RPC 签名、返回或版本探针。目标是让原生微信前端接入**同一个 Supabase 项目、同两个密码账号、同一套记录和权限**。不接微信登录，不开放注册、建空间或邀请，不新增服务端接口。本文件不是小程序可用或真机通过的证明；部署状态仍以实际回读为准。
 
@@ -45,11 +47,11 @@
 | `uploadFile` | multipart PNG `POST /functions/v1/health-photo?action=upload`，文件字段 `file` | `https://wnzbtitlvteptkvwhavw.supabase.co` |
 | `downloadFile` | 私有 PNG `GET /functions/v1/health-photo?action=download&photo_id=...`，带本人 JWT 和公共 `apikey`；若改用可读二进制的 `request`，归入 request 类并真机核验 | `https://wnzbtitlvteptkvwhavw.supabase.co` |
 
-现有网页入口 `https://czechiuu.github.io/plans/` 是 GitHub Pages 前端页面，**不是原生小程序的 Auth/API/照片主机**，因此不在上表三类必需网络域名中。`shared/exercises.js` 当前三个 GIF 指向 `https://static.exercisedb.dev/media/{7I6LNUG,DOoWcnA,Zg3XY7P}.gif`；八个原视频入口以及三个 GIF 动作保留的原视频 URL 都是 `https://www.youtube.com/watch?v=...`，另有 `https://www.youtube.com/embed/...`。这两个外部媒体主机仅是下一阶段图片/视频适配候选，是否需要小程序的图片、视频、业务或下载域名配置，要按实际原生组件与 AppID 后台核对，不能混入现阶段 `request/uploadFile/downloadFile` 必需项，也不保证 YouTube 在真机可播放。
+现有网页入口 `https://czechiuu.github.io/plans/` 是 GitHub Pages 前端页面，**不是原生小程序的 Auth/API/照片主机**，因此不在上表三类必需网络域名中。`shared/exercises.js` 当前三个 GIF 指向 `https://static.exercisedb.dev/media/{7I6LNUG,DOoWcnA,Zg3XY7P}.gif`，原生页面以 `<image mode="aspectFit">` 按需显示；该媒体主机仍需按 AppID/组件限制及真机核验。八个原视频入口及三个 GIF 动作保留的原视频都是 YouTube 地址，小程序只展示来源和复制入口，明确视频暂不可用，不发原生视频请求。
 
 客户端不直访 Supabase Storage 对象路径：`health-photo` 服务端按当前权限代理，不能使用公开桶或长期签名链接。`health-cron`、service_role/secret、AI 密钥、预算管理员接口只在服务端，绝不放小程序包。浏览器的 `HEALTH_ALLOWED_ORIGINS` 是有 `Origin` 时的精确来源校验；原生请求是否带 `Origin` 以真机核对，不能为了接入放宽现有站点来源列表。
 
-微信官方[小程序网络说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)及 [`wx.request`](https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html)、[`wx.uploadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/upload/wx.uploadFile.html)、[`wx.downloadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html)是上线核对入口；腾讯官方的[小程序域名配置说明](https://cloud.tencent.com/document/product/269/68378)也区分 request、uploadFile、downloadFile 白名单。当前未取得 AppID，未确认 Supabase 默认域名能否登记或满足主体/备案要求，也未做原生真机网络测试，**不能据此宣称可发布**。开发工具放宽域名校验不能代替正式版真机。三个外部 GIF 与八个原视频留下一阶段媒体适配：保留来源和链接，不下载或重新托管，不把链接当作已在小程序内可播放。
+微信官方[小程序网络说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)及 [`wx.request`](https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html)、[`wx.uploadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/upload/wx.uploadFile.html)、[`wx.downloadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html)是上线核对入口；腾讯官方的[小程序域名配置说明](https://cloud.tencent.com/document/product/269/68378)也区分 request、uploadFile、downloadFile 白名单。当前未取得 AppID，未确认 Supabase 默认域名能否登记或满足主体/备案要求，也未做原生真机网络测试，**不能据此宣称可发布**。开发工具放宽域名校验不能代替正式版真机。三个外部 GIF 组件已实现但原生媒体验收待办；八个原视频保持来源且不下载/重新托管。逐项状态见 [媒体说明](miniprogram/MEDIA.md)。
 
 接入后按[双人真机清单](docs/DEVICE-ACCEPTANCE.md)验证两台物理设备、两份会话、共享撤销、照片私有下载、冲突和退出。测试只用精确标记的合成记录，清理按回执 ID 与所有者执行。
 
@@ -62,10 +64,10 @@
 | 明日安排 | 网页“明日安排”的原文、确认结构、规则或已授权 AI 生成、job 状态与计划版本；复用日程和计划 RPC/`health-ai`。 |
 | 记录 | 网页餐食、体重、羽毛球/其他实际活动表单；复用 `save_meal`、照片函数、`save_weight`、`save_training_session` 及精确创建请求 ID。 |
 | 趋势 | 网页“趋势”的实际体重、腰围、训练和活动统计；只从有权读取的实际记录计算，缺失日期留白。 |
-| 训练详情 | 网页“训练”的计划动作、逐组完成、暂停/恢复/停止；复用 `daily_plans` 与 `training_sessions`。三个 GIF 和八个原视频的原生展示留下一阶段。 |
+| 训练 | 网页“训练”的计划动作、逐组完成、暂停/恢复/停止；复用 `daily_plans` 与 `training_sessions`。三个 GIF 原生图片组件已实现，八个视频明确暂不可用；真机媒体仍待验。 |
 | 设置 | 网页类别共享、代改许可、AI 用途同意与费用状态；复用现有设置/授权 RPC 和 `health-ai` status，不改变默认私有与预算。 |
 
-这些是页面映射，不是已开发页面。现有站内刷新提示不是微信每日推送；本轮不承诺每日推送，也不先接微信登录。
+这些映射现在已有原生页面源码。媒体详情保留三个远程 GIF，八个视频明确“暂不可用”；原生真机状态见本轮报告。现有站内刷新提示不是微信每日推送；本轮不承诺每日推送，也不接微信登录。
 
 ## 仍需本人准备的最少资料
 

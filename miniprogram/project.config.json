@@ -1,0 +1,7 @@
+{
+  "description":"原生双人健康管理，尚未配置 AppID",
+  "projectname":"plans-native","appid":"touristappid","compileType":"miniprogram","miniprogramRoot":"./",
+  "libVersion":"3.17.0",
+  "setting":{"urlCheck":true,"es6":true,"enhance":true,"postcss":true,"minified":true,"checkInvalidKey":true},
+  "packOptions":{"ignore":[{"type":"file","value":"package.json"},{"type":"file","value":"README.md"},{"type":"file","value":"MEDIA.md"},{"type":"file","value":"config.example.js"}]}
+}

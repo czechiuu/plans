@@ -1,0 +1,10 @@
+<view class="page login">
+  <view class="title">两个人的健康日常</view><view class="hint">填写安排，记录实际，慢慢变好。</view>
+  <view class="card">
+    <view class="subtitle">用自己的账号登录</view>
+    <view class="grid"><button class="{{slot==='me'?'':'secondary'}}" data-slot="me" bindtap="slot" disabled="{{busy}}">我</button><button class="{{slot==='w'?'':'secondary'}}" data-slot="w" bindtap="slot" disabled="{{busy}}">W</button></view>
+    <view class="field"><text class="label">{{slot==='me'?'我':'W'}}的密码</text><input password="{{true}}" value="{{password}}" bindinput="password" bindconfirm="login" confirm-type="go" maxlength="128" placeholder="只在本人设备输入" disabled="{{busy}}" /></view>
+    <view wx:if="{{offline}}" class="offline">当前离线，请连接网络后登录。</view><view wx:if="{{error}}" class="error">{{error}}</view>
+    <button bindtap="login" loading="{{busy}}" disabled="{{busy||offline}}">登录</button><button class="secondary" bindtap="reconnect" disabled="{{busy||offline}}">重新连接原会话</button><view class="hint">仅限现有两个账号，无公开注册。登录不会自动开启 AI 或共享健康资料。</view>
+  </view><button class="secondary" bindtap="privacy">隐私与照片说明</button>
+</view>

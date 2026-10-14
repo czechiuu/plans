@@ -1,0 +1,19 @@
+<view class="page">
+  <view class="row top"><view><text class="eyebrow">本人记录 · 默认私有</text><view class="title">记录体重</view></view><button class="secondary settings" bindtap="settings">设置</button></view>
+  <view wx:if="{{loading}}" class="hint">正在读取服务器体重记录…</view><view wx:if="{{offline}}" class="error">当前离线，保存暂不可确认。<button class="secondary" bindtap="retryRefresh">重试连接</button></view><view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="retryRefresh">刷新核对</button></view><view wx:if="{{notice}}" class="success">{{notice}}</view>
+  <view class="card stack">
+    <view class="row"><text class="label">测量日期</text><button class="secondary" bindtap="newRecord">新记录</button></view>
+    <picker mode="date" value="{{form.record_date}}" end="{{today}}" data-field="record_date" bindchange="change"><view class="field">{{form.record_date}}</view></picker>
+    <text class="label">体重（kg）</text><input class="field" type="digit" value="{{form.weight_kg}}" placeholder="填写实际测量值" data-field="weight_kg" bindinput="change" />
+    <text class="label">测量时刻（选填）</text><picker mode="time" value="{{form.measured_time}}" data-field="measured_time" bindchange="change"><view class="field">{{form.measured_time || '不填写具体时刻'}}</view></picker><button wx:if="{{form.measured_time}}" class="secondary" bindtap="clearTime">不记录具体时刻</button>
+    <text class="label">腰围（cm，选填）</text><input class="field" type="digit" value="{{form.waist_cm}}" placeholder="选填" data-field="waist_cm" bindinput="change" />
+    <text class="label">备注（选填）</text><textarea class="field" value="{{form.notes}}" placeholder="只写实际情况" data-field="notes" bindinput="change" maxlength="500" />
+    <view class="row"><text>与搭档共享此条</text><switch checked="{{form.is_shared}}" bindchange="share" /></view>
+    <button class="button" loading="{{busy}}" disabled="{{busy}}" bindtap="save">{{editingId ? '保存修改' : '保存体重'}}</button>
+    <button wx:if="{{editingId}}" class="secondary" disabled="{{busy}}" bindtap="remove">删除这条</button>
+  </view>
+  <view class="card stack"><view class="row"><text class="section-title">最近记录</text><button class="secondary" bindtap="trends">查看趋势</button></view>
+    <view wx:if="{{!rows.length}}" class="empty">还没有实际体重记录。档案候选不是今天测量。</view>
+    <view wx:for="{{rows}}" wx:key="id" class="row record"><view><text>{{item.record_date}} · {{item.weight_kg}} kg</text><view wx:if="{{item.waist_cm}}" class="hint">腰围 {{item.waist_cm}} cm</view></view><button class="secondary" data-id="{{item.id}}" bindtap="edit">修改</button></view>
+  </view>
+</view>

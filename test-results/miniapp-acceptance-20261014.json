@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-10-14T14:00:12.070Z",
+  "scope": "native-wechat-source-without-registered-appid",
+  "baseline_commit": "c83316761bb99801049b8fee0460198648ba9a59",
+  "implementation": {
+    "pages": 11,
+    "main_tabs": 5,
+    "shared_backend": true,
+    "backend_business_changes": 0,
+    "protected_files_compared": 42,
+    "protected_files_changed": 0
+  },
+  "tests": {
+    "full_unit": {
+      "passed": 143,
+      "failed": 0,
+      "tests": 143,
+      "log": "miniapp-unit-final-20261014.tap"
+    },
+    "first_attempt": {
+      "passed": 137,
+      "failed": 2,
+      "tests": 139,
+      "log": "miniapp-unit-20261014.tap",
+      "reason": "sandbox loopback EACCES and PGlite runtime abort; original result retained"
+    },
+    "intermediate_serial": {
+      "passed": 139,
+      "failed": 0,
+      "tests": 139,
+      "log": "miniapp-unit-serial-final-20261014.tap"
+    },
+    "native_synthetic": {
+      "passed": 40,
+      "failed": 0,
+      "evidence": "pnpm test:miniapp; also included in final full TAP"
+    },
+    "native_static": {
+      "passed": 11,
+      "failed": 0,
+      "kind": "JS/routes/events/dependencies/public-config; not WeChat WXML compiler"
+    },
+    "shared_build": "passed",
+    "web_build": "passed",
+    "ci": "pending source push"
+  },
+  "budget_readback": {
+    "checked_at": "2026-10-14T13:41:24.140577Z",
+    "period": "2026-10-01",
+    "global_limit_cents": 200,
+    "deepseek_limit_cents": 10,
+    "global_spent_and_live_reserved_cents": 9,
+    "deepseek_spent_and_live_reserved_cents": 9,
+    "method": "read-only authenticated admin SQL; no credential output",
+    "new_paid_calls": 0,
+    "consent_or_limit_changes": 0
+  },
+  "runtime": {
+    "devtools_compile": "not_run",
+    "devtools_reason": "no standard install, registry entry or CLI found",
+    "account_registration": "user confirmed not registered",
+    "appid": null,
+    "legal_domain_registration": "blocked",
+    "real_phone_network_upload_download": "not_run",
+    "real_account_web_native_consistency": "not_run",
+    "native_gif_real_device": "not_run",
+    "experience_upload": "blocked",
+    "experience_qr": null
+  },
+  "media": {
+    "remote_gif_components": 3,
+    "external_video_sources": 8,
+    "native_playable_videos": 0,
+    "downloaded_or_rehosted": 0,
+    "prior_web_evidence": "exercise-gif-iab-results.json; preserved, not native proof"
+  },
+  "production_test_data": {
+    "writes": 0,
+    "cleanup": 0,
+    "retained": "all existing health records, job snapshots, receipts and ledger"
+  },
+  "deployed_unchanged": {
+    "frontend": "44a176234aac6498dc1f6736ff873834e075a26a",
+    "ai_cron": "1c3444ddc8a8dd6b625b99d3994c2fae736f49fe",
+    "photo": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
+    "database": "001-010",
+    "previous_evidence": "stability-release-20261014.json; reused without rerunning"
+  },
+  "constraints": [
+    "no WeChat public release",
+    "no registration/purchase/payment/notification",
+    "no AI or W consent/limit changes",
+    "keep urlCheck:true"
+  ]
+}

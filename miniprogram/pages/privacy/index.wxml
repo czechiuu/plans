@@ -1,0 +1,11 @@
+<view class="page"><view class="title">隐私与照片</view><view class="card stack">
+  <view>健康记录保存在现有 Supabase 私人后端，两端使用相同账号和权限。新记录默认私有；类别和单条共享都由本人选择。</view>
+  <view>密码仅用于现有账号登录。本机保存会话以便续期；退出只清除当前设备登录和页面缓存。</view>
+  <view>仅在点击拍照或相册后读取你选择的照片。上传前在本机缩小并重绘为 PNG，照片通过本人登录权限上传和读取，不建立公开照片链接。</view>
+  <view>上传不等于同意 AI。只有本人已对选定服务商授权相应用途，并再次点击估餐后，服务器才发送必要餐食资料；含照片须另有图片用途授权。AI 草稿需本人修改确认后才计入。</view>
+  <view>AI 用途及每月限额可在设置撤销或修改。微信照片隐私同意与 AI 授权是两项独立选择。</view>
+  <view>三个动作 GIF 打开时访问 ExerciseDB 第三方媒体主机，不发送健康档案或照片；其余八个动作当前只提供图文说明，视频暂不可用。</view>
+  <button class="secondary" bindtap="contract">查看微信平台隐私保护指引</button>
+  <view wx:if="{{error}}" class="error">{{error}}</view>
+  <block wx:if="{{requesting}}"><button id="privacy-agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="agree">同意照片用途并继续</button><button class="secondary" bindtap="disagree">暂不同意</button></block>
+</view></view>

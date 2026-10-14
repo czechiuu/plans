@@ -1,0 +1,10 @@
+<view class="page stack">
+  <view wx:if="{{offline}}" class="offline">当前离线，显示内容尚未与服务器同步。请联网后刷新。</view>
+  <view class="row"><text class="title">趋势</text><button class="secondary" bindtap="settings">设置</button></view>
+  <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{notice}}" class="success">{{notice}}</view><view wx:if="{{loading}}" class="hint">正在读取记录…</view>
+  <view class="card stack"><text>只看真实记录，缺失日期保持空白，不用计划代替完成。</text><view class="row"><button bindtap="weight">记录或修改体重</button><button class="secondary" bindtap="refreshPage">刷新</button></view></view>
+  <view class="card stack"><text class="title">体重</text><text>过去 7 天有记录 {{weightDays}} / 7 天</text><text>最近 7 天平均：{{average}}</text><text>前 7 天平均：{{previousAverage}}</text><text>最近腰围：{{waist}} {{waistDate}}</text><view wx:for="{{weights}}" wx:key="id" class="row"><text>{{item.record_date}}</text><text>{{item.weight_kg}} kg</text></view><text wx:if="{{!weights.length}}" class="empty">还没有体重记录。</text><text class="hint">历史数据需要本人进入体重记录页核对、修改；这里不会代填或自动修正。</text></view>
+  <view class="card stack"><text class="title">训练完成趋势</text><view wx:for="{{trainingWeeks}}" wx:key="label" class="stack"><text>{{item.label}} · {{item.from}} 至 {{item.to}}</text><text>力量完成 {{item.strengthCount}} 次 · 实际 {{item.setsCount}} 组</text><text>羽毛球 {{item.badmintonCount}} 次 · {{item.badmintonMinutes}} 分钟 · 其他 {{item.otherCount}} 次</text><text wx:if="{{item.stoppedCount}}">因不适停止 {{item.stoppedCount}} 次，已保存的完成组仍计入。</text></view><text class="hint">只统计已保存记录；没有记录不能说明当天没有运动。</text></view>
+  <view class="card stack"><text class="title">累计训练记录</text><text>力量训练完成：{{strengthCount}} 次 · 实际完成 {{setsCount}} 组</text><text>羽毛球：{{badmintonCount}} 次 · {{badmintonMinutes}} 分钟</text><text>其他运动：{{otherCount}} 次</text><text class="hint">实际组数包含因不适停止前已保存的组；计划组数和跳过组不算完成。</text></view>
+  <view class="card stack"><text class="title">最近完成的力量动作</text><view wx:for="{{sets}}" wx:key="index">{{item.name}} · {{item.reps}} 次 {{item.load}} {{item.rpe}}</view><text wx:if="{{!sets.length}}" class="empty">暂无已保存的完成组。</text></view>
+</view>

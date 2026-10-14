@@ -1,0 +1,8 @@
+{
+  "pages": ["pages/login/index", "pages/today/index", "pages/tomorrow/index", "pages/records/index", "pages/training/index", "pages/trends/index", "pages/weight/index", "pages/meal/index", "pages/exercise/index", "pages/settings/index", "pages/privacy/index"],
+  "window": {"navigationBarTitleText":"两个人的健康日常","navigationBarBackgroundColor":"#f4f1fa","navigationBarTextStyle":"black","backgroundColor":"#f4f1fa","backgroundTextStyle":"dark"},
+  "tabBar": {"color":"#726b80","selectedColor":"#6650a0","backgroundColor":"#ffffff","borderStyle":"white","list":[
+    {"pagePath":"pages/today/index","text":"今日"},{"pagePath":"pages/tomorrow/index","text":"明日"},{"pagePath":"pages/records/index","text":"记录"},{"pagePath":"pages/training/index","text":"训练"},{"pagePath":"pages/trends/index","text":"趋势"}]},
+  "style":"v2","lazyCodeLoading":"requiredComponents","sitemapLocation":"sitemap.json",
+  "__usePrivacyCheck__": true
+}

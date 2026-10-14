@@ -10,6 +10,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/check-public-config.mjs && vite build",
     "build:edge": "node scripts/build-edge.mjs",
+    "build:miniapp": "node scripts/build-miniapp.mjs && node scripts/check-miniapp.mjs",
+    "test:miniapp": "node scripts/check-miniapp.mjs && node --test tests/miniapp-*.test.js",
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.js",
     "test:concurrency": "node scripts/verify-concurrency.mjs",

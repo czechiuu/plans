@@ -1,0 +1,1 @@
+.title{font-size:36rpx;font-weight:600}.card .title{font-size:30rpx}.card text{display:block}.stack{display:flex;flex-direction:column;gap:18rpx}.row{display:flex;align-items:center;justify-content:space-between;gap:12rpx}.demo{width:180px;height:180px;align-self:center}

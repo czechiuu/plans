@@ -1,0 +1,38 @@
+<view class="page">
+  <view class="row top"><view><text class="eyebrow">明日安排 · {{day}}</text><view class="title">先确认真实日程</view></view><button class="secondary settings" bindtap="settings">设置</button></view>
+  <view wx:if="{{loading}}" class="hint">正在读取服务器日程与计划…</view><view wx:if="{{offline}}" class="error">当前离线，显示内容可能已过期。<button class="secondary" bindtap="retryRefresh">重试连接</button></view><view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="retryRefresh">重试加载</button></view><view wx:if="{{notice}}" class="success">{{notice}}</view>
+  <view class="card stack"><view class="section-title">原文解析（可选）</view><view class="hint">只在本人选择已授权服务并点击解析后发送。解析只是草稿，保存前逐项核对。</view>
+    <picker range="{{parseProviders}}" value="{{parseProviderIndex}}" data-field="parseProvider" bindchange="providerChange"><view class="field">{{parseProviders[parseProviderIndex]}}</view></picker>
+    <button class="secondary" disabled="{{busy || !aiReady}}" bindtap="parse">解析下方原文</button>
+    <view wx:if="{{parsed}}" class="success">草稿已填入；{{parsed.ambiguous_fields.length}} 项仍需核对，尚未保存。</view>
+  </view>
+  <view class="card stack"><view class="section-title">我确认的日程</view><view class="hint">原文保留，未知内容留空。明确结束时间时必须填写同日开始时间。</view>
+    <text class="label">日期：{{day}}（本页固定为明日）</text><button wx:if="{{staleDraft}}" class="secondary" bindtap="resetDay">重新加载新的明日安排</button>
+    <text class="label">明日原文</text><textarea class="field" value="{{form.raw_text}}" placeholder="例如明天的实际安排；可直接手动填写下方结构" data-field="raw_text" bindinput="change" maxlength="2000" />
+    <view class="grid"><view><text class="label">开始时间</text><picker mode="time" value="{{form.start_time}}" data-field="start_time" bindchange="change"><view class="field">{{form.start_time || '未指定'}}</view></picker><button wx:if="{{form.start_time}}" class="secondary" data-field="start_time" bindtap="clearTime">清空</button></view><view><text class="label">结束时间</text><picker mode="time" value="{{form.end_time}}" data-field="end_time" bindchange="change"><view class="field">{{form.end_time || '未指定'}}</view></picker><button wx:if="{{form.end_time}}" class="secondary" data-field="end_time" bindtap="clearTime">清空</button></view></view>
+    <text class="label">运动意愿</text><picker range="{{intents}}" value="{{intentIndex}}" bindchange="intentChange"><view class="field">{{intents[intentIndex]}}</view></picker>
+    <text class="label">运动类型</text><picker range="{{types}}" value="{{typeIndex}}" bindchange="typeChange"><view class="field">{{types[typeIndex]}}</view></picker>
+    <text class="label">运动时长（分钟，选填）</text><input class="field" type="number" value="{{form.duration_minutes}}" data-field="duration_minutes" bindinput="change" placeholder="未知则留空" />
+    <text class="label">地点、器械（选填）</text><input class="field" value="{{form.location}}" data-field="location" bindinput="change" placeholder="地点" /><input class="field" value="{{form.equipment}}" data-field="equipment" bindinput="change" placeholder="器械" />
+    <text class="label">固定安排</text><textarea class="field" value="{{form.fixed_arrangements}}" data-field="fixed_arrangements" bindinput="change" placeholder="只写已确认的安排" />
+    <text class="label">用餐条件</text><textarea class="field" value="{{form.meal_conditions}}" data-field="meal_conditions" bindinput="change" placeholder="如已知的外食、采购条件" />
+    <text class="label">具体用餐安排（选填）</text><textarea class="field" value="{{form.meal}}" data-field="meal" bindinput="change" />
+    <text class="label">限制与注意事项（每行一项）</text><textarea class="field" value="{{form.constraints}}" data-field="constraints" bindinput="change" />
+    <view class="grid"><input class="field" value="{{form.fatigue}}" data-field="fatigue" bindinput="change" placeholder="疲劳（选填）" /><input class="field" value="{{form.pain}}" data-field="pain" bindinput="change" placeholder="不适（选填）" /></view>
+    <input class="field" value="{{form.sleep}}" data-field="sleep" bindinput="change" placeholder="睡眠（选填）" />
+    <view class="row"><text>与搭档共享此日程</text><switch checked="{{form.is_shared}}" bindchange="share" /></view>
+    <button class="button" loading="{{busy}}" disabled="{{busy}}" bindtap="save">核对并保存日程</button>
+  </view>
+  <view class="card stack"><view class="section-title">次日完整计划</view><view wx:if="{{plan}}">
+    <view class="hint">版本 {{plan.version}} · {{plan.is_locked ? '已锁定' : '可更新'}}{{plan.is_stale ? ' · 日程变更后待更新' : ''}}</view><view>{{plan.summary}}</view>
+    <view class="subhead">三餐安排</view><view wx:for="{{plan.meals}}" wx:key="key" class="plan-meal"><text class="label">{{item.name}} {{item.time}}</text><view wx:for="{{item.foods}}" wx:for-item="food" wx:key="*this" class="hint">{{food}}</view><view wx:if="{{item.prep}}">做法：{{item.prep}}</view><view wx:if="{{item.purchase}}">采购／预备：{{item.purchase}}</view><view wx:if="{{item.alternative}}">替代：{{item.alternative}}</view><view wx:if="{{item.text}}">备注：{{item.text}}</view><view wx:if="{{item.snackReason}}">加餐原因：{{item.snackReason}}</view></view>
+    <view class="subhead">训练</view><view>{{plan.training.mode == 'workout' ? '安排训练' : '休息／不强制训练'}} {{plan.training.time}} {{plan.training.purpose}}</view>
+    <view wx:if="{{plan.training.mode == 'workout'}}"><view class="label">热身</view><view wx:for="{{plan.training.warmup}}" wx:key="*this">{{item}}</view><view class="label">正式动作</view><view wx:for="{{plan.training.items}}" wx:key="exercise_id">{{item.name}} · {{item.sets}} 组 × {{item.reps}} 次</view><view class="label">放松</view><view wx:for="{{plan.training.cooldown}}" wx:key="*this">{{item}}</view><button class="secondary" bindtap="training">进入逐组训练</button></view>
+    <button class="secondary" bindtap="toggleLock" disabled="{{busy}}">{{plan.is_locked ? '解锁计划' : '锁定计划'}}</button>
+  </view><view wx:else class="empty">还没有明日计划；先确认本人日程与规则。</view></view>
+  <view class="card stack"><view class="section-title">服务器生成任务</view><view class="hint">夜间任务由服务器约 20:00 触发；这里不会另设定时或自动付费。</view><view wx:if="{{job}}">{{job.status}} · {{job.provider}} · 尝试 {{job.attempts}} / {{job.max_attempts}}<view wx:if="{{job.error_code}}" class="error">{{job.error_code}}</view></view><view wx:else class="empty">尚无明日任务。</view>
+    <picker range="{{providers}}" value="{{generateProviderIndex}}" data-field="generateProvider" bindchange="providerChange"><view class="field">本次生成：{{providers[generateProviderIndex]}}</view></picker>
+    <view wx:if="{{!rulesReady}}" class="hint">小程序暂不编辑规则；请由本人到网页版“设置”确认训练、饮食规则。<button class="secondary" bindtap="copyWebRules">复制网页版地址</button></view><button class="button" disabled="{{busy || !healthReady || !rulesReady}}" bindtap="generate">请求生成完整计划</button><button wx:if="{{job.status == 'failed' || job.status == 'exhausted'}}" class="secondary" disabled="{{busy}}" bindtap="retry">按原服务重试</button>
+  </view>
+  <view wx:if="{{pastPlans.length}}" class="card stack"><view class="section-title">明日计划历史版本</view><view wx:for="{{pastPlans}}" wx:key="id" class="plan-meal"><view class="label">版本 {{item.version}} · {{item.summary}}</view><view wx:for="{{item.meals}}" wx:for-item="meal" wx:key="key"><view>{{meal.name}} {{meal.time}}</view><view wx:for="{{meal.foods}}" wx:for-item="food" wx:key="*this">{{food}}</view><view wx:if="{{meal.prep}}">做法：{{meal.prep}}</view><view wx:if="{{meal.purchase}}">采购／预备：{{meal.purchase}}</view><view wx:if="{{meal.alternative}}">替代：{{meal.alternative}}</view><view wx:if="{{meal.text}}">备注：{{meal.text}}</view></view><view>训练：{{item.training.mode == 'workout' ? '训练' : '休息'}} {{item.training.purpose}}</view><view wx:for="{{item.training.items}}" wx:for-item="exercise" wx:key="exercise_id">{{exercise.name}} · {{exercise.sets}} 组</view></view></view>
+</view>

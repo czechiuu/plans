@@ -8,4 +8,6 @@ private/
 supabase/.temp/
 test-results/private/
 *.log
+miniprogram/project.private.config.json
+dist-native/
 
