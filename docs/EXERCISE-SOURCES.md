@@ -1,15 +1,15 @@
 # 动作库来源与演示核验
 
-核验日期：2026-10-13。`shared/exercises.js` 只引用原发布者的 YouTube 官方播放器，不下载、剪辑或重新托管视频，也不把来源网站的照片复制进项目。`demo.license` 记录的是**允许使用播放器嵌入功能的范围**，不是视频内容的开放版权。YouTube 的[官方嵌入说明](https://support.google.com/youtube/answer/171780?hl=en)允许在网页中放置播放器；若上传者以后关闭嵌入或视频下架，必须将该动作改为 `unavailable`，不能用同名但动作不同的视频补上。
+原视频核验日期：2026-10-13。下一版媒体入口固定为三个 [AscendAPI / ExerciseDB](https://ascendapi.com/) 连续 GIF 与八个原发布者视频入口；当前线上 `78428fa` 仍是旧版，GIF 上线验收尚未完成。三个 GIF 的使用遵守[官方免费版限制](https://oss.exercisedb.dev/docs)：仅个人、非商业使用，须标注 AscendAPI；它们不是本项目原创，也不是 CC0。八个原视频保留原发布者链接，不下载、剪辑或重新托管。`demo.license` 只记录 **YouTube 播放器嵌入范围**，不是视频内容的开放版权。若原视频下架或禁止嵌入，应标为不可用，不用同名但动作不同的视频补上。
 
-核验方式：先在原发布者页面核对来源与视频 ID；再用 Chrome 打开每条 YouTube 原片，实际播放、查看器械和动作画面；最后在带正常网页来源地址的页面中点击对应 YouTube iframe 播放按钮，确认 `<video>` 的时间前进、`readyState=4`、无播放错误。直接打开无来源地址的 iframe 曾显示播放器配置错误，因此嵌入验证使用正常网页来源；这不是绕过上传者限制。每个链接只在本次日期核验，不能保证第三方视频永久可用。
+原视频核验方式：先在原发布者页面核对来源与视频 ID；再用 Chrome 打开原片，实际播放、查看器械和动作画面；最后在带正常网页来源地址的页面中点击对应 YouTube iframe 播放按钮，确认 `<video>` 的时间前进、`readyState=4`、无播放错误。直接打开无来源地址的 iframe 曾显示播放器配置错误，因此嵌入验证使用正常网页来源；这不是绕过上传者限制。用户已亲自播放核对三个指定 GIF；[新媒体合成浏览器流程](../test-results/frontend-exercise-media-results.json) 5/0，覆盖懒加载、失败与重试、显示、八个原视频入口及训练不中断。发布后仍须在实际网站核对加载、显示与失败出口。第三方媒体不能保证永久可用。
 
 | 动作 ID | 原发布者与视频 | 动作画面核对 | 文字动作依据 |
 | --- | --- | --- | --- |
 | `machine_leg_press` | [Kenosha YMCA：LifeFitness Seated Leg Press](https://www.youtube.com/watch?v=QwBvFgAVOTo) | 坐姿腿举，脚踏和靠背可见；播放与嵌入均通过 | [ACE 坐姿腿举](https://www.acefitness.org/resources/everyone/exercise-library/154/seated-leg-press/) |
-| `machine_seated_row` | [Kenosha YMCA：Row Machine](https://www.youtube.com/watch?v=Hu1Pqz-6OIU) | 坐姿划船器械与拉柄可见；播放与嵌入均通过 | [ACE 坐姿划船](https://www.acefitness.org/resources/everyone/exercise-library/168/seated-row/) |
-| `machine_chest_press` | [Kenosha YMCA：Seated Chest Press](https://www.youtube.com/watch?v=0La1aFp-hKA) | 坐姿胸推器械和座椅可见；播放与嵌入均通过 | [ACE 坐姿胸推](https://www.acefitness.org/resources/everyone/exercise-library/188/seated-chest-press/) |
-| `machine_seated_leg_curl` | [GymCompany：Life Fitness Circuit Series Seated Leg Curl](https://www.youtube.com/watch?v=80AV3aCz65M)，由[健身中心教程页](https://www.lwsb.com/fitness-center-tutorials/)原样嵌入 | 坐姿、膝关节转轴与压腿垫可见；不是卧式腿弯举；播放与嵌入均通过 | [NASM 坐姿腿弯举](https://www.nasm.org/resource-center/exercise-library/seated-leg-curl)、[Life Fitness 器械指导](https://support.lifefitness.com/hc/en-us/articles/360036936034-Circuit-Series-Machine-Use-Instructions) |
+| `machine_seated_row` | [AscendAPI / ExerciseDB 连续 GIF：7I6LNUG](https://static.exercisedb.dev/media/7I6LNUG.gif)；保留[原视频](https://www.youtube.com/watch?v=Hu1Pqz-6OIU) | 用户已播放核对指定 GIF；当前网站待发布复验 | [ACE 坐姿划船](https://www.acefitness.org/resources/everyone/exercise-library/168/seated-row/) |
+| `machine_chest_press` | [AscendAPI / ExerciseDB 连续 GIF：DOoWcnA](https://static.exercisedb.dev/media/DOoWcnA.gif)；保留[原视频](https://www.youtube.com/watch?v=0La1aFp-hKA) | 用户已播放核对指定 GIF；当前网站待发布复验 | [ACE 坐姿胸推](https://www.acefitness.org/resources/everyone/exercise-library/188/seated-chest-press/) |
+| `machine_seated_leg_curl` | [AscendAPI / ExerciseDB 连续 GIF：Zg3XY7P](https://static.exercisedb.dev/media/Zg3XY7P.gif)；保留[原视频](https://www.youtube.com/watch?v=80AV3aCz65M) | 用户已播放核对指定 GIF；当前网站待发布复验 | [NASM 坐姿腿弯举](https://www.nasm.org/resource-center/exercise-library/seated-leg-curl)、[Life Fitness 器械指导](https://support.lifefitness.com/hc/en-us/articles/360036936034-Circuit-Series-Machine-Use-Instructions) |
 | `machine_lat_pulldown` | [Kenosha YMCA：Lat Pull Down](https://www.youtube.com/watch?v=tK35eqRNrPM) | 坐姿固定大腿的高位下拉机可见；播放与嵌入均通过 | [ACE 高位下拉](https://www.acefitness.org/resources/everyone/exercise-library/158/seated-lat-pulldown/) |
 | `machine_hip_abduction` | [Kenosha YMCA：Hip Abduction](https://www.youtube.com/watch?v=RNLTuarDpTA) | 视频原片标题明确外展，画面有坐姿腿部挡板；不是内收；播放与嵌入均通过 | [Kenosha YMCA 器械教学页](https://www.kenoshaymca.org/y-videos/) |
 | `machine_ab_crunch` | [Kenosha YMCA：Abdominal Machine](https://www.youtube.com/watch?v=nlqEDo8odJM) | 坐姿腹卷腹机肩部垫和活动臂可见；播放与嵌入均通过 | [ACE 坐姿卷腹](https://www.acefitness.org/resources/everyone/exercise-library/291/seated-crunch/) |
@@ -20,4 +20,4 @@
 
 来源视频展示的是**具体器械型号**，用户所在健身房的器械可能有不同调节和限位。首次使用器械应请现场教练确认。`alternatives` 表示训练目标相近时可考虑的另一动作，不表示两者力学完全等效；高位下拉和单臂划船、卷腹机和死虫尤其不能互称同一动作。动作库提供通用说明，不代替针对个人疾病或疼痛的医疗建议。
 
-自动计划只能选用 `demo.verificationStatus === 'verified'` 的 ID。若视频失效、嵌入受限或内容被替换，更新核验状态并停止自动选用该 ID；保留文字步骤供人查看，不用通用循环动画伪装成该动作。
+自动计划只能选用 `demo.verificationStatus === 'verified'` 的 ID。三个 GIF 是外部连续动作媒体，八个视频是原发布者入口；旧双帧 SVG 不作为完整教学，也不能把外部 GIF 标为原创 CC0。GIF 加载失败要明确显示失败、允许重试，并保留可用的原视频链接；原视频不可用时保留文字说明，不造假链接。首次使用器械仍须现场核对，媒体不代表对个人动作的医学判断。

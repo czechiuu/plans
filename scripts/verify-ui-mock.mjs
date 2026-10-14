@@ -5,7 +5,7 @@ import { shanghaiDate, addDays } from '../src/domain.js'
 import { report, runCase } from './test-helpers/report.mjs'
 import { browserOrigin, launchBrowser } from './test-helpers/browser.mjs'
 
-const ids = ['UI_FIXED_LOGIN','UI_PRIMARY_PHOTO','UI_SIX_NAV','UI_SCHEDULE','UI_MANUAL_PLAN','UI_GENERATE_PLAN','UI_TRAINING','UI_LOCAL_DEMO','UI_MEAL','UI_NUTRITION','UI_ADJUSTMENT','UI_PHOTO_SWITCH','UI_WEIGHT_CONFLICT','UI_PRIVATE_SWITCH','UI_RULE_IMPORT','UI_PROVIDER_CONSENT','UI_PROVIDER_GATES','UI_LOGOUT_PENDING','UI_LATE_LOAD','UI_PASSWORD','UI_PASSWORD_SWITCH','UI_PROVIDER_LEGACY']
+const ids = ['UI_FIXED_LOGIN','UI_PRIMARY_PHOTO','UI_SIX_NAV','UI_SCHEDULE','UI_MANUAL_PLAN','UI_GENERATE_PLAN','UI_TRAINING','UI_MEDIA_ENTRY','UI_MEAL','UI_NUTRITION','UI_ADJUSTMENT','UI_PHOTO_SWITCH','UI_WEIGHT_CONFLICT','UI_PRIVATE_SWITCH','UI_RULE_IMPORT','UI_PROVIDER_CONSENT','UI_PROVIDER_GATES','UI_LOGOUT_PENDING','UI_LATE_LOAD','UI_PASSWORD','UI_PASSWORD_SWITCH','UI_PROVIDER_LEGACY']
 const cases=[], details=[]
 const check=(id,fn)=>runCase(cases,details,id,fn)
 const noOverflow=async page=>assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
@@ -134,12 +134,10 @@ try {
     await page.screenshot({path:fileURLToPath(new URL('../test-results/desktop-training-synthetic.png',import.meta.url)),fullPage:true})
     await page.setViewportSize({width:390,height:844})
   })
-  await check('UI_LOCAL_DEMO',async()=>{
-    await page.getByRole('button',{name:'播放本地动作示意'}).first().click()
-    await page.waitForFunction(()=>Boolean(document.querySelector('.demo-slot object')?.contentDocument?.querySelector('title')))
-    await page.getByRole('button',{name:'暂停',exact:true}).first().click()
-    assert.ok(await page.locator('.demo-slot object').count()>0)
-    await page.getByRole('button',{name:'播放',exact:true}).first().click()
+  await check('UI_MEDIA_ENTRY',async()=>{
+    const slot=page.locator('[data-demo-slot="machine_leg_press"]')
+    assert.equal(await slot.getByRole('link',{name:'查看原视频示范'}).getAttribute('href'),'https://www.youtube.com/watch?v=QwBvFgAVOTo')
+    assert.equal(await slot.locator('img,object').count(),0)
     await noOverflow(page)
   })
   await check('UI_MEAL',async()=>{

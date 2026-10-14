@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { buildRulePlan, validatePlan } from '../shared/health.js'
+import { exercises } from '../shared/exercises.js'
 import { validateSanitizedPng } from '../shared/png.js'
 import { addDays, shanghaiDate } from '../src/domain.js'
 import { cloudSetup, client, ok } from './test-helpers/cloud.mjs'
@@ -104,7 +105,8 @@ if(process.argv.includes('--self-check')){
     }
     const remember=async(kind,row)=>{
       assert.ok(row?.id)
-      if(!created[kind].some(x=>x.id===row.id))created[kind].push({id:row.id,user_id:users[0]})
+      if(kind==='rules')assert.ok(row.updated_at)
+      if(!created[kind].some(x=>x.id===row.id))created[kind].push({id:row.id,user_id:users[0],...(kind==='rules'?{expected_updated_at:row.updated_at}:{})})
       await manifest();return row
     }
     const assertDate=()=>assert.equal(shanghaiDate(),today,'Shanghai date changed; stop synthetic run')
@@ -286,17 +288,31 @@ if(process.argv.includes('--self-check')){
         }
       }).catch(()=>{})
       await check('UI_CLOUD_MEDIA',async()=>{
-        await nav(me,'训练');await me.getByRole('button',{name:'播放本地动作示意'}).first().click()
-        const object=me.locator('.demo-slot object').first()
-        await me.waitForFunction(()=>document.querySelector('.demo-slot object')?.contentDocument?.querySelector('.a')?.getAnimations().length>0)
-        await object.scrollIntoViewIfNeeded()
-        await syntheticScreen(me,'action-playing')
-        const time=()=>object.evaluate(x=>x.contentDocument.querySelector('.a').getAnimations()[0].currentTime)
-        const initial=await time();await me.waitForTimeout(150);assert.ok(await time()>initial)
-        const slot=me.locator('[data-demo-slot]').first()
-        await slot.getByRole('button',{name:'暂停',exact:true}).click();await me.waitForTimeout(100)
-        const paused=await time();await me.waitForTimeout(150);assert.equal(await time(),paused)
-        await slot.getByRole('button',{name:'播放',exact:true}).click();await me.waitForTimeout(150);assert.ok(await time()>paused)
+        await nav(me,'训练')
+        for(const exercise of exercises.filter(item=>item.demo.mediaType==='external_gif')){
+          const slot=me.locator(`[data-demo-slot="${exercise.id}"]`)
+          assert.equal(await slot.locator('img').count(),0)
+          await slot.getByRole('button',{name:'查看动作示范',exact:true}).click()
+          await me.waitForFunction(id=>{
+            const slot=document.querySelector(`[data-demo-slot="${id}"]`)
+            return slot?.querySelector('img.exercise-gif')?.naturalWidth>0 || slot?.textContent?.includes('动作示范加载失败')
+          },exercise.id)
+          const image=slot.locator('img.exercise-gif')
+          if(!await image.count() || !await image.evaluate(node=>node.complete&&node.naturalWidth>0))
+            throw Object.assign(new Error('GIF image failed to load'),{code:`GIF_${exercise.id.toUpperCase()}_LOAD_FAILED`})
+          assert.equal(await image.getAttribute('src'),exercise.demo.gifUrl)
+          assert.equal(await slot.getByRole('button',{name:'暂停',exact:true}).count(),0)
+          assert.equal(await me.locator(`[data-demo-slot="${exercise.id}"]`).locator('..').getByRole('link',{name:'原视频备用入口'}).getAttribute('href'),exercise.demo.url)
+          await slot.scrollIntoViewIfNeeded();await syntheticScreen(me,`gif-${exercise.id}`)
+          await slot.getByRole('button',{name:'收起动作示范'}).click()
+          assert.equal(await slot.locator('img').count(),0)
+          await slot.getByRole('button',{name:'查看动作示范',exact:true}).waitFor()
+        }
+        for(const exercise of exercises.filter(item=>item.demo.mediaType==='source_video')){
+          const slot=me.locator(`[data-demo-slot="${exercise.id}"]`)
+          assert.equal(await slot.getByRole('link',{name:'查看原视频示范'}).getAttribute('href'),exercise.demo.url)
+          assert.equal(await slot.locator('img,object').count(),0)
+        }
       }).catch(()=>{})
       await check('UI_CLOUD_TRAINING',async()=>{
         if(writeUncertain)throw dependencyBlocked('UI_WRITE_UNCERTAIN')

@@ -1,5 +1,5 @@
-// 动作说明是通用教学资料；本站播放原创动作示意，原实拍来源仅作为外部参考链接。
-// 本地示意只演示起点和终点；首次使用器械仍须现场核对。
+// 动作说明是通用教学资料；三项指定器械按需查看外部 GIF，其余使用原发布者视频入口。
+// 器械型号与活动范围因现场而异，首次使用仍须现场核对。
 const youtubeVideo = (id, provider, source) => ({
   url: `https://www.youtube.com/watch?v=${id}`,
   embed: `https://www.youtube.com/embed/${id}`,
@@ -135,9 +135,19 @@ export const exercises = [
   },
 ];
 
+const gifIds = {
+  machine_seated_row: '7I6LNUG',
+  machine_chest_press: 'DOoWcnA',
+  machine_seated_leg_curl: 'Zg3XY7P',
+};
 for (const exercise of exercises) {
-  exercise.demo.localAsset = `media/exercises/${exercise.id}.svg`;
-  exercise.demo.localLicense = '本项目原创动作示意，CC0 1.0';
+  const gifId = gifIds[exercise.id];
+  exercise.demo.mediaType = gifId ? 'external_gif' : 'source_video';
+  if (gifId) {
+    exercise.demo.gifUrl = `https://static.exercisedb.dev/media/${gifId}.gif`;
+    exercise.demo.gifSource = 'https://ascendapi.com/';
+    exercise.demo.gifLicense = '仅个人／非商业使用，需标注 AscendAPI / ExerciseDB';
+  }
 }
 
 export const exerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));

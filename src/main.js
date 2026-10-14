@@ -247,8 +247,11 @@ function tomorrowPage() {
 }
 function exerciseCard(exercise) {
   const demo=exercise.demo
-  const verified=demo.verificationStatus==='verified'
-  return `<article class="list-item exercise-card"><div class="exercise-head">${muscleIllustration(exercise.muscles)}<div><h3>${safe(exercise.name)}</h3><p class="fine">${safe(exercise.equipment)} · ${safe((exercise.muscles || []).join('、'))}</p></div></div><div class="demo-slot" data-demo-slot="${safe(exercise.id)}">${button('播放本地动作示意','demo-local-load','secondary small',`data-id="${safe(exercise.id)}"`)}</div><p class="fine">本项目原创循环动作示意；${safe(demo.localLicense)}。器械型号不同，首次请现场教练确认。${verified ? `<a href="${safe(demo.source)}" target="_blank" rel="noopener noreferrer">原发布者实拍视频</a>` : ''}</p><details class="exercise-steps"><summary>动作要领、替代与停止信号</summary><p><b>开始：</b>${safe(exercise.start)}</p><p><b>动作：</b>${safe(exercise.movement)}</p><p><b>要点：</b>${safe((exercise.cues || []).join('；'))}</p><p><b>常见错误：</b>${safe((exercise.errors || []).join('；'))}</p><p><b>停止信号：</b>${safe((exercise.stopSignals || []).join('；'))}</p>${exercise.firstUseReminder ? `<p><b>首次使用：</b>${safe(exercise.firstUseReminder)}</p>` : ''}${exercise.alternatives?.length ? `<p><b>可考虑的替代：</b>${safe(exercise.alternatives.map(id=>exerciseById.get(id)?.name || id).join('、'))}</p>` : ''}</details></article>`
+  const original=demo.verificationStatus==='verified' && demo.url ? `<a class="btn secondary small" href="${safe(demo.url)}" target="_blank" rel="noopener noreferrer">查看原视频示范</a>` : '<span class="hint">原视频当前不可用，请看文字要领并请现场教练核对。</span>'
+  const gif=demo.mediaType==='external_gif'
+  const control=gif ? button('查看动作示范','demo-gif-open','secondary small',`data-id="${safe(exercise.id)}"`) : original
+  const credit=gif ? `动作示范：<a href="${safe(demo.gifSource)}" target="_blank" rel="noopener noreferrer">AscendAPI / ExerciseDB</a>；${safe(demo.gifLicense)}。${demo.url ? `<a href="${safe(demo.url)}" target="_blank" rel="noopener noreferrer">原视频备用入口</a>。` : ''}` : `原视频：${safe(demo.provider)}。`
+  return `<article class="list-item exercise-card"><div class="exercise-head">${muscleIllustration(exercise.muscles)}<div><h3>${safe(exercise.name)}</h3><p class="fine">${safe(exercise.equipment)} · ${safe((exercise.muscles || []).join('、'))}</p></div></div><div class="demo-slot" data-demo-slot="${safe(exercise.id)}">${control}</div><p class="fine">${credit}器械型号不同，首次请现场教练确认。</p><details class="exercise-steps"><summary>动作要领、替代与停止信号</summary><p><b>开始：</b>${safe(exercise.start)}</p><p><b>动作：</b>${safe(exercise.movement)}</p><p><b>要点：</b>${safe((exercise.cues || []).join('；'))}</p><p><b>常见错误：</b>${safe((exercise.errors || []).join('；'))}</p><p><b>停止信号：</b>${safe((exercise.stopSignals || []).join('；'))}</p>${exercise.firstUseReminder ? `<p><b>首次使用：</b>${safe(exercise.firstUseReminder)}</p>` : ''}${exercise.alternatives?.length ? `<p><b>可考虑的替代：</b>${safe(exercise.alternatives.map(id=>exerciseById.get(id)?.name || id).join('、'))}</p>` : ''}</details></article>`
 }
 function muscleIllustration(muscles = []) {
   const names=muscles.join('')
@@ -763,25 +766,25 @@ async function act(el) {
   if (action === 'add-meal-item') { root.querySelector('[data-meal-items]')?.insertAdjacentHTML('beforeend',mealItemRow()); return }
   if (action === 'cancel-meal') { state.mealEdit=null; state.mealEstimateDraft=null; render(); return }
   if (action === 'close-photo') { if (state.photoUrl) URL.revokeObjectURL(state.photoUrl); state.photoUrl=null; render(); return }
-  if (action.startsWith('demo-local-')) {
+  if (action==='demo-gif-open' || action==='demo-gif-close') {
     const exercise=exerciseById.get(el.dataset.id), slot=el.closest('[data-demo-slot]')
-    if (!exercise || !slot || exercise.demo.localAsset!==`media/exercises/${exercise.id}.svg`) return
-    const source=`${import.meta.env.BASE_URL}${exercise.demo.localAsset}`
-    if (action==='demo-local-load') {
-      const object=document.createElement('object')
-      object.type='image/svg+xml'; object.data=source; object.className='demo-frame'; object.setAttribute('aria-label',`${exercise.name}原创动作示意`)
-      slot.replaceChildren(object)
-      const controls=document.createElement('div'); controls.className='actions'
-      for (const [title,name] of [['播放','demo-local-play'],['暂停','demo-local-pause'],['重播','demo-local-replay']]) {
-        const button=document.createElement('button'); button.type='button'; button.className='btn secondary small'; button.textContent=title; button.dataset.action=name; button.dataset.id=exercise.id; controls.append(button)
-      }
-      slot.append(controls)
+    if (!exercise || !slot || exercise.demo.mediaType!=='external_gif') return
+    if (action==='demo-gif-close') {
+      slot.innerHTML=button('查看动作示范','demo-gif-open','secondary small',`data-id="${safe(exercise.id)}"`)
       return
     }
-    const object=slot.querySelector('object'), svg=object?.contentDocument?.documentElement
-    if (!svg) return setNotice('本地动作示意尚未载入，请稍后再试。',true)
-    if (action==='demo-local-replay') { object.data=`${source}?replay=${Date.now()}`; return }
-    svg.querySelectorAll('.a,.b').forEach(node=>{node.style.animationPlayState=action==='demo-local-pause'?'paused':'running'})
+    const status=document.createElement('p'); status.className='hint demo-status'; status.setAttribute('role','status'); status.textContent='动作示范加载中…'
+    const image=document.createElement('img'); image.className='exercise-gif'; image.alt=`${exercise.name}动作示范`; image.width=180; image.height=180; image.referrerPolicy='no-referrer'
+    const close=document.createElement('button'); close.type='button'; close.className='btn secondary small'; close.textContent='收起动作示范'; close.dataset.action='demo-gif-close'; close.dataset.id=exercise.id
+    slot.replaceChildren(status,image,close)
+    const failed=()=>{
+      if (!image.isConnected) return
+      status.textContent='动作示范加载失败，请重试；也可查看原视频示范。'
+      image.remove(); el.textContent='重试动作示范'; slot.insertBefore(el,close)
+    }
+    image.addEventListener('load',()=>image.naturalWidth>0 ? status.hidden=true : failed(),{once:true})
+    image.addEventListener('error',failed,{once:true})
+    image.src=exercise.demo.gifUrl
     return
   }
   if (action === 'plan-lock') { const plan=(state.data.daily_plans || []).find(row => row.id === el.dataset.id); if (!plan || plan.user_id !== state.data.user.id) return; const started=generation; await work(async()=>{await api.setPlanLock(plan.id,!plan.is_locked,plan.updated_at);await reload(started)},'计划锁定状态已保存'); return }

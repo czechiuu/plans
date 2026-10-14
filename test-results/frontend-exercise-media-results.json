@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-10-14T09:17:04.486Z",
+  "scope": "synthetic-mobile-gif-and-video-controls",
+  "passed": 5,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "MEDIA_LAZY",
+      "status": "passed"
+    },
+    {
+      "id": "MEDIA_FAILURE",
+      "status": "passed"
+    },
+    {
+      "id": "MEDIA_GIFS",
+      "status": "passed"
+    },
+    {
+      "id": "MEDIA_VIDEOS",
+      "status": "passed"
+    },
+    {
+      "id": "MEDIA_TRAINING",
+      "status": "passed"
+    }
+  ]
+}

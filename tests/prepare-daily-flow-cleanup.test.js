@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
+import {PGlite} from '@electric-sql/pglite'
 import {buildCleanupSql} from '../scripts/prepare-daily-flow-cleanup.mjs'
 
 function manifests(){
@@ -48,4 +49,49 @@ test('requires exact, separately confirmed evidence before including an older UI
  const sql=buildCleanupSql(manifests(),[row])
  assert.match(sql,/CLEANUP_EXTRA_RECEIPT_MAPPING_MISMATCH/)
  assert.match(sql,/exists\(select 1 from public\.meals m where m\.id=t\.record_id\)/)
+})
+
+test('deletes only a rule with its exact recorded revision and leaves other data unchanged',async()=>{
+ const input=manifests(),owner=input[1].data.created.rules[0].user_id
+ const unchanged=input[1].data.created.rules[0].id,changed=randomUUID(),missing=randomUUID()
+ input[1].data.created.rules=[
+  {id:unchanged,user_id:owner,expected_updated_at:'2026-10-14T08:00:00.123456+00:00'},
+  {id:changed,user_id:owner,expected_updated_at:'2026-10-14T08:00:00.123456+00:00'},
+  {id:missing,user_id:owner}
+ ]
+ const sql=buildCleanupSql(input)
+ const deleteRule=sql.match(/delete from public\.health_rules r using cleanup_targets t[\s\S]*?;/i)?.[0]
+ assert.ok(deleteRule)
+ assert.match(sql,/missing_revision/)
+ assert.match(sql,/changed_revision/)
+ assert.doesNotMatch(sql,/delete from public\.(?:ai_usage|ai_consents)/i)
+ const db=new PGlite()
+ try{
+  await db.exec(`create table public.health_rules(id uuid primary key,user_id uuid,updated_at timestamptz);
+   create temp table cleanup_targets(kind text,id uuid,user_id uuid,review_only boolean,expected_updated_at timestamptz);
+   create table public.ai_usage(id uuid primary key);
+   create table public.ai_consents(id uuid primary key);`)
+  for(const [id,current,expected] of [
+   [unchanged,'2026-10-14T08:00:00.123456+00:00','2026-10-14T08:00:00.123456+00:00'],
+   [changed,'2026-10-14T08:00:01.123456+00:00','2026-10-14T08:00:00.123456+00:00'],
+   [missing,'2026-10-14T08:00:00.123456+00:00',null]
+  ]){
+   await db.query('insert into public.health_rules values($1,$2,$3)',[id,owner,current])
+   await db.query('insert into cleanup_targets values($1,$2,$3,$4,$5)',['rules',id,owner,false,expected])
+  }
+  const ledger=randomUUID(),consent=randomUUID()
+  await db.query('insert into public.ai_usage values($1)',[ledger])
+  await db.query('insert into public.ai_consents values($1)',[consent])
+  await db.exec(deleteRule)
+  const remaining=await db.query('select id from public.health_rules order by id')
+  assert.deepEqual(remaining.rows.map(x=>x.id),[changed,missing].sort())
+  assert.deepEqual((await db.query('select id from public.ai_usage')).rows.map(x=>x.id),[ledger])
+  assert.deepEqual((await db.query('select id from public.ai_consents')).rows.map(x=>x.id),[consent])
+ }finally{await db.close()}
+})
+
+test('rejects an invalid rule revision instead of embedding it in SQL',()=>{
+ const input=manifests()
+ input[1].data.created.rules[0].expected_updated_at="2026-10-14T08:00:00Z'); drop table public.health_rules; --"
+ assert.throws(()=>buildCleanupSql(input),/CLEANUP_RULE_REVISION_INVALID/)
 })

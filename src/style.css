@@ -13,3 +13,7 @@
 .demo-slot:has(object){display:block;min-height:0;aspect-ratio:auto;background:none}.demo-slot object{background:#f4f0fc}.demo-slot .actions{margin-top:8px}.demo-slot .actions button{flex:1}
 .nutrition-panel{margin:18px 0;padding:15px;border:1px solid #e4dfee;border-radius:15px;background:#faf9fd}.nutrition-panel>summary,.repeat-row details>summary{cursor:pointer;color:#62519b;font-weight:700}.nutrition-panel>.hint{margin:12px 0}.nutrition-panel .actions{margin-top:12px}.repeat-row details{padding:9px 0}.repeat-row details>.form-grid{margin-top:12px}
 .activity-editor>summary{cursor:pointer;color:#594994;font-size:1.15rem;font-weight:700}.activity-editor>summary:focus-visible{outline:3px solid #a997d6;outline-offset:3px}.activity-editor>p{margin-top:14px}.activity-editor form{margin-top:16px}
+
+.demo-slot:has(.demo-status){min-height:0;aspect-ratio:auto;padding:12px;gap:8px;background:#f4f0fc}
+.exercise-gif{display:block;width:180px;height:180px;max-width:100%;object-fit:contain;border-radius:12px}
+.demo-status{margin:0;text-align:center}

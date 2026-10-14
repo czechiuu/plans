@@ -2,7 +2,7 @@
 
 截至 2026-10-14，生产已应用 001–009；006–009 的迁移摘要及能力回读见[发布记录](../test-results/daily-flow-release.json)。结构部署不等于真人业务验收。旧字段细节见 [HEALTH-API](HEALTH-API.md)，新增契约见 [DAILY-FLOW-CHANGES](DAILY-FLOW-CHANGES.md)，有差异时以迁移源为准。
 
-009 输入快照已在生产应用并回读 MD5 一致：`generation_input_snapshots` 只允许本人读取，按生成任务与输入版本保存来源快照；历史任务不回填，无快照须明确视为不可追溯。前端本人 JSON 导出已接入该表并要求 `health_input_snapshot_schema_version()=9`，版本不符时明确拒绝完整导出，不生成缺项文件。生产能力探针为9；真实生成及导出仍待本人业务验收。
+009 输入快照已在生产应用并回读 MD5 一致：`generation_input_snapshots` 只允许本人读取，按生成任务与输入版本保存来源快照；历史任务不回填，无快照须明确视为不可追溯。前端本人 JSON 导出已接入该表并要求 `health_input_snapshot_schema_version()=9`，版本不符时明确拒绝完整导出，不生成缺项文件。生产能力探针为9；本轮真实生成已验证，私人导出仍待本人验收。
 
 | 实体 | 内容与边界 |
 |---|---|
@@ -23,7 +23,7 @@
 | ai_request_results（007） | 服务端私有输入摘要/结果缓存，completed 可复用，未知发送失败不重复付费 |
 | meal_adjustments（007） | 原计划、源输入快照/摘要、建议、状态及应用版本，有限重试并保留历史 |
 | record_create_requests（008） | 本人 client_request_id 原子创建回执，餐食/活动重复提交不重复入账 |
-| audit_events | 实体、动作、所有者、操作者和时间；不放健康原文、数值、照片或密钥 |
+| audit_events | 仅档案、日程、体重和设置的实体/动作/所有者/操作者/时间；不含餐食删除记录，也不放健康原文、数值、照片或密钥 |
 
 Auth、固定槽位、指定空间和当前成员关系共同确认身份。新增默认私有，对方读取同时需要同空间、所有者类别共享和单条共享；代改再需独立许可且不能转移所有权、扩展共享或删对方数据。写 RPC 固定 search_path 并显式授权，RLS 不能由前端展示代替。编辑以 expected_updated_at 检测冲突。
 
@@ -36,3 +36,5 @@ Auth、固定槽位、指定空间和当前成员关系共同确认身份。新�
 版本探测：health_schema_version=4、health_provider_schema_version=5、health_daily_flow_version=7、health_activity_schema_version=8；Edge status.schema_version=7，分别检测，不能用基础版本推断全部能力。
 
 本人导出与清除覆盖健康内容、建议和 AI 结果缓存；最小计费记录仍保留。清除/退出先可靠处理照片，失败中止并允许本人重试；退出后不能自助重入。数据库删除不承诺供应商日志和备份同时擦除。001/002 邀请表与历史并发回归保留，不代表生产重新开放入口。
+
+`record_create_requests` 在单条餐食删除后继续保存请求哈希与记录 ID，以阻止迟到的相同请求重新创建餐食；它不含原文或合成标记。测试清理只能依据已记录的精确请求 ID 与原记录 ID 核对，不能把同日全部已删餐食的回执当成测试数据。`ai_usage` 与 `ai_probe_usage` 是计费账本，测试清理不删除。

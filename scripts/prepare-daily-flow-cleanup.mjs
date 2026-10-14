@@ -2,6 +2,7 @@ import {readFile,mkdir,writeFile} from 'node:fs/promises'
 import {pathToFileURL} from 'node:url'
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const timestamp=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/
 const kinds={daily:['schedules','meals','photos','jobs','plans','adjustments','ai_requests','training'],
  ui:['meals','photos','weights','training','rules','plans','create_receipts']}
 const fail=code=>{throw new Error(code)}
@@ -23,10 +24,14 @@ export function buildCleanupSql(manifests,extraConfirmedReceipts=[]){
    if(!Array.isArray(data.created[kind]))fail('CLEANUP_CREATED_INVALID')
    for(const row of data.created[kind]){
     if(!uuid.test(row?.id??'')||!uuid.test(row?.user_id??''))fail('CLEANUP_RECEIPT_INVALID')
+    if(kind==='rules'&&row.expected_updated_at!=null&&
+      (typeof row.expected_updated_at!=='string'||!timestamp.test(row.expected_updated_at)||
+       !Number.isFinite(Date.parse(row.expected_updated_at))))fail('CLEANUP_RULE_REVISION_INVALID')
     const key=kind+':'+row.id.toLowerCase()+(kind==='create_receipts'?':'+row.user_id.toLowerCase():'')
     if(seen.has(key))fail('CLEANUP_DUPLICATE_RECEIPT')
     seen.add(key)
-    targets.push({scope,kind,id:row.id.toLowerCase(),user_id:row.user_id.toLowerCase(),marker:data.marker,review_only:false,record_id:null})
+    targets.push({scope,kind,id:row.id.toLowerCase(),user_id:row.user_id.toLowerCase(),marker:data.marker,
+     review_only:false,record_id:null,expected_updated_at:kind==='rules'?row.expected_updated_at??null:null})
    }
   }
   if(scope==='daily'){
@@ -55,7 +60,7 @@ export function buildCleanupSql(manifests,extraConfirmedReceipts=[]){
   if(seen.has(key))fail('CLEANUP_DUPLICATE_RECEIPT')
   seen.add(key)
   targets.push({scope:'extra',kind:'create_receipts',id:row.id.toLowerCase(),user_id:row.user_id.toLowerCase(),
-   marker:null,review_only:false,record_id:row.record_id.toLowerCase()})
+   marker:null,review_only:false,record_id:row.record_id.toLowerCase(),expected_updated_at:null})
  }
  // All interpolated values are constrained UUIDs, marker tokens or fixed enums.
  const rows=JSON.stringify(targets),baselineJson=JSON.stringify(baseline)
@@ -63,13 +68,14 @@ export function buildCleanupSql(manifests,extraConfirmedReceipts=[]){
 begin;
 set local lock_timeout='5s';
 set local statement_timeout='30s';
-create temp table cleanup_targets(scope text,kind text,id uuid,user_id uuid,marker text,review_only boolean,record_id uuid,primary key(kind,id,user_id)) on commit drop;
+create temp table cleanup_targets(scope text,kind text,id uuid,user_id uuid,marker text,review_only boolean,record_id uuid,expected_updated_at timestamptz,primary key(kind,id,user_id)) on commit drop;
 insert into cleanup_targets select * from jsonb_to_recordset('${rows}'::jsonb)
- as t(scope text,kind text,id uuid,user_id uuid,marker text,review_only boolean,record_id uuid);
+ as t(scope text,kind text,id uuid,user_id uuid,marker text,review_only boolean,record_id uuid,expected_updated_at timestamptz);
 create temp table cleanup_baseline(id uuid primary key,original jsonb) on commit drop;
 insert into cleanup_baseline select j.id,to_jsonb(j) from public.generation_jobs j
  where j.id in(select value::uuid from jsonb_array_elements_text('${baselineJson}'::jsonb));
 create temp table cleanup_counts(kind text primary key,deleted integer) on commit drop;
+create temp table cleanup_rule_skips(id uuid primary key,reason text not null) on commit drop;
 do $cleanup$
 declare t record;r jsonb;owner record;table_name text;key_name text;n integer;
 begin
@@ -98,10 +104,17 @@ begin
    execute format('select to_jsonb(r) from public.%I r where %I=$1 for update',table_name,key_name) into r using t.id;
   end if;
   if r is null then
+   if t.kind='rules' then insert into cleanup_rule_skips values(t.id,'missing_row');continue;end if;
    if t.kind in ('schedules','meals','training','weights','photos') then continue; end if;
    raise exception 'CLEANUP_EXPECTED_ROW_MISSING: %',t.kind;
   end if;
   if r->>'user_id' is distinct from t.user_id::text then raise exception 'CLEANUP_OWNER_MISMATCH'; end if;
+  if t.kind='rules' and t.expected_updated_at is null then
+   insert into cleanup_rule_skips values(t.id,'missing_revision');continue;
+  end if;
+  if t.kind='rules' and (r->>'updated_at')::timestamptz is distinct from t.expected_updated_at then
+   insert into cleanup_rule_skips values(t.id,'changed_revision');continue;
+  end if;
   if (r->>'created_at')::timestamptz < timestamptz '2026-10-13 16:00:00+00'
     or (r->>'created_at')::timestamptz >= timestamptz '2026-10-14 16:00:00+00'
     or r->>'created_at' is null
@@ -152,28 +165,38 @@ begin
   or exists(select 1 from public.training_sessions s join cleanup_targets p on p.kind='plans' and not p.review_only and p.id::text=s.data->>'plan_id')
  then raise exception 'CLEANUP_UNLISTED_PLAN_DEPENDENCY'; end if;
  if exists(select 1 from public.meal_adjustments a join cleanup_targets r on r.kind='rules' and r.user_id=a.user_id
+  and r.expected_updated_at is not null and not exists(select 1 from cleanup_rule_skips s where s.id=r.id)
   where a.status='draft' and not exists(select 1 from cleanup_targets t where t.kind='adjustments' and t.id=a.id and t.user_id=a.user_id))
  then raise exception 'CLEANUP_UNLISTED_RULE_TRIGGER_TARGET'; end if;
  for table_name,key_name,n in select * from (values
   ('meal_adjustments','id',1),('generation_jobs','id',2),('daily_plans','id',3),
-  ('ai_request_results','id',4),('health_rules','id',5),('record_create_requests','client_request_id',6)) d(t,k,seq) order by seq loop
+  ('ai_request_results','id',4),('record_create_requests','client_request_id',6)) d(t,k,seq) order by seq loop
   execute format('delete from public.%I r using cleanup_targets t where t.kind=$1 and not coalesce(t.review_only,false) and r.%I=t.id and r.user_id=t.user_id',table_name,key_name)
    using case table_name when 'meal_adjustments' then 'adjustments' when 'generation_jobs' then 'jobs'
-    when 'daily_plans' then 'plans' when 'ai_request_results' then 'ai_requests' when 'health_rules' then 'rules' else 'create_receipts' end;
+    when 'daily_plans' then 'plans' when 'ai_request_results' then 'ai_requests' else 'create_receipts' end;
   get diagnostics n=row_count;
   if n<>(select count(*) from cleanup_targets where kind=case table_name
     when 'meal_adjustments' then 'adjustments' when 'generation_jobs' then 'jobs'
     when 'daily_plans' then 'plans' when 'ai_request_results' then 'ai_requests'
-    when 'health_rules' then 'rules' else 'create_receipts' end and not review_only)
+    else 'create_receipts' end and not review_only)
   then raise exception 'CLEANUP_DELETE_COUNT_MISMATCH: %',table_name; end if;
   insert into cleanup_counts values(table_name,n);
  end loop;
+ delete from public.health_rules r using cleanup_targets t where t.kind='rules'
+  and not coalesce(t.review_only,false) and r.id=t.id and r.user_id=t.user_id
+  and t.expected_updated_at is not null and r.updated_at=t.expected_updated_at;
+ get diagnostics n=row_count;
+ if n<>(select count(*) from cleanup_targets t where t.kind='rules' and not t.review_only
+  and not exists(select 1 from cleanup_rule_skips s where s.id=t.id))
+ then raise exception 'CLEANUP_RULE_DELETE_COUNT_MISMATCH'; end if;
+ insert into cleanup_counts values('health_rules',n);
  if exists(select 1 from cleanup_baseline b left join public.generation_jobs j on j.id=b.id where to_jsonb(j) is distinct from b.original)
  then raise exception 'CLEANUP_BASELINE_CHANGED'; end if;
  if not exists(select 1 from public.daily_plans p join cleanup_targets t on t.kind='plans' and t.review_only
    and p.id=t.id and p.user_id=t.user_id) then raise exception 'CLEANUP_REVIEW_PLAN_CHANGED'; end if;
 end $cleanup$;
 select kind,deleted from cleanup_counts order by kind;
+select reason,count(*) as preserved from cleanup_rule_skips group by reason order by reason;
 commit;
 `
 }
