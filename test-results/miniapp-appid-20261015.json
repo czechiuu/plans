@@ -1,0 +1,43 @@
+{
+  "recorded_at": "2026-10-14T17:24:42.849Z",
+  "shanghai_date": "2026-10-15",
+  "scope": "public-appid-config-only",
+  "baseline_commit": "18939d2753b8394541bce69cbabaa7f1d8a72380",
+  "appid": "wxa45b1a88790a49ec",
+  "appid_source": "provided by user; ownership and backend setup not independently verified",
+  "legal_domain_check_enabled": true,
+  "tests": {
+    "static": {
+      "passed": 11,
+      "failed": 0,
+      "log": "miniapp-appid-static-20261015.txt"
+    },
+    "prior_business_tests": {
+      "report": "miniapp-acceptance-20261014.json",
+      "rerun": false,
+      "reason": "business code and backend unchanged"
+    }
+  },
+  "devtools_discovery": {
+    "checked": "CLI commands, standard installation paths and uninstall registry",
+    "found": false,
+    "compile": "not_run"
+  },
+  "unverified": [
+    "subject and filing status",
+    "developer permission",
+    "request/upload/download domain acceptance",
+    "privacy guide",
+    "experience members",
+    "formal-validation real-phone workflows",
+    "native GIF real-device display"
+  ],
+  "experience": {
+    "uploaded": false,
+    "qr": null
+  },
+  "production_data_writes": 0,
+  "paid_ai_calls": 0,
+  "consent_or_budget_changes": 0,
+  "source_package": "dist-native/plans-native-source-20261015.zip"
+}

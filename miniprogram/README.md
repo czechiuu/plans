@@ -1,13 +1,13 @@
 # 两个人的健康日常 · 原生微信项目
 
-这是独立原生 WXML/WXSS/JavaScript 前端，共用原网站后端。没有 web-view、微信登录、公开注册或独立数据库。**目前没有小程序 AppID，未上传体验版，没有体验二维码。**
+这是独立原生 WXML/WXSS/JavaScript 前端，共用原网站后端。没有 web-view、微信登录、公开注册或独立数据库。**2026-10-15 用户已提供公开 AppID `wxa45b1a88790a49ec` 并写入项目；主体/备案、后台域名、隐私指引和体验成员仍待核对，未上传体验版，没有体验二维码。**
 
 ## 打开项目
 
-1. 用微信官方开发者工具导入本目录，项目类型选“小程序”，不选云开发模板。`project.config.json` 的 `touristappid` 仅表示尚未配置；注册后换为本人公开 AppID。
-2. 保持“校验合法域名”开启（仓库 `urlCheck:true`）。不能用关闭校验来验收；游客模式仅供查看源码，不能证明真实后端连接。
+1. 用微信官方开发者工具导入本目录，项目类型选“小程序”，不选云开发模板。`project.config.json` 已填写用户提供的 AppID；由有开发权限的本人扫码登录工具。
+2. 保持“校验合法域名”开启（仓库 `urlCheck:true`）。不能用关闭校验来验收；填写 AppID 不能证明真实后端连接。
 3. 已含 `lib/shared.js` 和 `config.js`。`config.js` 仅有现有公开 Supabase URL / publishable key；不需要 npm 构建。若修改共享动作或校验源码，从仓库根运行 `pnpm build:miniapp`，使用原网站的公开环境配置生成；不填管理密钥。
-4. 注册后的微信后台操作、域名表和真机步骤见 [接入交接](../MINIAPP_HANDOFF.md)、[验收与操作说明](../docs/MINIAPP-ACCEPTANCE.md)。AppSecret、AI Key、service_role 均不进入项目。
+4. 后续微信后台操作、域名表和真机步骤见 [接入交接](../MINIAPP_HANDOFF.md)、[验收与操作说明](../docs/MINIAPP-ACCEPTANCE.md)。AppSecret、AI Key、service_role 均不进入项目。
 
 ## 日常操作
 
@@ -22,4 +22,4 @@
 
 ## 当前验证边界
 
-自动化使用合成 wx 回调和合成数据，验证原生适配代码与现有接口契约，不是微信运行环境。开发工具编译、开启正式域名校验的真机请求/照片上传下载、三 GIF 真机显示、微信与网页双端真实账号一致性，均待注册和配置后执行。测试结果见 [验收报告](../docs/MINIAPP-ACCEPTANCE.md)。
+自动化使用合成 wx 回调和合成数据，验证原生适配代码与现有接口契约，不是微信运行环境。开发工具编译、开启正式域名校验的真机请求/照片上传下载、三 GIF 真机显示、微信与网页双端真实账号一致性，均待后台配置和实际执行。测试结果见 [验收报告](../docs/MINIAPP-ACCEPTANCE.md)。

@@ -1,6 +1,6 @@
 # 两个人的日常
 
-新增原生微信源码：[miniprogram 项目](miniprogram/README.md)，五个主页面及六个次级页面，复用同一后端和两个固定账号。用户尚未注册小程序，尚无 AppID、体验版或二维码；不把独立自动化写成开发工具/真机通过。见[原生验收及注册后操作](docs/MINIAPP-ACCEPTANCE.md)。网页和生产后端未因本次原生开发改动。
+新增原生微信源码：[miniprogram 项目](miniprogram/README.md)，五个主页面及六个次级页面，复用同一后端和两个固定账号。2026-10-15 已填写用户提供的公开 AppID `wxa45b1a88790a49ec`，合法域名校验保持开启；后台配置、微信编译和真机仍待验证，体验版和二维码未交付。见[原生验收及后续操作](docs/MINIAPP-ACCEPTANCE.md)。网页和生产后端未因本次原生开发改动。
 
 中文、手机优先的私人健康网站：[实际网站](https://czechiuu.github.io/plans/)。沿用原 Supabase 和“我 / W”两个独立密码账号；默认私有，类别共享、单条共享和代改分别由本人控制。
 
