@@ -1,0 +1,541 @@
+TAP version 13
+# Subtest: 005 provider and purpose grants are private and revoked independently
+ok 1 - 005 provider and purpose grants are private and revoked independently
+  ---
+  duration_ms: 3601.7568
+  type: 'test'
+  ...
+# Subtest: 005 provider/probe spending shares the global budget and requires exact consent
+ok 2 - 005 provider/probe spending shares the global budget and requires exact consent
+  ---
+  duration_ms: 5161.995
+  type: 'test'
+  ...
+# Subtest: administrator budget script preserves lower caps and existing spending
+ok 3 - administrator budget script preserves lower caps and existing spending
+  ---
+  duration_ms: 2863.8732
+  type: 'test'
+  ...
+# Subtest: password update keeps the initiating JWT across an asynchronous account switch
+ok 4 - password update keeps the initiating JWT across an asynchronous account switch
+  ---
+  duration_ms: 1.191
+  type: 'test'
+  ...
+# Subtest: wrong password retries only this slot, then clears local session
+ok 5 - wrong password retries only this slot, then clears local session
+  ---
+  duration_ms: 1.0559
+  type: 'test'
+  ...
+# Subtest: three invalid credentials stop before cloud tests
+ok 6 - three invalid credentials stop before cloud tests
+  ---
+  duration_ms: 1.2638
+  type: 'test'
+  ...
+# Subtest: other auth failures do not retry or reveal server text
+ok 7 - other auth failures do not retry or reveal server text
+  ---
+  duration_ms: 0.3461
+  type: 'test'
+  ...
+# Subtest: input cancellation does not call authentication
+ok 8 - input cancellation does not call authentication
+  ---
+  duration_ms: 0.1708
+  type: 'test'
+  ...
+# Subtest: sign-in timeout returns only a safe code
+ok 9 - sign-in timeout returns only a safe code
+  ---
+  duration_ms: 16.9612
+  type: 'test'
+  ...
+# Subtest: sign-out timeout does not return a password
+ok 10 - sign-out timeout does not return a password
+  ---
+  duration_ms: 14.6088
+  type: 'test'
+  ...
+# Subtest: 邮件回跳保留部署页路径：http://localhost:5173/
+ok 11 - 邮件回跳保留部署页路径：http://localhost:5173/
+  ---
+  duration_ms: 0.7449
+  type: 'test'
+  ...
+# Subtest: 邮件回跳保留部署页路径：https://example.test/
+ok 12 - 邮件回跳保留部署页路径：https://example.test/
+  ---
+  duration_ms: 0.1213
+  type: 'test'
+  ...
+# Subtest: 邮件回跳保留部署页路径：https://example.test/plans/
+ok 13 - 邮件回跳保留部署页路径：https://example.test/plans/
+  ---
+  duration_ms: 0.0718
+  type: 'test'
+  ...
+# Subtest: 邮件回跳保留部署页路径：https://example.test/plans/index.html
+ok 14 - 邮件回跳保留部署页路径：https://example.test/plans/index.html
+  ---
+  duration_ms: 0.134
+  type: 'test'
+  ...
+# Subtest: 邮件回跳保留部署页路径：https://example.test/plans/index.html?source=synthetic\#access_token=synthetic
+ok 15 - 邮件回跳保留部署页路径：https://example.test/plans/index.html?source=synthetic\#access_token=synthetic
+  ---
+  duration_ms: 0.0887
+  type: 'test'
+  ...
+# Subtest: 邮件回跳保留部署页路径：https://example.test/plans/?code=synthetic\#type=recovery
+ok 16 - 邮件回跳保留部署页路径：https://example.test/plans/?code=synthetic\#type=recovery
+  ---
+  duration_ms: 0.0695
+  type: 'test'
+  ...
+# Subtest: 拒绝非网页地址或带凭据的地址
+ok 17 - 拒绝非网页地址或带凭据的地址
+  ---
+  duration_ms: 0.2399
+  type: 'test'
+  ...
+# Subtest: 构建前读取env.local拒绝私钥，不把密钥印进错误
+ok 18 - 构建前读取env.local拒绝私钥，不把密钥印进错误
+  ---
+  duration_ms: 474.9203
+  type: 'test'
+  ...
+# Subtest: 正式部署未配置必须非零退出，不能发布空后台配置
+ok 19 - 正式部署未配置必须非零退出，不能发布空后台配置
+  ---
+  duration_ms: 442.4166
+  type: 'test'
+  ...
+# Subtest: bound rules generation and retries never consult changed preferences or call AI
+ok 20 - bound rules generation and retries never consult changed preferences or call AI
+  ---
+  duration_ms: 6.9111
+  type: 'test'
+  ...
+# Subtest: no-template rules give three labelled meals and protect W Tuesday without compensating Wednesday
+ok 21 - no-template rules give three labelled meals and protect W Tuesday without compensating Wednesday
+  ---
+  duration_ms: 0.876
+  type: 'test'
+  ...
+# Subtest: 007 synthetic SQL daily flow preserves history, owner boundaries, stale snapshots, undo and budgets
+ok 22 - 007 synthetic SQL daily flow preserves history, owner boundaries, stale snapshots, undo and budgets
+  ---
+  duration_ms: 5551.6212
+  type: 'test'
+  ...
+# Subtest: local PostgreSQL access and sharing contract
+    # Subtest: anonymous has no health access or RPC
+    ok 1 - anonymous has no health access or RPC
+      ---
+      duration_ms: 59.3665
+      type: 'test'
+      ...
+    # Subtest: third account cannot read or mutate another space
+    ok 2 - third account cannot read or mutate another space
+      ---
+      duration_ms: 86.0973
+      type: 'test'
+      ...
+    # Subtest: invitation is single use and space holds at most two
+    ok 3 - invitation is single use and space holds at most two
+      ---
+      duration_ms: 39.4488
+      type: 'test'
+      ...
+    # Subtest: private rows stay private and direct writes are denied
+    ok 4 - private rows stay private and direct writes are denied
+      ---
+      duration_ms: 131.5443
+      type: 'test'
+      ...
+    # Subtest: sharing needs category and row consent, partner edit needs separate consent
+    ok 5 - sharing needs category and row consent, partner edit needs separate consent
+      ---
+      duration_ms: 205.0707
+      type: 'test'
+      ...
+    # Subtest: invalid ranges and identity transfer fail; leaving revokes prior consent and invites
+    ok 6 - invalid ranges and identity transfer fail; leaving revokes prior consent and invites
+      ---
+      duration_ms: 277.7904
+      type: 'test'
+      ...
+    1..6
+ok 23 - local PostgreSQL access and sharing contract
+  ---
+  duration_ms: 4583.0629
+  type: 'test'
+  ...
+# Subtest: standard job UUID reaches claim while a missing UUID segment is rejected
+ok 24 - standard job UUID reaches claim while a missing UUID segment is rejected
+  ---
+  duration_ms: 2.4409
+  type: 'test'
+  ...
+# Subtest: synthetic probe without a server key is explicitly blocked
+ok 25 - synthetic probe without a server key is explicitly blocked
+  ---
+  duration_ms: 0.8043
+  type: 'test'
+  ...
+# Subtest: real health DeepSeek calls stay disabled before any reservation or provider request
+ok 26 - real health DeepSeek calls stay disabled before any reservation or provider request
+  ---
+  duration_ms: 1.5078
+  type: 'test'
+  ...
+# Subtest: synthetic probe uses four fixed tasks, peak-price reservations and no health rows
+ok 27 - synthetic probe uses four fixed tasks, peak-price reservations and no health rows
+  ---
+  duration_ms: 138.959
+  type: 'test'
+  ...
+# Subtest: 上海跨午夜日期由时刻决定，不使用宿主时区
+ok 28 - 上海跨午夜日期由时刻决定，不使用宿主时区
+  ---
+  duration_ms: 1.124
+  type: 'test'
+  ...
+# Subtest: 日期加减支持跨年与闰年，拒绝不存在的日期
+ok 29 - 日期加减支持跨年与闰年，拒绝不存在的日期
+  ---
+  duration_ms: 0.6864
+  type: 'test'
+  ...
+# Subtest: 七日平均只计自然日窗口内的实际体重，不补缺失值或计腰围
+ok 30 - 七日平均只计自然日窗口内的实际体重，不补缺失值或计腰围
+  ---
+  duration_ms: 2.0919
+  type: 'test'
+  ...
+# Subtest: 记录时间按上海时间转UTC，可逆且校验真实日期和时刻
+ok 31 - 记录时间按上海时间转UTC，可逆且校验真实日期和时刻
+  ---
+  duration_ms: 0.4933
+  type: 'test'
+  ...
+# Subtest: 未经配置不建立客户端；拒绝私钥、HTTP与错误项目地址
+ok 32 - 未经配置不建立客户端；拒绝私钥、HTTP与错误项目地址
+  ---
+  duration_ms: 0.6145
+  type: 'test'
+  ...
+# Subtest: 用户文字转义，不能插入脚本或HTML属性
+ok 33 - 用户文字转义，不能插入脚本或HTML属性
+  ---
+  duration_ms: 0.2247
+  type: 'test'
+  ...
+# Subtest: 动作库覆盖 11 个约定 ID，且可按 ID 精确索引
+ok 34 - 动作库覆盖 11 个约定 ID，且可按 ID 精确索引
+  ---
+  duration_ms: 1.8765
+  type: 'test'
+  ...
+# Subtest: 每个动作有完整文字指导与明确的演示可用边界
+ok 35 - 每个动作有完整文字指导与明确的演示可用边界
+  ---
+  duration_ms: 1.9543
+  type: 'test'
+  ...
+# Subtest: delayed old getUser failure cannot sign out a newly selected account
+ok 36 - delayed old getUser failure cannot sign out a newly selected account
+  ---
+  duration_ms: 5.2043
+  type: 'test'
+  ...
+# Subtest: delayed old registry response cannot sign out a newly selected account
+ok 37 - delayed old registry response cannot sign out a newly selected account
+  ---
+  duration_ms: 1.1474
+  type: 'test'
+  ...
+# Subtest: old email mismatch cannot sign out the new session
+ok 38 - old email mismatch cannot sign out the new session
+  ---
+  duration_ms: 0.995
+  type: 'test'
+  ...
+# Subtest: fixed accounts initialize once, preserve records, and retain owner-controlled sharing
+    # Subtest: new members are private and registry is administrator-only
+    ok 1 - new members are private and registry is administrator-only
+      ---
+      duration_ms: 71.7658
+      type: 'test'
+      ...
+    # Subtest: old creation and invitation RPCs are closed to every client
+    ok 2 - old creation and invitation RPCs are closed to every client
+      ---
+      duration_ms: 83.012
+      type: 'test'
+      ...
+    # Subtest: category, row, and partner-edit revocations keep their old behavior
+    ok 3 - category, row, and partner-edit revocations keep their old behavior
+      ---
+      duration_ms: 290.0747
+      type: 'test'
+      ...
+    # Subtest: administrator rerun preserves all health rows and existing settings
+    ok 4 - administrator rerun preserves all health rows and existing settings
+      ---
+      duration_ms: 149.8231
+      type: 'test'
+      ...
+    # Subtest: leaving removes business access but keeps slot for administrator relink
+    ok 5 - leaving removes business access but keeps slot for administrator relink
+      ---
+      duration_ms: 114.8899
+      type: 'test'
+      ...
+    1..5
+ok 39 - fixed accounts initialize once, preserve records, and retain owner-controlled sharing
+  ---
+  duration_ms: 4892.5983
+  type: 'test'
+  ...
+# Subtest: legacy third member stays outside fixed-account RLS and RPC
+ok 40 - legacy third member stays outside fixed-account RLS and RPC
+  ---
+  duration_ms: 4130.7202
+  type: 'test'
+  ...
+# Subtest: administrator initialization rejects unconfirmed, extra, or conflicting accounts without writing
+ok 41 - administrator initialization rejects unconfirmed, extra, or conflicting accounts without writing
+  ---
+  duration_ms: 2566.132
+  type: 'test'
+  ...
+# Subtest: 每个动作都有独立的本地原创循环示意和原实拍来源
+ok 42 - 每个动作都有独立的本地原创循环示意和原实拍来源
+  ---
+  duration_ms: 18.5468
+  type: 'test'
+  ...
+# Subtest: DeepSeek business photo sends real image input once and cached repeats do not reserve twice
+ok 43 - DeepSeek business photo sends real image input once and cached repeats do not reserve twice
+  ---
+  duration_ms: 49.3352
+  type: 'test'
+  ...
+# Subtest: revocation after reservation prevents transmission and releases an unsent hold
+ok 44 - revocation after reservation prevents transmission and releases an unsent hold
+  ---
+  duration_ms: 2.4299
+  type: 'test'
+  ...
+# Subtest: disabled AI consent makes no provider request or budget reservation
+ok 45 - disabled AI consent makes no provider request or budget reservation
+  ---
+  duration_ms: 0.5204
+  type: 'test'
+  ...
+# Subtest: images cannot be sent under a text or schedule consent
+ok 46 - images cannot be sent under a text or schedule consent
+  ---
+  duration_ms: 0.3581
+  type: 'test'
+  ...
+# Subtest: provider failure or timeout is explicit and never settles a fabricated response
+ok 47 - provider failure or timeout is explicit and never settles a fabricated response
+  ---
+  duration_ms: 3.9747
+  type: 'test'
+  ...
+# Subtest: complete three-meal Chinese input is sent intact with an output and cost ceiling
+ok 48 - complete three-meal Chinese input is sent intact with an output and cost ceiling
+  ---
+  duration_ms: 2.0434
+  type: 'test'
+  ...
+# Subtest: meal estimate accepts a standard UUID and rejects a missing-segment UUID
+ok 49 - meal estimate accepts a standard UUID and rejects a missing-segment UUID
+  ---
+  duration_ms: 90.2947
+  type: 'test'
+  ...
+# Subtest: 004 fixed-space RLS, private defaults, sharing, editing and erasure
+ok 50 - 004 fixed-space RLS, private defaults, sharing, editing and erasure
+  ---
+  duration_ms: 4868.5884
+  type: 'test'
+  ...
+# Subtest: scheduled jobs anchor target to scheduled time and budget is atomic
+ok 51 - scheduled jobs anchor target to scheduled time and budget is atomic
+  ---
+  duration_ms: 4268.4877
+  type: 'test'
+  ...
+# Subtest: input version changes for same-second profile edits and deleted nonlatest training
+ok 52 - input version changes for same-second profile edits and deleted nonlatest training
+  ---
+  duration_ms: 2587.4454
+  type: 'test'
+  ...
+# Subtest: SDK preflight and errors preserve the allowed origin
+ok 53 - SDK preflight and errors preserve the allowed origin
+  ---
+  duration_ms: 37.8377
+  type: 'test'
+  ...
+# Subtest: cron denies anonymous calls and exposes only aggregated safe failure codes
+not ok 54 - cron denies anonymous calls and exposes only aggregated safe failure codes
+  ---
+  duration_ms: 108.1488
+  type: 'test'
+  location: 'G:\\Codex\\ChatGPT\\每天工作\\pair-health\\tests\\health-cron-diagnostics.test.js:4:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      {
+        attempted: 2,
+        enqueued: 2,
+        failures: [
+          {
+    +       code: 'AI_DISABLED',
+    -       code: 'INVALID_REQUEST',
+            count: 2
+          }
+        ]
+      }
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    enqueued: 2
+    attempted: 2
+    failures:
+      0:
+        code: 'INVALID_REQUEST'
+        count: 2
+  actual:
+    enqueued: 2
+    attempted: 2
+    failures:
+      0:
+        code: 'AI_DISABLED'
+        count: 2
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///G:/Codex/ChatGPT/%E6%AF%8F%E5%A4%A9%E5%B7%A5%E4%BD%9C/pair-health/tests/health-cron-diagnostics.test.js:38:12)
+    async Test.run (node:internal/test_runner/test:1389:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: rule plans are conservative with unknown history and respect confirmed free days
+ok 55 - rule plans are conservative with unknown history and respect confirmed free days
+  ---
+  duration_ms: 4.8217
+  type: 'test'
+  ...
+# Subtest: structured AI output requires complete response and verified catalog IDs
+ok 56 - structured AI output requires complete response and verified catalog IDs
+  ---
+  duration_ms: 3.0927
+  type: 'test'
+  ...
+# Subtest: photo validator rejects a CRC-correct PNG with invalid compressed image data
+ok 57 - photo validator rejects a CRC-correct PNG with invalid compressed image data
+  ---
+  duration_ms: 24.9286
+  type: 'test'
+  ...
+# Subtest: deployment review exposes exactly four complete files with precise hashes, on loopback only
+not ok 58 - deployment review exposes exactly four complete files with precise hashes, on loopback only
+  ---
+  duration_ms: 70.7999
+  type: 'test'
+  location: 'G:\\Codex\\ChatGPT\\每天工作\\pair-health\\tests\\integrity-deployment-review.test.js:8:1'
+  failureType: 'testCodeFailure'
+  error: 'connect EACCES 127.0.0.1:51664'
+  code: 'EACCES'
+  stack: |-
+    TCPConnectWrap.afterConnect [as oncomplete] (node:net:1864:16)
+  ...
+# Subtest: confirmed mass intervals sum independently, including separately measured oil, and fraction applies once
+ok 59 - confirmed mass intervals sum independently, including separately measured oil, and fraction applies once
+  ---
+  duration_ms: 2.7941
+  type: 'test'
+  ...
+# Subtest: an unknown item or unmeasured additions never become zero in a whole-meal total
+ok 60 - an unknown item or unmeasured additions never become zero in a whole-meal total
+  ---
+  duration_ms: 0.8199
+  type: 'test'
+  ...
+# Subtest: numeric strings, reversed bounds, missing provenance, negative and nonfinite values are invalid
+ok 61 - numeric strings, reversed bounds, missing provenance, negative and nonfinite values are invalid
+  ---
+  duration_ms: 2.6897
+  type: 'test'
+  ...
+# Subtest: zero, full intake and decimal labels preserve explicit quantities without rounding or guessing
+ok 62 - zero, full intake and decimal labels preserve explicit quantities without rounding or guessing
+  ---
+  duration_ms: 0.4012
+  type: 'test'
+  ...
+# Subtest: invalid meal-level input and arithmetic overflow fail explicitly
+ok 63 - invalid meal-level input and arithmetic overflow fail explicitly
+  ---
+  duration_ms: 4.2316
+  type: 'test'
+  ...
+# Subtest: 本地PostgreSQL写入后关闭重开仍保存，更正与删除持久化
+not ok 64 - 本地PostgreSQL写入后关闭重开仍保存，更正与删除持久化
+  ---
+  duration_ms: 7981.7723
+  type: 'test'
+  location: 'G:\\Codex\\ChatGPT\\每天工作\\pair-health\\tests\\persistence.test.js:8:1'
+  failureType: 'testCodeFailure'
+  error: 'Aborted(). Build with -sASSERTIONS for more info.'
+  code: 'ERR_TEST_FAILURE'
+  name: 'RuntimeError'
+  stack: |-
+    abort (file:///G:/Codex/ChatGPT/%E6%AF%8F%E5%A4%A9%E5%B7%A5%E4%BD%9C/pair-health/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/dist/index.js:1:78230)
+    __abort_js (file:///G:/Codex/ChatGPT/%E6%AF%8F%E5%A4%A9%E5%B7%A5%E4%BD%9C/pair-health/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/dist/index.js:2:68975)
+    wasm://wasm/0267bb86:wasm-function[13300]:0x698125
+    wasm://wasm/0267bb86:wasm-function[9913]:0x54d4be
+    wasm://wasm/0267bb86:wasm-function[5321]:0x3b91a6
+    wasm://wasm/0267bb86:wasm-function[1399]:0x10c93e
+    wasm://wasm/0267bb86:wasm-function[1397]:0x10b8cc
+    wasm://wasm/0267bb86:wasm-function[4543]:0x348a84
+    wasm://wasm/0267bb86:wasm-function[1387]:0x109b91
+    wasm://wasm/0267bb86:wasm-function[10102]:0x55ccb0
+  ...
+# Subtest: reset updates only the selected existing fixed user password
+ok 65 - reset updates only the selected existing fixed user password
+  ---
+  duration_ms: 2.7268
+  type: 'test'
+  ...
+# Subtest: reset refuses extra Auth users before making a change
+ok 66 - reset refuses extra Auth users before making a change
+  ---
+  duration_ms: 0.7881
+  type: 'test'
+  ...
+# Subtest: reset refuses a mismatched fixed-account registry before making a change
+ok 67 - reset refuses a mismatched fixed-account registry before making a change
+  ---
+  duration_ms: 0.3364
+  type: 'test'
+  ...
+1..67
+# tests 78
+# suites 0
+# pass 75
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18548.5678

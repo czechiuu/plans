@@ -1,0 +1,47 @@
+{
+  "started_at": "2026-10-14T05:03:19.068Z",
+  "generated_at": "2026-10-14T05:03:28.380Z",
+  "scope": "Isolated local PostgreSQL with synthetic fixed accounts; no cloud or paid AI calls",
+  "cases": {
+    "PROVIDER_AND_PURPOSE_BOUNDARY": {
+      "status": "passed"
+    },
+    "GLOBAL_CROSS_PROVIDER_RACE": {
+      "status": "passed"
+    },
+    "DEEPSEEK_PROBE_CAP_RACE": {
+      "status": "passed"
+    },
+    "WRAPPER_CRLF_AND_REPEAT": {
+      "status": "passed"
+    },
+    "WRAPPER_HISTORY_GUARD": {
+      "status": "passed"
+    },
+    "DAILY_WRAPPER_APPLY_REPLAY": {
+      "status": "passed"
+    },
+    "DAILY_WRAPPER_HISTORY_SOURCE_GUARDS": {
+      "status": "passed"
+    }
+  },
+  "passed": 7,
+  "failed": 0,
+  "not_run": 0,
+  "postgresql_version": "17.10",
+  "migration_005_sha256": "585202ae6fb06fcda937e587078f313b8ff096f3a65ff4d53d1ceafe39749841",
+  "migration_005_md5": "2c57e2948216f3e08e2170754e1fd883",
+  "wrapper_005_sha256": "f3c6f085b4e6b99e14f9ae2b8ff63c5445d64b887cc3fa3be58ea3ad805df093",
+  "daily_wrapper_sha256": "678cd7a0d5436cb93f6042556e145927daa789b081ddc114c10dc95b612dabd6",
+  "applied_migrations": [
+    "202610130001_initial.sql",
+    "202610130002_space_lock_order.sql",
+    "202610130003_fixed_accounts.sql",
+    "202610130004_health_daily.sql",
+    "202610130005_ai_providers.sql",
+    "202610140006_integrity.sql",
+    "202610140007_daily_flow.sql",
+    "202610140008_activities.sql"
+  ],
+  "script_sha256": "180e21635957ee2df8bb385230df1421a2b0517428ce6dba07d18468ae9e7953"
+}

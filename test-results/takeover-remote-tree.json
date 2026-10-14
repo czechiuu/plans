@@ -1,0 +1,1406 @@
+{
+  "head": "e6126bca768c96cc2394687daa0f790a19d049e4",
+  "verified_at": "2026-10-14T04:07:10.341Z",
+  "sha": "a093973bce85a3a94db90c01118c768e2adb3725",
+  "url": "https://api.github.com/repos/czechiuu/plans/git/trees/a093973bce85a3a94db90c01118c768e2adb3725",
+  "tree": [
+    {
+      "path": ".env.example",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dedc5cdaac995159a5f52244b1c596f1e917809f",
+      "size": 132,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/dedc5cdaac995159a5f52244b1c596f1e917809f"
+    },
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1141ebb19bacc693f42c281b64de2270d34a8759",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/1141ebb19bacc693f42c281b64de2270d34a8759"
+    },
+    {
+      "path": ".github/workflows",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a10fabc01bd253609bf9ead8850b63363b875f6f",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/a10fabc01bd253609bf9ead8850b63363b875f6f"
+    },
+    {
+      "path": ".github/workflows/pages.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5fdefdd420c3bba3aa1fe987599bc9f984adbaa8",
+      "size": 1371,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5fdefdd420c3bba3aa1fe987599bc9f984adbaa8"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "112e5f89e85efd0218fad6dd8389fd841ac5893d",
+      "size": 111,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/112e5f89e85efd0218fad6dd8389fd841ac5893d"
+    },
+    {
+      "path": "AGENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4b8a956f1530897cc57ce423f289be76cc4d508d",
+      "size": 1964,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/4b8a956f1530897cc57ce423f289be76cc4d508d"
+    },
+    {
+      "path": "CONTEXT.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a71ec29f581bb32b15455ada595243e6863c8065",
+      "size": 1262,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/a71ec29f581bb32b15455ada595243e6863c8065"
+    },
+    {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82bbc53e4fc144e2cab4fbe0397e5efe3a170436",
+      "size": 5342,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/82bbc53e4fc144e2cab4fbe0397e5efe3a170436"
+    },
+    {
+      "path": "STATUS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "08bdaa94348668e617b1d06b6a6dd31259d52452",
+      "size": 5213,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/08bdaa94348668e617b1d06b6a6dd31259d52452"
+    },
+    {
+      "path": "docs",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8be11258c355e3b02f09baaf267f39dbd265faa7",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/8be11258c355e3b02f09baaf267f39dbd265faa7"
+    },
+    {
+      "path": "docs/AI-CONFIG.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d48608f4387ad1dcec4e279cebe8b6b182765456",
+      "size": 3084,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d48608f4387ad1dcec4e279cebe8b6b182765456"
+    },
+    {
+      "path": "docs/AI-TEST-ASSETS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4c0af3635fe709b0718be6f2e856bbefac3cd93",
+      "size": 1579,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f4c0af3635fe709b0718be6f2e856bbefac3cd93"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6eca82bb12ea598d3e57118dc80986ec90627945",
+      "size": 2101,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/6eca82bb12ea598d3e57118dc80986ec90627945"
+    },
+    {
+      "path": "docs/CLOUD-ACCEPTANCE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ebd250fb40cf15f071f4a27947697bed5dd8bc41",
+      "size": 5867,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ebd250fb40cf15f071f4a27947697bed5dd8bc41"
+    },
+    {
+      "path": "docs/DATA-MODEL.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "08512159c08b47c838282f4f052e55f831b97d86",
+      "size": 4891,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/08512159c08b47c838282f4f052e55f831b97d86"
+    },
+    {
+      "path": "docs/DEEPSEEK.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9ec03e58c5f8425b8507becfbecae23e95334a50",
+      "size": 5658,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/9ec03e58c5f8425b8507becfbecae23e95334a50"
+    },
+    {
+      "path": "docs/DEVICE-ACCEPTANCE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e0b3f2d6e9a74fc0fcfba0a5bfa7cfcec4fa6ea4",
+      "size": 1536,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/e0b3f2d6e9a74fc0fcfba0a5bfa7cfcec4fa6ea4"
+    },
+    {
+      "path": "docs/EXERCISE-SOURCES.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a4922d69951b02318dc2274ea414550043c6818",
+      "size": 5519,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/7a4922d69951b02318dc2274ea414550043c6818"
+    },
+    {
+      "path": "docs/FIXED-ACCOUNTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "92a6c95bdc67bcb39752dcd9f7280f0d09247ad9",
+      "size": 3658,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/92a6c95bdc67bcb39752dcd9f7280f0d09247ad9"
+    },
+    {
+      "path": "docs/HEALTH-API.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8b620467be20bec84299e18779a6af80a96719ad",
+      "size": 13411,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/8b620467be20bec84299e18779a6af80a96719ad"
+    },
+    {
+      "path": "docs/HEALTH-DEPLOY.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "90881d0fef89b9f1af049dea31df539ae855403e",
+      "size": 5510,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/90881d0fef89b9f1af049dea31df539ae855403e"
+    },
+    {
+      "path": "docs/INTERFACE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "76e402d06914e6caacce5822913675dbf621f863",
+      "size": 4453,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/76e402d06914e6caacce5822913675dbf621f863"
+    },
+    {
+      "path": "docs/REQUIREMENTS.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b4e16d69b8a4b9c7240aa561f6cf199e63217871",
+      "size": 5307,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b4e16d69b8a4b9c7240aa561f6cf199e63217871"
+    },
+    {
+      "path": "docs/TEST-CHECKLIST.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9339d000400729ef4fb70ba3ef173ddcd29a4472",
+      "size": 6408,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/9339d000400729ef4fb70ba3ef173ddcd29a4472"
+    },
+    {
+      "path": "index.html",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8013b19067a3b615b147df4708f577b96a6e7be4",
+      "size": 719,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/8013b19067a3b615b147df4708f577b96a6e7be4"
+    },
+    {
+      "path": "package.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55cf4f27f10c8aa7ce0fb2781c26f634357fab45",
+      "size": 1179,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/55cf4f27f10c8aa7ce0fb2781c26f634357fab45"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bbcb4f20bbfa8e805778d803aa82e0871e3dc528",
+      "size": 32706,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/bbcb4f20bbfa8e805778d803aa82e0871e3dc528"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8fd12c1000d0e6e78217324b12de979fe4b4881f",
+      "size": 310,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/8fd12c1000d0e6e78217324b12de979fe4b4881f"
+    },
+    {
+      "path": "scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "531e73491e06c217da9db65fecb86a8213dc1987",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/531e73491e06c217da9db65fecb86a8213dc1987"
+    },
+    {
+      "path": "scripts/build-edge.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c95352d0ff2b4dcf8003f24d9046a733389211cc",
+      "size": 633,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c95352d0ff2b4dcf8003f24d9046a733389211cc"
+    },
+    {
+      "path": "scripts/check-public-config.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "73f321a270adab176c8fd598deb498271aca27a4",
+      "size": 726,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/73f321a270adab176c8fd598deb498271aca27a4"
+    },
+    {
+      "path": "scripts/prepare-ai-provider-migration.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5dfa787db8b6cb95279b04c2ae687cbf2e94471d",
+      "size": 3781,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5dfa787db8b6cb95279b04c2ae687cbf2e94471d"
+    },
+    {
+      "path": "scripts/prepare-health-migration.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d20c11f58f5971409bb09e8dfe91d547781ff72",
+      "size": 4116,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/7d20c11f58f5971409bb09e8dfe91d547781ff72"
+    },
+    {
+      "path": "scripts/reset-fixed-password.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c6215dcd0e2994aae843a8756d42c69bd0b8f660",
+      "size": 3066,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c6215dcd0e2994aae843a8756d42c69bd0b8f660"
+    },
+    {
+      "path": "scripts/run-fixed-cloud-tests.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "717ea730fdeed0bfcc8bf12389a440d40cc3bb71",
+      "size": 6849,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/717ea730fdeed0bfcc8bf12389a440d40cc3bb71"
+    },
+    {
+      "path": "scripts/secure-input.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "93de0815bf281fbf91d2cf52cb30624177611f91",
+      "size": 2625,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/93de0815bf281fbf91d2cf52cb30624177611f91"
+    },
+    {
+      "path": "scripts/test-helpers",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "06e3f115815843ff807605e28e98dcc0e86400a3",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/06e3f115815843ff807605e28e98dcc0e86400a3"
+    },
+    {
+      "path": "scripts/test-helpers/auth-preflight.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb7b4b9e668c50455c9b56480c91603bcfcfafaf",
+      "size": 1902,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/cb7b4b9e668c50455c9b56480c91603bcfcfafaf"
+    },
+    {
+      "path": "scripts/test-helpers/browser-login.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4f052007359c204d9d8dd21f97cf7f97034ee4ee",
+      "size": 428,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/4f052007359c204d9d8dd21f97cf7f97034ee4ee"
+    },
+    {
+      "path": "scripts/test-helpers/browser.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4308f95bb5d91e658d8293161813cf91374876ee",
+      "size": 671,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/4308f95bb5d91e658d8293161813cf91374876ee"
+    },
+    {
+      "path": "scripts/test-helpers/cloud.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6c885ff202b71a5261ef9d575f292a03c2ac54e2",
+      "size": 1963,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/6c885ff202b71a5261ef9d575f292a03c2ac54e2"
+    },
+    {
+      "path": "scripts/test-helpers/report.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c15299f6c5183a78b47dfd6e02696a9d5ec7f5c8",
+      "size": 1593,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c15299f6c5183a78b47dfd6e02696a9d5ec7f5c8"
+    },
+    {
+      "path": "scripts/verify-ai-provider-concurrency.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b1e98799b7ceb02606a62e4411157bd70bdea8d6",
+      "size": 12068,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b1e98799b7ceb02606a62e4411157bd70bdea8d6"
+    },
+    {
+      "path": "scripts/verify-auth-public.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "90ad1a6d8e0ec8165ad0f1b467659c344e4ed84c",
+      "size": 1606,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/90ad1a6d8e0ec8165ad0f1b467659c344e4ed84c"
+    },
+    {
+      "path": "scripts/verify-cloud-browser.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "635fc5fb16efc46b2f6ca924ad95c337f2c58698",
+      "size": 12875,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/635fc5fb16efc46b2f6ca924ad95c337f2c58698"
+    },
+    {
+      "path": "scripts/verify-cloud-health.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "63de77ef9f6d92e567d5b74b87c5990a01fff1fa",
+      "size": 9022,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/63de77ef9f6d92e567d5b74b87c5990a01fff1fa"
+    },
+    {
+      "path": "scripts/verify-cloud.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8ec3bec593ffa326d7d25045af6fcad8b2e46c70",
+      "size": 11007,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/8ec3bec593ffa326d7d25045af6fcad8b2e46c70"
+    },
+    {
+      "path": "scripts/verify-concurrency.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f0b296e39f0388d8ce0ed2607c699025a266afbe",
+      "size": 12952,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f0b296e39f0388d8ce0ed2607c699025a266afbe"
+    },
+    {
+      "path": "scripts/verify-deployed-public.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d15c7d426ebb446970dd82e53b2d1c0955b70ad7",
+      "size": 6156,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d15c7d426ebb446970dd82e53b2d1c0955b70ad7"
+    },
+    {
+      "path": "scripts/verify-edge-public.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "05a54b6407d5163b4166cb25b329e5a5c4633cd0",
+      "size": 5886,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/05a54b6407d5163b4166cb25b329e5a5c4633cd0"
+    },
+    {
+      "path": "scripts/verify-fixed-deployment.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d6d131a4cc4a35e299f5de4e2af9604b49947201",
+      "size": 7257,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d6d131a4cc4a35e299f5de4e2af9604b49947201"
+    },
+    {
+      "path": "scripts/verify-health-concurrency.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ef2bacfb4687643100989702d8ff21acf2539cba",
+      "size": 28279,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ef2bacfb4687643100989702d8ff21acf2539cba"
+    },
+    {
+      "path": "scripts/verify-health-migration-wrapper.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a03870e70b4f04e58e695c9837fb425636461fef",
+      "size": 13111,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/a03870e70b4f04e58e695c9837fb425636461fef"
+    },
+    {
+      "path": "scripts/verify-login-race.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "719ae78b3c9da9f35e5b319a79ce8c00f9b86a9a",
+      "size": 1936,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/719ae78b3c9da9f35e5b319a79ce8c00f9b86a9a"
+    },
+    {
+      "path": "scripts/verify-ui-mock.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3e8102400ad73ef52474815a757936a386abf44c",
+      "size": 23182,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/3e8102400ad73ef52474815a757936a386abf44c"
+    },
+    {
+      "path": "scripts/verify-unconfigured.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e1c7ce2a3b47aa24d1df281e18579963e9d3dfad",
+      "size": 1664,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/e1c7ce2a3b47aa24d1df281e18579963e9d3dfad"
+    },
+    {
+      "path": "scripts/with-local-postgres.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "15da6ce46bbe961c2a7db54af0177e7370525b35",
+      "size": 3704,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/15da6ce46bbe961c2a7db54af0177e7370525b35"
+    },
+    {
+      "path": "shared",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8b8534c011f6d1c43cde3e3cb3f9ce0d1a403b8e",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/8b8534c011f6d1c43cde3e3cb3f9ce0d1a403b8e"
+    },
+    {
+      "path": "shared/ai-schema.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bae8f65f541fb7f3bc8d77c0c9b9c113402b8a72",
+      "size": 3604,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/bae8f65f541fb7f3bc8d77c0c9b9c113402b8a72"
+    },
+    {
+      "path": "shared/exercises.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f77cf52ebb3351652f7494cd9e0cb1435cde97b8",
+      "size": 10040,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f77cf52ebb3351652f7494cd9e0cb1435cde97b8"
+    },
+    {
+      "path": "shared/health.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "601edc03c3b495b8d20f7339d3ac9c2f358cab17",
+      "size": 9888,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/601edc03c3b495b8d20f7339d3ac9c2f358cab17"
+    },
+    {
+      "path": "shared/png.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "05e74e832d7b251e2545733b77f44238c703f918",
+      "size": 2732,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/05e74e832d7b251e2545733b77f44238c703f918"
+    },
+    {
+      "path": "shared/validate-schema.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0705dd89cbb2a732e14b50b22959b62e7ffec28d",
+      "size": 1287,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/0705dd89cbb2a732e14b50b22959b62e7ffec28d"
+    },
+    {
+      "path": "src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5fdd818c1e70e2132eb9890963f84cac8600149a",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/5fdd818c1e70e2132eb9890963f84cac8600149a"
+    },
+    {
+      "path": "src/api.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5a67a5e78f03067bcc64c199ef195b5540f8ec64",
+      "size": 12922,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5a67a5e78f03067bcc64c199ef195b5540f8ec64"
+    },
+    {
+      "path": "src/auth-password.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a70989ab9e48b32cdbcc516571921366e000dd6c",
+      "size": 829,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/a70989ab9e48b32cdbcc516571921366e000dd6c"
+    },
+    {
+      "path": "src/auth-redirect.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ce867f169ee9333a0b4480b8f7f90473148d0a04",
+      "size": 253,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ce867f169ee9333a0b4480b8f7f90473148d0a04"
+    },
+    {
+      "path": "src/domain.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "94c405e88a590f896e69149de0f8fdbf8481d171",
+      "size": 3823,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/94c405e88a590f896e69149de0f8fdbf8481d171"
+    },
+    {
+      "path": "src/fixed-account.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "78fe8837976a6e024f9befbec8b1df6ffc47f2f1",
+      "size": 1624,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/78fe8837976a6e024f9befbec8b1df6ffc47f2f1"
+    },
+    {
+      "path": "src/main.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3720771c9cb22545526a994d45137547f5c3b5c1",
+      "size": 114147,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/3720771c9cb22545526a994d45137547f5c3b5c1"
+    },
+    {
+      "path": "src/style.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "36f1b2a3a6676657a941f85beb6f58d005c101ee",
+      "size": 12931,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/36f1b2a3a6676657a941f85beb6f58d005c101ee"
+    },
+    {
+      "path": "supabase",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a210dd22a9c99b614eb663c4f271f2e692e8017b",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/a210dd22a9c99b614eb663c4f271f2e692e8017b"
+    },
+    {
+      "path": "supabase/admin",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1cfdecb74a4cd96a522a76ecdcd7b4ad358d2209",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/1cfdecb74a4cd96a522a76ecdcd7b4ad358d2209"
+    },
+    {
+      "path": "supabase/admin/apply-ai-providers-005.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca27366594d89ab5354b33d0bcd7b75d86aa0b1e",
+      "size": 18939,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ca27366594d89ab5354b33d0bcd7b75d86aa0b1e"
+    },
+    {
+      "path": "supabase/admin/apply-health-004.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "87e7834022d02d03f599ece89fa0a501467694c3",
+      "size": 70798,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/87e7834022d02d03f599ece89fa0a501467694c3"
+    },
+    {
+      "path": "supabase/admin/initialize-fixed-accounts.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3b78fc3476378b89b356157a43ff8b41977aeec2",
+      "size": 3249,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/3b78fc3476378b89b356157a43ff8b41977aeec2"
+    },
+    {
+      "path": "supabase/admin/normalize-health-004-history.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d45f82fd45369e5eede0ca5c45e8eed6ba619882",
+      "size": 1427,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d45f82fd45369e5eede0ca5c45e8eed6ba619882"
+    },
+    {
+      "path": "supabase/admin/schedule-health-cron.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "96252049b33389b7e1dd7f20e779139f2bd5a7db",
+      "size": 1400,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/96252049b33389b7e1dd7f20e779139f2bd5a7db"
+    },
+    {
+      "path": "supabase/admin/set-ai-provider-budgets.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "13b90267a8f90a9d5ff30eb40406d685417deb35",
+      "size": 3769,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/13b90267a8f90a9d5ff30eb40406d685417deb35"
+    },
+    {
+      "path": "supabase/admin/set-health-ai-budget.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f40a8c95dc17df6844865474792c80acb5656ee5",
+      "size": 1882,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f40a8c95dc17df6844865474792c80acb5656ee5"
+    },
+    {
+      "path": "supabase/bundles",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2afac31c810acbff5aa22ff06b6f48eca2d58bf8",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/2afac31c810acbff5aa22ff06b6f48eca2d58bf8"
+    },
+    {
+      "path": "supabase/bundles/health-ai.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f8ba591785390a000d9c00d553293c84c93aec89",
+      "size": 265373,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f8ba591785390a000d9c00d553293c84c93aec89"
+    },
+    {
+      "path": "supabase/bundles/health-cron.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0237655260d7eb75870cf04a865d2a6b82b3548",
+      "size": 322211,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b0237655260d7eb75870cf04a865d2a6b82b3548"
+    },
+    {
+      "path": "supabase/bundles/health-photo.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bb251ac25a81affdeb6f0805d657cdfdece2ca49",
+      "size": 229914,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/bb251ac25a81affdeb6f0805d657cdfdece2ca49"
+    },
+    {
+      "path": "supabase/config.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "00503705639c4e1ef1758096e27f098e1a7aace4",
+      "size": 130,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/00503705639c4e1ef1758096e27f098e1a7aace4"
+    },
+    {
+      "path": "supabase/functions",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "56bbdd40b40a6908c788266d4016fd56de269074",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/56bbdd40b40a6908c788266d4016fd56de269074"
+    },
+    {
+      "path": "supabase/functions/_shared",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a8ab93f5cabf1af9d97878c112e90d9dfc8b9fad",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/a8ab93f5cabf1af9d97878c112e90d9dfc8b9fad"
+    },
+    {
+      "path": "supabase/functions/_shared/ai-core.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fad272a9f24b5786397e717774e2fb38b1ca756f",
+      "size": 20507,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/fad272a9f24b5786397e717774e2fb38b1ca756f"
+    },
+    {
+      "path": "supabase/functions/_shared/runtime.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7a7ad9950c6ee4fc3fc963702ff8813533bf4b3a",
+      "size": 3660,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/7a7ad9950c6ee4fc3fc963702ff8813533bf4b3a"
+    },
+    {
+      "path": "supabase/functions/health-ai",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2dba8d105b9046909121c9a3542212586faeb337",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/2dba8d105b9046909121c9a3542212586faeb337"
+    },
+    {
+      "path": "supabase/functions/health-ai/index.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "379138d0dafdb5f69ed188cfe2a604de521f76f3",
+      "size": 4022,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/379138d0dafdb5f69ed188cfe2a604de521f76f3"
+    },
+    {
+      "path": "supabase/functions/health-cron",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fb428ea50ae71311619213927dc6f1791c8e3a84",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/fb428ea50ae71311619213927dc6f1791c8e3a84"
+    },
+    {
+      "path": "supabase/functions/health-cron/index.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3a18977c66788b8dac85ddcbcf1cf9dc6d219c2b",
+      "size": 3500,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/3a18977c66788b8dac85ddcbcf1cf9dc6d219c2b"
+    },
+    {
+      "path": "supabase/functions/health-photo",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8eeea53fa942b020ccff65169b86bd4eb8c954a7",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/8eeea53fa942b020ccff65169b86bd4eb8c954a7"
+    },
+    {
+      "path": "supabase/functions/health-photo/index.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d29b1d23b9178dcd0f8cbb6f080f7a710d7f308e",
+      "size": 5032,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d29b1d23b9178dcd0f8cbb6f080f7a710d7f308e"
+    },
+    {
+      "path": "supabase/migrations",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "00e70001f118bc8a9ea96b7da14fee9f1d7bbf16",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/00e70001f118bc8a9ea96b7da14fee9f1d7bbf16"
+    },
+    {
+      "path": "supabase/migrations/202610130001_initial.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "56abea21f3a94d8e879f18952f723796e7ec8631",
+      "size": 25785,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/56abea21f3a94d8e879f18952f723796e7ec8631"
+    },
+    {
+      "path": "supabase/migrations/202610130002_space_lock_order.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5478a16b743592f38560f3bfe891a1f39d3c9d71",
+      "size": 4739,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5478a16b743592f38560f3bfe891a1f39d3c9d71"
+    },
+    {
+      "path": "supabase/migrations/202610130003_fixed_accounts.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5ec46723aeefe6e4877e83916537119c26197466",
+      "size": 2476,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5ec46723aeefe6e4877e83916537119c26197466"
+    },
+    {
+      "path": "supabase/migrations/202610130004_health_daily.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "93a8cdef6b315d0e8e3563c4abc4a9413d93bcb5",
+      "size": 67968,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/93a8cdef6b315d0e8e3563c4abc4a9413d93bcb5"
+    },
+    {
+      "path": "supabase/migrations/202610130005_ai_providers.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "92c479872d31c3b3132afbe651f2fcbb542a3529",
+      "size": 16350,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/92c479872d31c3b3132afbe651f2fcbb542a3529"
+    },
+    {
+      "path": "test-results",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "06e811517ec2a9af600b7a3c17cadc0b0f8d0b83",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/06e811517ec2a9af600b7a3c17cadc0b0f8d0b83"
+    },
+    {
+      "path": "test-results/ai-provider-concurrency-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c879310d239fe0ffb81800754186586990104ea3",
+      "size": 950,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c879310d239fe0ffb81800754186586990104ea3"
+    },
+    {
+      "path": "test-results/ai-provider-local-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f9d7dde209ae2b67222b8ad5d964ef3979d6f397",
+      "size": 1009,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f9d7dde209ae2b67222b8ad5d964ef3979d6f397"
+    },
+    {
+      "path": "test-results/browser-login-race-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6165ddc3e15cd17869dc474b1d8e2913dd0ec59b",
+      "size": 392,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/6165ddc3e15cd17869dc474b1d8e2913dd0ec59b"
+    },
+    {
+      "path": "test-results/cloud-anonymous-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4c1d34a659ffd27428f2f8079d527cc3b0ccf5f2",
+      "size": 1849,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/4c1d34a659ffd27428f2f8079d527cc3b0ccf5f2"
+    },
+    {
+      "path": "test-results/cloud-api-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2f2e3e7f2c94ecfbcc3305cdf88a31fdd3cb7b64",
+      "size": 928,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/2f2e3e7f2c94ecfbcc3305cdf88a31fdd3cb7b64"
+    },
+    {
+      "path": "test-results/cloud-auth-config-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2b2a5704ba59ba5e7c211db83ed998d0c284bfba",
+      "size": 1860,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/2b2a5704ba59ba5e7c211db83ed998d0c284bfba"
+    },
+    {
+      "path": "test-results/cloud-auth-public-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e268bb0e73592af5b1ac055fa622e2156fe40521",
+      "size": 315,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/e268bb0e73592af5b1ac055fa622e2156fe40521"
+    },
+    {
+      "path": "test-results/cloud-browser-first-attempt.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fec0c4d9c7f99ac46d8c9f0ebf91f75b3cfc80a7",
+      "size": 845,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/fec0c4d9c7f99ac46d8c9f0ebf91f75b3cfc80a7"
+    },
+    {
+      "path": "test-results/cloud-browser-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "130b10500a51b86aba11db9a908a1334b53e7ce1",
+      "size": 836,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/130b10500a51b86aba11db9a908a1334b53e7ce1"
+    },
+    {
+      "path": "test-results/cloud-browser-second-attempt.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e34be32bf9ff685b3e59806e317082c95a3e6dc",
+      "size": 843,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/0e34be32bf9ff685b3e59806e317082c95a3e6dc"
+    },
+    {
+      "path": "test-results/cloud-browser-third-attempt.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "130b10500a51b86aba11db9a908a1334b53e7ce1",
+      "size": 836,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/130b10500a51b86aba11db9a908a1334b53e7ce1"
+    },
+    {
+      "path": "test-results/cloud-cleanup-readback-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5eaf05a6ca72ba7877caa0ca3b3840750a834c5b",
+      "size": 1469,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5eaf05a6ca72ba7877caa0ca3b3840750a834c5b"
+    },
+    {
+      "path": "test-results/cloud-fixed-auth-config-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ecc02d91bf03c9763e3c60bce3fc3aabbeaa6f7a",
+      "size": 883,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ecc02d91bf03c9763e3c60bce3fc3aabbeaa6f7a"
+    },
+    {
+      "path": "test-results/cloud-fixed-setup-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c61d557d97d44adde216520eaeaa7fcfe8de1435",
+      "size": 1874,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c61d557d97d44adde216520eaeaa7fcfe8de1435"
+    },
+    {
+      "path": "test-results/cloud-health-deployment.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f7a7b54ab39cbd1e345057a26bd1cb2ef3847faa",
+      "size": 5413,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f7a7b54ab39cbd1e345057a26bd1cb2ef3847faa"
+    },
+    {
+      "path": "test-results/cloud-health-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7bca13ee63bef8d635408e5a4ecb748e39e977f8",
+      "size": 1550,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/7bca13ee63bef8d635408e5a4ecb748e39e977f8"
+    },
+    {
+      "path": "test-results/cloud-manual-gates.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "406055a412bcaee44e9ac174458c16a51da838ff",
+      "size": 990,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/406055a412bcaee44e9ac174458c16a51da838ff"
+    },
+    {
+      "path": "test-results/cloud-rollout-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "302389944a7550bae77ad49b7c9d2bf7003848a8",
+      "size": 4666,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/302389944a7550bae77ad49b7c9d2bf7003848a8"
+    },
+    {
+      "path": "test-results/cloud-setup-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d8afd3b5b3b55850b87440fa925b7334e24e5442",
+      "size": 2023,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d8afd3b5b3b55850b87440fa925b7334e24e5442"
+    },
+    {
+      "path": "test-results/concurrency-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "93251dc79a7c971e4bc09edc4363bc0bb5b5c55a",
+      "size": 1836,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/93251dc79a7c971e4bc09edc4363bc0bb5b5c55a"
+    },
+    {
+      "path": "test-results/cron-uuid-local-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c2690d0c4903968b012b15786536de27105a0f5c",
+      "size": 1653,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c2690d0c4903968b012b15786536de27105a0f5c"
+    },
+    {
+      "path": "test-results/deepseek-probe-cloud-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6533b52569034b22222a1351f967fc05dd160645",
+      "size": 2525,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/6533b52569034b22222a1351f967fc05dd160645"
+    },
+    {
+      "path": "test-results/deepseek-probe-local-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "473d7a379fd073858d7e658ebef6460369b6052d",
+      "size": 1160,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/473d7a379fd073858d7e658ebef6460369b6052d"
+    },
+    {
+      "path": "test-results/deployed-desktop-login.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "02d5f8637c76489e9d361d1955c942703647b48e",
+      "size": 51213,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/02d5f8637c76489e9d361d1955c942703647b48e"
+    },
+    {
+      "path": "test-results/deployed-mobile-login-verified.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee837bef68c1f8a31c075eca6e1e107812027cbf",
+      "size": 40499,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ee837bef68c1f8a31c075eca6e1e107812027cbf"
+    },
+    {
+      "path": "test-results/deployed-mobile-login.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee837bef68c1f8a31c075eca6e1e107812027cbf",
+      "size": 40499,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/ee837bef68c1f8a31c075eca6e1e107812027cbf"
+    },
+    {
+      "path": "test-results/deployed-public-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8be4dff0a7d6e1370fe935fcda4ef5e38018a7d9",
+      "size": 1520,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/8be4dff0a7d6e1370fe935fcda4ef5e38018a7d9"
+    },
+    {
+      "path": "test-results/deployment-regression-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "00ece29ee0edbabe3cf22b3b36cec1829c6bdbbc",
+      "size": 911,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/00ece29ee0edbabe3cf22b3b36cec1829c6bdbbc"
+    },
+    {
+      "path": "test-results/deployment-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8bac6c6b71454fcca1d82ec6d8bcd55572a67158",
+      "size": 1643,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/8bac6c6b71454fcca1d82ec6d8bcd55572a67158"
+    },
+    {
+      "path": "test-results/desktop-food-synthetic.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "88762e3cc007020b61e3a38c732222ff3297f2f4",
+      "size": 312323,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/88762e3cc007020b61e3a38c732222ff3297f2f4"
+    },
+    {
+      "path": "test-results/desktop-training-synthetic.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c386a9b4f79ff26cbbd4b4669f4c6d8820bf049b",
+      "size": 207267,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c386a9b4f79ff26cbbd4b4669f4c6d8820bf049b"
+    },
+    {
+      "path": "test-results/desktop-unconfigured.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "285b8185c3e57fec774896bf1b67db5e2642e1ab",
+      "size": 81176,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/285b8185c3e57fec774896bf1b67db5e2642e1ab"
+    },
+    {
+      "path": "test-results/edge-public-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3eefd7fa8cb25e3dd1aa85ea803db3560ae2058d",
+      "size": 2684,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/3eefd7fa8cb25e3dd1aa85ea803db3560ae2058d"
+    },
+    {
+      "path": "test-results/exercise-media-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af7f5ed86438d4a014d3956556bd5f876916229e",
+      "size": 3785,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/af7f5ed86438d4a014d3956556bd5f876916229e"
+    },
+    {
+      "path": "test-results/fixed-deployment-desktop-login.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f283e868f85a13e0486293da0285c3a47bc51881",
+      "size": 49441,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/f283e868f85a13e0486293da0285c3a47bc51881"
+    },
+    {
+      "path": "test-results/fixed-deployment-mobile-login.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "576c5c36a4e0a602a7334642da1fb24a709b3a95",
+      "size": 40507,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/576c5c36a4e0a602a7334642da1fb24a709b3a95"
+    },
+    {
+      "path": "test-results/fixed-deployment-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b8372a887388ab3f97e2e82eb0e8b2a7f0632965",
+      "size": 1326,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b8372a887388ab3f97e2e82eb0e8b2a7f0632965"
+    },
+    {
+      "path": "test-results/health-concurrency-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aaeca9820db712710dcd28c6ea5dae75ab73e9d1",
+      "size": 2257,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/aaeca9820db712710dcd28c6ea5dae75ab73e9d1"
+    },
+    {
+      "path": "test-results/health-migration-wrapper-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0582a6e95e53c4cba5ccbf62b57dabd3ad3d6240",
+      "size": 2334,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/0582a6e95e53c4cba5ccbf62b57dabd3ad3d6240"
+    },
+    {
+      "path": "test-results/mobile-dashboard-synthetic.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b11be530dc87b7a5166c388ee48f04dab5e5514a",
+      "size": 113660,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b11be530dc87b7a5166c388ee48f04dab5e5514a"
+    },
+    {
+      "path": "test-results/mobile-food-synthetic.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b605eb854ebec8e66a3f7d5df855e77f2903d649",
+      "size": 297817,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b605eb854ebec8e66a3f7d5df855e77f2903d649"
+    },
+    {
+      "path": "test-results/mobile-training-synthetic.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2870811c8ad1ebaad5d64101efac9a564a8c6eef",
+      "size": 178992,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/2870811c8ad1ebaad5d64101efac9a564a8c6eef"
+    },
+    {
+      "path": "test-results/mobile-weight-synthetic.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5237f515d42badc7d0669ce3e2152dbdb2105a1e",
+      "size": 136055,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5237f515d42badc7d0669ce3e2152dbdb2105a1e"
+    },
+    {
+      "path": "test-results/public-desktop-login.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b57130c762b5abb128f063f5cd7c6ba1f70b6552",
+      "size": 48185,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b57130c762b5abb128f063f5cd7c6ba1f70b6552"
+    },
+    {
+      "path": "test-results/public-mobile-login.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "66930d76e6a11a94dcc6f72a83619f42bda438c8",
+      "size": 39553,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/66930d76e6a11a94dcc6f72a83619f42bda438c8"
+    },
+    {
+      "path": "test-results/secure-input-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "995c2932e13bd2973da115f6f09aa5c9233aa3f4",
+      "size": 2315,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/995c2932e13bd2973da115f6f09aa5c9233aa3f4"
+    },
+    {
+      "path": "test-results/ui-mock-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "909380c90be187a746d101f7b733e3cc28036d4b",
+      "size": 1405,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/909380c90be187a746d101f7b733e3cc28036d4b"
+    },
+    {
+      "path": "test-results/unconfigured-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3825e62ac9e609331992820c415b30f0e0018f13",
+      "size": 309,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/3825e62ac9e609331992820c415b30f0e0018f13"
+    },
+    {
+      "path": "test-results/unit-results.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4f8f1ec29f4d070304ab53ef5264bc42ee46c0d8",
+      "size": 2836,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/4f8f1ec29f4d070304ab53ef5264bc42ee46c0d8"
+    },
+    {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1b15b5261de230470a39e9d8cce95d7e7602deae",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/1b15b5261de230470a39e9d8cce95d7e7602deae"
+    },
+    {
+      "path": "tests/ai-providers.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1ea722c4b88fbefbea82dd236f8c9affbe2556d6",
+      "size": 9675,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/1ea722c4b88fbefbea82dd236f8c9affbe2556d6"
+    },
+    {
+      "path": "tests/auth-password.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eb3935105e6edf2b8c5734292fa375f715806ebe",
+      "size": 1016,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/eb3935105e6edf2b8c5734292fa375f715806ebe"
+    },
+    {
+      "path": "tests/auth-preflight.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b82e2ee06b45cf2b6906310932b363725097e899",
+      "size": 2772,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b82e2ee06b45cf2b6906310932b363725097e899"
+    },
+    {
+      "path": "tests/auth-redirect.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d4b3652f971d5407591b7b3fc7c954e40085bc64",
+      "size": 975,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d4b3652f971d5407591b7b3fc7c954e40085bc64"
+    },
+    {
+      "path": "tests/browser-fixture.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fae731e15307f93a5b098cc5c1b26f900acfb57a",
+      "size": 12238,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/fae731e15307f93a5b098cc5c1b26f900acfb57a"
+    },
+    {
+      "path": "tests/build-config.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e0ed590c952eeb3cc3b337c1b1fe1e0399ceb4b",
+      "size": 1772,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/0e0ed590c952eeb3cc3b337c1b1fe1e0399ceb4b"
+    },
+    {
+      "path": "tests/database.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1cb40f3c33d30335c9c0b8c228582769cfdfe86b",
+      "size": 10754,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/1cb40f3c33d30335c9c0b8c228582769cfdfe86b"
+    },
+    {
+      "path": "tests/deepseek-probe.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "093ac4d7656acd34d5a43568d4694140d11bfa5b",
+      "size": 7848,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/093ac4d7656acd34d5a43568d4694140d11bfa5b"
+    },
+    {
+      "path": "tests/domain.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "811ed23938884c1e7dc6222513c9ff03fa18c104",
+      "size": 2747,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/811ed23938884c1e7dc6222513c9ff03fa18c104"
+    },
+    {
+      "path": "tests/exercises.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4b4cd68e82fa061332460472f1e9f60f96ba7271",
+      "size": 2754,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/4b4cd68e82fa061332460472f1e9f60f96ba7271"
+    },
+    {
+      "path": "tests/fixed-account.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "187b65abb4882ba732f03059f1359b273fdc6629",
+      "size": 2201,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/187b65abb4882ba732f03059f1359b273fdc6629"
+    },
+    {
+      "path": "tests/fixed-accounts.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "956cd499307cf5bebf53d2010cbf6814d33a2c0c",
+      "size": 14645,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/956cd499307cf5bebf53d2010cbf6814d33a2c0c"
+    },
+    {
+      "path": "tests/fixtures",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7204b079a1838b1aa18f8c154d29028dbeb7e952",
+      "url": "https://api.github.com/repos/czechiuu/plans/git/trees/7204b079a1838b1aa18f8c154d29028dbeb7e952"
+    },
+    {
+      "path": "tests/fixtures/food-example-compact.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "39487363dcdc461fcbc492d929f675fa31a2e3f2",
+      "size": 40464,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/39487363dcdc461fcbc492d929f675fa31a2e3f2"
+    },
+    {
+      "path": "tests/fixtures/food-example.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d367c0f57bf30ec6a555fa2c993f35c643e6bdc6",
+      "size": 532424,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/d367c0f57bf30ec6a555fa2c993f35c643e6bdc6"
+    },
+    {
+      "path": "tests/health-ai-boundary.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9fd5202a7441539a8300e3b9b415d1b118c858a0",
+      "size": 5210,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/9fd5202a7441539a8300e3b9b415d1b118c858a0"
+    },
+    {
+      "path": "tests/health-ai-uuid.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e31bf5b73bd4d4a1dc51edfb3507426c401cfbdb",
+      "size": 2158,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/e31bf5b73bd4d4a1dc51edfb3507426c401cfbdb"
+    },
+    {
+      "path": "tests/health-backend.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "508e0f5784ac72a5ce018a7ce470369352d5b991",
+      "size": 14899,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/508e0f5784ac72a5ce018a7ce470369352d5b991"
+    },
+    {
+      "path": "tests/health-cors.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b39c824e48c45ad1c6e6a6a7dbab368856b7ae0b",
+      "size": 1453,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/b39c824e48c45ad1c6e6a6a7dbab368856b7ae0b"
+    },
+    {
+      "path": "tests/health-cron-diagnostics.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "641f5a605a88afc74b31f7262c0e9280bc6989ce",
+      "size": 2729,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/641f5a605a88afc74b31f7262c0e9280bc6989ce"
+    },
+    {
+      "path": "tests/health-rules.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1c9e9f7129458627e740fd312316d229743d04a",
+      "size": 2509,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/c1c9e9f7129458627e740fd312316d229743d04a"
+    },
+    {
+      "path": "tests/health-security.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9f0217fde46a558b3e706f9ff7c11db44bb3e97a",
+      "size": 1128,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/9f0217fde46a558b3e706f9ff7c11db44bb3e97a"
+    },
+    {
+      "path": "tests/persistence.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5404f537c318ff4bd2ddfb60561c3ae8d1288ba6",
+      "size": 2931,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/5404f537c318ff4bd2ddfb60561c3ae8d1288ba6"
+    },
+    {
+      "path": "tests/reset-fixed-password.test.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aabc25df68185fe2766775f2ca35dacf2428d6c3",
+      "size": 2022,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/aabc25df68185fe2766775f2ca35dacf2428d6c3"
+    },
+    {
+      "path": "vite.config.js",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "004e6a8e65400e797125b36cec2c71fb31f6512e",
+      "size": 271,
+      "url": "https://api.github.com/repos/czechiuu/plans/git/blobs/004e6a8e65400e797125b36cec2c71fb31f6512e"
+    }
+  ],
+  "truncated": false
+}

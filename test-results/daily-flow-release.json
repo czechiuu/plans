@@ -1,0 +1,24 @@
+{
+  "checked_on": "2026-10-14",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "verification": "Supabase SQL Editor read-back and downloaded deployed function ZIP SHA256 comparison",
+  "migration_md5": {
+    "202610140006": "387cc96e9854379726dec49837109f69",
+    "202610140007": "a5d069d7931d57a8c9c103d68de54b85",
+    "202610140008": "51fba87f159fb01a44d55920fc7d0891"
+  },
+  "capabilities": {"daily_flow": 7, "activities": 8, "storage_upload_guard_count": 1},
+  "function_sha256": {
+    "health-ai": "155e3ecc6e6f7702ab3e9026ee5c5e1439e44ce3c8a654f8a2160b8a6e1d4bff",
+    "health-photo": "5c3bbd09fd54ad322d326963d14fb47d424b64b503dbaab2c439326c7adce984",
+    "health-cron": "21160f6175b1c7eb0ca9a6593c0404ec537479f20153e230d32012d07088f469"
+  },
+  "all_function_downloads_match_local_bundles": true,
+  "deepseek_health_enabled": true,
+  "provider_limits_cents": {"openai": 200, "deepseek": 10},
+  "personal_consents_at_enable": 0,
+  "fixed_accounts": 2,
+  "pages_release": "pending",
+  "real_business_acceptance": "not_run_pending_secure_sign_in",
+  "notes": ["No credentials or health contents recorded", "User authorized only synthetic calls up to 5 additional cents", "No budget increase or personal consent created", "Historical failures retained"]
+}

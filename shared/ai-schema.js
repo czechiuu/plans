@@ -4,13 +4,17 @@ const string = (maxLength = 500) => ({ type:'string', maxLength })
 const nullable = (schema) => ({ anyOf:[schema,{type:'null'}] })
 const object = (properties) => ({ type:'object', properties, required:Object.keys(properties), additionalProperties:false })
 const array = (items,maxItems) => ({ type:'array', items,maxItems })
+export const planMealSchema=object({time:nullable(string(5)),title:string(200),foods:array(object({name:string(200),portion:string(100),unit:string(60)}),15),
+  prep_method:string(500),purchase_or_prep:string(500),alternative:string(500),notes:string(500),snack_reason:nullable(string(300))})
+export const mealAdjustmentSchema=object({reason:string(1000),meal_changes:array(object({
+  meal_index:{type:'integer',minimum:0,maximum:7},meal:planMealSchema,reason:string(500)}),8),warnings:array(string(300),20)})
 
 export const scheduleDraftSchema = object({
   user_slot:nullable({ type:'string',enum:['me','w'] }),
-  record_date:nullable(string(10)),
-  exercise:object({ intent:{type:'string',enum:['unknown','yes','no']}, type:nullable(string(120)),
+  record_date:nullable({...string(10),pattern:'^\\d{4}-\\d{2}-\\d{2}$'}),
+  exercise:object({ intent:{type:'string',enum:['unknown','yes','no']}, type:nullable({type:'string',enum:['力量训练','羽毛球','其他']}),
     duration_minutes:nullable({type:'integer',minimum:0,maximum:300}), location:nullable(string(120)),
-    equipment:nullable(string(120)), explicit_start_time:nullable(string(5)), explicit_end_time:nullable(string(5)) }),
+    equipment:nullable(string(120)), explicit_start_time:nullable({...string(5),pattern:'^([01]\\d|2[0-3]):[0-5]\\d$'}), explicit_end_time:nullable({...string(5),pattern:'^([01]\\d|2[0-3]):[0-5]\\d$'}) }),
   meal:object({ conditions:nullable(string(1000)), arrangements:nullable(string(1000)) }),
   constraints:array(string(300),20), fatigue:nullable({type:'string',enum:['unknown','low','normal','high']}), pain:nullable(string(300)),
   sleep:nullable({type:'string',enum:['unknown','poor','adequate','good']}), ambiguous_fields:array(string(100),20),

@@ -1,0 +1,17 @@
+{
+  "checked_on": "2026-10-14",
+  "source": "Authenticated Supabase Dashboard SQL Editor; read-only aggregate query",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "remote_head": "e6126bca768c96cc2394687daa0f790a19d049e4",
+  "migration_md5": {
+    "202610130001": "1d56c15aa7609c057d53a05b124b172d",
+    "202610130002": "c1e2788c3d67dccb544ab8166a6c096b",
+    "202610130003": "d13a863ec3337d16a4a968835d5ee12d",
+    "202610130004": "9a430516e9a44d8d27c651cf24e73e2b",
+    "202610130005": "2c57e2948216f3e08e2170754e1fd883"
+  },
+  "generation_jobs": {"count": 2, "status": "exhausted", "attempts_each": 3, "error_code": "MEAL_TEMPLATE_UNCONFIRMED", "target_date": "2026-10-14"},
+  "cron": {"jobname": "health-daily-dispatch", "schedule": "*/5 * * * *", "active": true},
+  "counts": {"fixed_accounts": 2, "profiles": 0, "weights": 0, "schedules": 0, "plans": 0, "meals": 0, "photos": 0, "training": 0},
+  "notes": ["No health contents, credentials or account identifiers read or recorded", "A later budget query used an incorrect table name and was rejected; corrected read-only query follows", "This is a point-in-time observation, not authorization to delete records"]
+}

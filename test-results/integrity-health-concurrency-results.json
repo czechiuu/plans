@@ -1,0 +1,91 @@
+{
+  "started_at": "2026-10-14T04:35:04.080Z",
+  "generated_at": "2026-10-14T04:35:13.503Z",
+  "scope": "Isolated local PostgreSQL; synthetic fixed accounts only; no production connection",
+  "cases": {
+    "CLIENT_RLS_SERVICE_BOUNDARY": {
+      "status": "passed",
+      "evidence": "client role non-elevated; service-only RPC and direct write rejected"
+    },
+    "DUPLICATE_QUEUE_AND_CLAIM": {
+      "status": "passed",
+      "evidence": "same-date queue idempotent; SKIP LOCKED single claim; one plan persisted"
+    },
+    "LEASE_FENCING": {
+      "status": "passed",
+      "evidence": "expired token rejected after reclaim; duplicate finish rejected"
+    },
+    "FINITE_RETRY": {
+      "status": "passed",
+      "evidence": "three attempts exhausted; fourth claim unavailable"
+    },
+    "INPUT_UPDATE_VS_PUBLISH": {
+      "status": "passed",
+      "evidence": "stale publish rejected"
+    },
+    "PHOTO_ATTACH_DELETE_LOCK_ORDER": {
+      "status": "passed",
+      "evidence": "deletion marker committed while attachment waited; attachment rejected; unlink left no dangling reference"
+    },
+    "MANUAL_SAVE_DURING_RUNNING": {
+      "status": "passed",
+      "evidence": "manual save after claim persists once; older automatic finish converges without overwrite"
+    },
+    "MANUAL_SCHEDULED_PUBLISH_RACE": {
+      "status": "passed",
+      "evidence": "manual and scheduled jobs claimed separately; second finish waited and reused first plan id"
+    },
+    "SHARE_REVOKE_AND_LEAVE": {
+      "status": "passed",
+      "evidence": "default private; grant permits edit; actual blocked edit/revoke race serialized; leave removes record"
+    },
+    "MONTHLY_BUDGET_RACE": {
+      "status": "passed",
+      "evidence": "second connection blocked on budget row; over-limit rejected; released capacity reusable"
+    },
+    "FINISH_VS_LEAVE": {
+      "status": "passed",
+      "evidence": "both lock orders observed: finish then leave, leave then finish; no deadlock or post-leave plan"
+    },
+    "GENERATION_REPLAY_PROVIDER_BINDING": {
+      "status": "passed",
+      "evidence": "same input replay is succeeded and unclaimable; provider remains bound through preference changes and retry"
+    },
+    "PHOTO_STORAGE_DELETE_RECOVERY": {
+      "status": "passed",
+      "evidence": "failed remove retains owner cleanup row; partner/download denied; retry cleans; late Storage insert rejected"
+    },
+    "UPLOAD_CLEAR_LEAVE_LOCK_ORDER": {
+      "status": "passed",
+      "evidence": "clear and leave wait behind reserved upload then refuse erasure; interrupted upload cleanup succeeds"
+    },
+    "SCHEDULED_PROVIDER_LOCK_ORDER": {
+      "status": "passed",
+      "evidence": "scheduled provider captured for each owner; enqueue and leave share space-first order"
+    }
+  },
+  "passed": 15,
+  "failed": 0,
+  "not_run": 0,
+  "postgresql_version": "17.10",
+  "applied_migrations": [
+    "202610130001_initial.sql",
+    "202610130002_space_lock_order.sql",
+    "202610130003_fixed_accounts.sql",
+    "202610130004_health_daily.sql",
+    "202610130005_ai_providers.sql",
+    "202610140006_integrity.sql",
+    "202610140007_daily_flow.sql"
+  ],
+  "migration_sha256": {
+    "202610130001_initial.sql": "2c35065b6aa8e8cc5fe35a78278430b9b57d16f7876b55150fefeb1904b34e8d",
+    "202610130002_space_lock_order.sql": "7661f20a83975d5ee1cb7d7f1f34d2ab338ac591fe02fabfe5b63bbb4244f7ff",
+    "202610130003_fixed_accounts.sql": "6f27ce2bef9fb6a788418277dc32783ff5e381f75b83ea3b624b4401bf2344cd",
+    "202610130004_health_daily.sql": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
+    "202610130005_ai_providers.sql": "585202ae6fb06fcda937e587078f313b8ff096f3a65ff4d53d1ceafe39749841",
+    "202610140006_integrity.sql": "23e5a1dbb01ec2a93b5ea88d3e931730ec0efb5bbe88f795f8bc4235c08a714f",
+    "202610140007_daily_flow.sql": "4ca0cd66c0cf07efeaf8b69dfd06b7854b605320d49c1062521f81891da2fb46"
+  },
+  "migration_004_sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
+  "script_sha256": "304a7563bbef92610b0206ca67f8726f94519f71625c8d0289b983b466809748"
+}

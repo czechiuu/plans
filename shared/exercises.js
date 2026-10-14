@@ -1,5 +1,5 @@
-// 动作说明是通用教学资料；只有核实准确、可播放且可嵌入的演示才能进入自动计划。
-// 已逐条核对官方播放器画面与动作；只嵌入播放器，不转载媒体。
+// 动作说明是通用教学资料；本站播放原创动作示意，原实拍来源仅作为外部参考链接。
+// 本地示意只演示起点和终点；首次使用器械仍须现场核对。
 const youtubeVideo = (id, provider, source) => ({
   url: `https://www.youtube.com/watch?v=${id}`,
   embed: `https://www.youtube.com/embed/${id}`,
@@ -134,5 +134,10 @@ export const exercises = [
     alternatives: ['machine_ab_crunch'], firstUseReminder: '首次以能稳定控制腰背的幅度为准，不追求手脚贴地。',
   },
 ];
+
+for (const exercise of exercises) {
+  exercise.demo.localAsset = `media/exercises/${exercise.id}.svg`;
+  exercise.demo.localLicense = '本项目原创动作示意，CC0 1.0';
+}
 
 export const exerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));

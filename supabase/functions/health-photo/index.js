@@ -40,34 +40,31 @@ async function handle(request){
     }
     const bytes=new Uint8Array(await file.arrayBuffer())
     const meta=await validateSanitizedPng(bytes)
-    const existing=await admin.from('photo_assets').select('id').eq('user_id',id).eq('sha256',meta.sha256).maybeSingle()
-    if(existing.error) throw new Error('PHOTO_DB_FAILED')
-    if(existing.data){
-      const reused=await admin.rpc('reuse_photo_asset',{p_id:existing.data.id,p_owner:id,p_space:spaceId,p_meal_id:mealId||null})
-      if(reused.error) throw new Error('PHOTO_ALREADY_USED')
-      return json(200,{photo_id:existing.data.id,mime:meta.mime,width:meta.width,height:meta.height,bytes:meta.bytes},origin)
+    const begun=await admin.rpc('begin_photo_upload',{p_owner:id,p_space:spaceId,p_sha256:meta.sha256,
+      p_width:meta.width,p_height:meta.height,p_bytes:meta.bytes,p_meal_id:mealId||null,p_shared:share==='true'})
+    if(begun.error||!begun.data) throw new Error('PHOTO_ALREADY_USED')
+    const asset=begun.data
+    if(asset.uploading){
+      const uploaded=await admin.storage.from(bucket).upload(asset.storage_path,bytes,{contentType:'image/png',upsert:false,cacheControl:'0'})
+      if(uploaded.error){
+        // Keep the reservation: uncertain Storage outcomes remain owner-visible and deletable.
+        await admin.rpc('begin_photo_delete',{p_id:asset.id,p_owner:id,p_space:spaceId})
+        throw new Error('PHOTO_STORAGE_FAILED')
+      }
+      const completed=await admin.rpc('complete_photo_upload',{p_id:asset.id,p_owner:id,p_space:spaceId})
+      if(completed.error) throw new Error('PHOTO_DB_FAILED')
     }
-    const path=`${id}/${meta.sha256}.png`
-    const uploaded=await admin.storage.from(bucket).upload(path,bytes,{contentType:'image/png',upsert:false,cacheControl:'0'})
-    if(uploaded.error) throw new Error('PHOTO_STORAGE_FAILED')
-    const inserted=await admin.from('photo_assets').insert({space_id:spaceId,user_id:id,meal_id:mealId||null,
-      sha256:meta.sha256,storage_path:path,mime:'image/png',width:meta.width,height:meta.height,
-      bytes:meta.bytes,is_shared:share==='true',updated_by:id}).select('id').single()
-    if(inserted.error){
-      await admin.storage.from(bucket).remove([path])
-      throw new Error('PHOTO_DB_FAILED')
-    }
-    return json(200,{photo_id:inserted.data.id,mime:meta.mime,width:meta.width,height:meta.height,bytes:meta.bytes},origin)
+    return json(200,{photo_id:asset.id,mime:meta.mime,width:meta.width,height:meta.height,bytes:meta.bytes},origin)
   }
   const photoId=new URL(request.url).searchParams.get('photo_id')
   if(!uuid.test(photoId??'')) throw new Error('INVALID_REQUEST')
   if(request.method==='GET'&&action==='download'){
     // The user-scoped query rechecks RLS on every request, including after share revocation.
-    const row=await user.from('photo_assets').select('storage_path,mime').eq('id',photoId).maybeSingle()
+    const row=await user.from('photo_assets').select('storage_path,mime').eq('id',photoId).eq('deleting',false).eq('uploading',false).maybeSingle()
     if(row.error||!row.data) throw new Error('PHOTO_NOT_FOUND')
     const object=await admin.storage.from(bucket).download(row.data.storage_path)
     if(object.error||!object.data) throw new Error('PHOTO_STORAGE_FAILED')
-    const stillAllowed=await user.from('photo_assets').select('id').eq('id',photoId).maybeSingle()
+    const stillAllowed=await user.from('photo_assets').select('id').eq('id',photoId).eq('deleting',false).eq('uploading',false).maybeSingle()
     if(stillAllowed.error||!stillAllowed.data) throw new Error('PHOTO_NOT_FOUND')
     return new Response(object.data,{status:200,headers:{'content-type':'image/png','cache-control':'private, no-store, max-age=0',
       'x-content-type-options':'nosniff',...(origin?{'access-control-allow-origin':origin,'vary':'Origin'}:{})}})

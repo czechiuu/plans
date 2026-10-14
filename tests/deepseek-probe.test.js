@@ -10,7 +10,7 @@ test('standard job UUID reaches claim while a missing UUID segment is rejected',
   let claimed=false
   const user={from:table=>({select(){return this},eq(){return this},
     async maybeSingle(){return table==='ai_plan_preferences'?{data:null,error:null}:
-      {data:{id,status:'queued',lease_until:null},error:null}}})}
+      {data:{id,status:'queued',lease_until:null,provider:'rules'},error:null}}})}
   const admin={rpc(name,args){
     assert.equal(name,'claim_generation_job')
     assert.equal(args.p_id,id)
@@ -42,7 +42,7 @@ test('real health DeepSeek calls stay disabled before any reservation or provide
   const oldFetch=globalThis.fetch
   globalThis.fetch=async()=>{events.push('fetch');throw new Error('unexpected')}
   try{
-    await assert.rejects(response({id:'synthetic',admin:{rpc(){events.push('reserve')}}},
+    await assert.rejects(response({id:'synthetic',admin:{from(){return {select(){return this},eq(){return this},async maybeSingle(){return {data:{health_enabled:false}}}}},rpc(){events.push('reserve')}}},
       'deepseek','parse_schedule',{name:'test',schema,userText:'SYNTHETIC'}),/AI_DISABLED/)
     assert.deepEqual(events,[])
   }finally{
@@ -63,7 +63,7 @@ test('synthetic probe uses four fixed tasks, peak-price reservations and no heal
   const reorderedPlan={...validPlan,meals:validPlan.meals.map(meal=>({snack_reason:meal.snack_reason,...meal}))}
   assert.notEqual(JSON.stringify(reorderedPlan.meals),JSON.stringify(validPlan.meals))
   const drafts=[
-    {user_slot:'me',record_date:'2026-10-14',exercise:{intent:'yes',type:'散步',duration_minutes:30,
+    {user_slot:'me',record_date:'2026-10-14',exercise:{intent:'yes',type:'其他',duration_minutes:30,
       location:null,equipment:null,explicit_start_time:'18:30',explicit_end_time:'19:00'},
       meal:{conditions:null,arrangements:null},constraints:[],fatigue:null,pain:null,sleep:null,ambiguous_fields:[]},
     {recognition_status:'uncertain',items:[{name:'苹果',portion:'未知',unit:'份',confidence:'low'},

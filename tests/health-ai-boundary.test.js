@@ -2,12 +2,55 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { response } from '../supabase/functions/_shared/ai-core.js'
 
-function context(enabled,events){
-  const consent={enabled,policy_version:'2026-10-13-openai-health-v1'}
+function context(enabled,events,provider='openai'){
+  const consent={enabled,policy_version:`2026-10-13-${provider}-health-v1`}
   const query={select(){return this},eq(){return this},async maybeSingle(){return {data:consent,error:null}}}
   return {id:'11111111-1111-4111-8111-111111111111',user:{from(){return query}},
-    admin:{async rpc(name){events.push(name);return {data:'22222222-2222-4222-8222-222222222222',error:null}}}}
+    admin:{from(table){return {select(){return this},update(){return this},eq(){return this},
+      async maybeSingle(){return {data:{health_enabled:true},error:null}},then(resolve){resolve({error:null})}}},
+      async rpc(name){events.push(name);return {data:name==='begin_ai_request'?{acquired:true,request:{id:'22222222-2222-4222-8222-222222222222'}}:'22222222-2222-4222-8222-222222222222',error:null}}}}
 }
+
+test('DeepSeek business photo sends real image input once and cached repeats do not reserve twice',async()=>{
+  const previous=process.env.DEEPSEEK_API_KEY,oldFetch=globalThis.fetch
+  process.env.DEEPSEEK_API_KEY='SYNTHETIC_ONLY'
+  const events=[],ctx=context(true,events,'deepseek');let cached=null,requestCount=0
+  const originalFrom=ctx.admin.from
+  ctx.admin.from=table=>table!=='ai_request_results'?originalFrom(table):{
+    update(value){cached=value;return this},eq(){return this},then(resolve){resolve({error:null})}}
+  ctx.admin.rpc=async name=>{
+    events.push(name)
+    if(name==='begin_ai_request') return {data:{acquired:!cached,request:{id:'SYNTHETIC',...cached}}}
+    return {data:'SYNTHETIC'}
+  }
+  globalThis.fetch=async(url,options)=>{
+    requestCount++
+    assert.equal(url,'https://api.deepseek.com/responses')
+    const body=JSON.parse(options.body)
+    assert.equal(body.model,'deepseek-flash')
+    assert.equal(body.input[1].content[1].type,'input_image')
+    assert.equal(body.input[1].content[1].image_url,'data:image/png;base64,AQID')
+    return Response.json({status:'completed',output:[{content:[{type:'output_text',text:'{}'}]}],usage:{input_tokens:1024,output_tokens:2}})
+  }
+  try{
+    for(let i=0;i<2;i++) assert.deepEqual(await response(ctx,'deepseek','estimate_meal_photo',{
+      name:'test',schema:{type:'object',properties:{},required:[],additionalProperties:false},userText:'SYNTHETIC',images:[new Uint8Array([1,2,3])]}),{})
+    assert.equal(requestCount,1)
+    assert.equal(events.filter(x=>x==='reserve_ai_provider_usage').length,1)
+  }finally{globalThis.fetch=oldFetch;if(previous===undefined) delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=previous}
+})
+
+test('revocation after reservation prevents transmission and releases an unsent hold',async()=>{
+  const previous=process.env.DEEPSEEK_API_KEY,oldFetch=globalThis.fetch
+  process.env.DEEPSEEK_API_KEY='SYNTHETIC_ONLY'
+  const events=[],ctx=context(true,events,'deepseek');let consentReads=0
+  ctx.user.from=()=>({select(){return this},eq(){return this},async maybeSingle(){return {data:{enabled:++consentReads===1,policy_version:'2026-10-13-deepseek-health-v1'}}}})
+  globalThis.fetch=async()=>{throw new Error('must not transmit')}
+  try{
+    await assert.rejects(response(ctx,'deepseek','parse_schedule',{name:'test',schema:{},userText:'SYNTHETIC'}),/AI_CONSENT_REQUIRED/)
+    assert.deepEqual(events,['begin_ai_request','reserve_ai_provider_usage','settle_ai_usage'])
+  }finally{globalThis.fetch=oldFetch;if(previous===undefined) delete process.env.DEEPSEEK_API_KEY;else process.env.DEEPSEEK_API_KEY=previous}
+})
 
 test('disabled AI consent makes no provider request or budget reservation',async()=>{
   const events=[];const originalFetch=globalThis.fetch
@@ -17,6 +60,11 @@ test('disabled AI consent makes no provider request or budget reservation',async
       {name:'test',schema:{},userText:'SYNTHETIC'}),/AI_CONSENT_REQUIRED/)
     assert.deepEqual(events,[])
   }finally{globalThis.fetch=originalFetch}
+})
+
+test('images cannot be sent under a text or schedule consent',async()=>{
+  await assert.rejects(response({},'deepseek','parse_schedule',{name:'test',schema:{},userText:'SYNTHETIC',images:[new Uint8Array([1])]}),/INVALID_REQUEST/)
+  await assert.rejects(response({},'deepseek','estimate_meal_photo',{name:'test',schema:{},userText:'SYNTHETIC',images:[]}),/INVALID_REQUEST/)
 })
 
 test('provider failure or timeout is explicit and never settles a fabricated response',async()=>{
@@ -40,7 +88,7 @@ test('provider failure or timeout is explicit and never settles a fabricated res
       }
       await assert.rejects(response(context(true,events),'openai','parse_schedule',
         {name:'test',schema:{},userText:'SYNTHETIC'}),/AI_PROVIDER_FAILED/)
-      assert.deepEqual(events,['reserve_ai_provider_usage','fetch'])
+      assert.deepEqual(events,['begin_ai_request','reserve_ai_provider_usage','fetch'])
     }
   }finally{
     globalThis.fetch=originalFetch
@@ -75,7 +123,7 @@ test('complete three-meal Chinese input is sent intact with an output and cost c
   const ctx=context(true,[])
   ctx.admin.rpc=async(name,args)=>{
     if(name==='reserve_ai_provider_usage') reserved=args.p_cents
-    return {data:'22222222-2222-4222-8222-222222222222',error:null}
+    return {data:name==='begin_ai_request'?{acquired:true,request:{id:'22222222-2222-4222-8222-222222222222'}}:'22222222-2222-4222-8222-222222222222',error:null}
   }
   globalThis.fetch=async(_url,options)=>{
     requestBody=JSON.parse(options.body)

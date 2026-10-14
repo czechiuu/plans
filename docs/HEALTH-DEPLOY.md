@@ -1,14 +1,23 @@
-# 健康功能部署（004）
+# 健康功能部署：006–008 候选
 
-本文件是管理员执行清单。源码和三份 Edge bundle 均不含密钥；004、005、三份冻结版 Edge Function 与本月预算已在原固定双账号项目部署并回读，不能据此推断 AI 调用或 20:00 定时任务已通过。
+本地候选尚未提交、部署。生产已经执行 001–005，三函数下载源码匹配 `e6126bc`，Pages 为 `b55346a`；详见 [STATUS](../STATUS.md)。不要重跑 001–005、重置数据或清除两条旧 exhausted 任务。
 
-1. 备份现有数据。在项目根目录运行 `node scripts/prepare-health-migration.mjs`，将生成的 [004 一次执行包](../supabase/admin/apply-health-004.sql) 全文粘贴到本项目 SQL Editor 执行。执行包先核对 001–003 的历史原文哈希与固定双账号，再在**同一事务**执行 [004 原文](../supabase/migrations/202610130004_health_daily.sql) 并登记 `statements[1]`；已有相同 004 则不重复执行，不同哈希或前置条件不符则报错回滚。004 创建新表、RPC、私有 `health-photos` bucket。执行后回读迁移哈希与表权限；不得关闭 RLS。
-2. 配置 Edge Function Secrets：`HEALTH_ALLOWED_ORIGINS=https://czechiuu.github.io`；如需本地开发，另外列入确切的 `http://localhost:5173`、`http://127.0.0.1:5173`，逗号分隔，不用通配。Supabase 自动提供 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`；函数缺少任一项会明确失败。三函数网关均设 `verify_jwt=false`：`health-ai`、`health-photo` 在函数内用 Supabase Auth `getUser` 核实用户 JWT，再核固定账号及当前空间；匿名和仅持公开 key 的调用不能进入业务。`health-cron` 只接受服务端随机 `HEALTH_CRON_SECRET`（至少 32 字符）并校验 `x-cron-secret`，绝不把这个值放前端。关闭网关校验可兼容本项目 ES256 用户令牌，并让无令牌 OPTIONS 预检到达函数。
-3. 项目根目录运行 `pnpm build:edge`，生成 [health-ai.js](../supabase/bundles/health-ai.js)、[health-photo.js](../supabase/bundles/health-photo.js)、[health-cron.js](../supabase/bundles/health-cron.js)。分别作为同名 Supabase Edge Function 的单文件源码部署。`supabase/config.toml` 已声明三项网关 JWT 开关；通过 Dashboard 部署时也须逐项核对。构建成功只证明可打包，须实际验收 OPTIONS 中 `x-client-info`、本人登录调用、匿名拒绝、私有照片下载/撤销。
-4. 定时任务：启用项目的 `pg_cron`、`pg_net` 和 Vault；由管理员在 Vault 填 `health_project_url`、`health_publishable_key`、`health_cron_secret`，最后一个与 Edge 的 `HEALTH_CRON_SECRET` 相同。确认值只在 Dashboard 安全输入，不进 SQL 文件/日志。审核后运行 [定时脚本](../supabase/admin/schedule-health-cron.sql)，每 5 分钟调用一次函数，函数按最近一次上海 20:00 的 `scheduled_for` 幂等排本人次日任务，迟到跨午夜仍用原目标日。两人独立发布，失败有限重试；检查 `cron.job` 与 `net._http_response` 只读状态和本人 `generation_jobs`，不把 HTTP 响应中的健康原文写日志。
-5. AI 默认关闭。已获用户许可的费用边界是全站上海自然月最多 $2，其中 DeepSeek 固定合成测试最多 $0.10。先运行 `node scripts/prepare-ai-provider-migration.mjs`，审阅 [005 一次执行包](../supabase/admin/apply-ai-providers-005.sql) 与 [005 源](../supabase/migrations/202610130005_ai_providers.sql) 的 LF MD5 `2c57e2948216f3e08e2170754e1fd883`；执行包核对 001–004 历史和固定双账号，在执行与登记前将粘贴产生的 CRLF 规范为 LF，重复同源执行不重建。005 回读确认后，再由管理员审阅并执行 [本月供应商预算 SQL](../supabase/admin/set-ai-provider-budgets.sql)：全站不超过 200 美分、OpenAI 不超过 200 美分、DeepSeek 合成测试不超过 10 美分，已有更小限额保持不变，已计费/预留账本不清除，未来月份不预设。005 后不要重跑 004 的旧预算 SQL，因为旧脚本会把已有更低全站上限提高到 200 美分。
+1. 核对备份及现有迁移历史。运行 `node scripts/prepare-daily-flow-migrations.mjs` 后审核 [006–008 执行包](../supabase/admin/apply-daily-flow-006-008.sql)。包按序执行新迁移并登记，前置历史或源摘要不符时停止；不能把粘贴成功当成验收。执行后回读迁移内容、版本 RPC、权限和默认开关，保留失败报告。
+2. 运行 `pnpm build:edge`，将三份新 bundle 分别部署为 `health-ai`、`health-photo`、`health-cron`。继续使用原项目 `wnzbtitlvteptkvwhavw`。三函数网关 `verify_jwt=false`；AI/照片函数内验证真实用户令牌及固定身份，cron 验证服务端密钥。不得以关闭网关为由跳过函数内鉴权。
+3. 沿用精确来源 `HEALTH_ALLOWED_ORIGINS=https://czechiuu.github.io`；本地调试只加入实际需要的确切 origin。Secrets/Vault 仅在安全界面配置，不输出到日志、SQL 文件或前端。继续核对 Vault 与 Edge 调度密钥一致；不需要为此更换已有密钥。
+4. 原每五分钟调度按最近上海 20:00 锚点入队，延迟跨午夜仍保留原目标日。006 固定任务 provider，两人独立完成、有限重试；手动锁、更新输入及实际记录不能被旧任务覆盖。HTTP 成功不证明计划发布，须回读各人任务与计划。
+5. 发布候选前端。普通 push 的 CI 测试构建不等于 Pages 发布；按仓库现有手动发布工作流执行并核对最终提交和资源。数据库、函数、前端版本均核对后才进行真实账号验收。
 
-当前 Cron 已启用。首次固定四项 DeepSeek 合成探针 3 项通过、日程 1 项失败；随后只复测同一固定日程，结构和身份、日期、起止时间、时长全部通过。最新四个用途均有实际有效合成结果，但不是单次 4/4；本月保守结算 5/10 美分、预留 0，没有发送真实健康资料。20:00 自动计划仍未验收通过：最新调度返回 HTTP 503，两人的 job 已被领取并各尝试 1 次，状态为 `failed`、错误码 `MEAL_TEMPLATE_UNCONFIRMED`；目标日与上海 20:00 锚点正确。失败原因是本人尚未确认餐食模板，系统没有编造餐食或发布假计划。DeepSeek 真实健康请求仍被服务端拒绝。OpenAI 如要发送真实资料，仍须正确配置模型、密钥、费率及本人分用途授权；仅设置预算不会启动 AI。具体授权、探针返回与来源见 [DeepSeek 契约](DEEPSEEK.md)和 [AI 配置说明](AI-CONFIG.md)。
-生产验收至少涵盖：两个固定账号分别登录并保存/刷新；对方私有不可见、双重共享可见且撤销后新照片请求拒绝；训练/餐食/计划按本人保存；手动计划不被夜间任务覆盖；20:00 两人 job 目标和独立结果；照片前后去重、删除中断重试、退出前对象清理；匿名无 RPC/表权限。OpenAI 真实调用、费用和双设备同步只有实际配置并运行后才能标通过。
+## 本轮已批准但尚待执行的 AI 开通
 
-已上传照片的单条 `is_shared` 目前不能事后切换；要撤销单张照片，请删除该照片；关闭本人照片类别共享可立即阻止对方发起新的读取请求。
+用户已批准管理员启用 DeepSeek，且本轮合成验收最多 5 美分，不增加原预算。007 初始 DeepSeek `health_enabled=false`，须由管理员在部署后明确开通；不能通过迁移默认值暗中开启。两人仍须分别登录并同意各用途，图片独立，不能由管理员替代本人授权。
+
+保持全站 200 美分、OpenAI 200 美分、DeepSeek 10 美分月度上限；DeepSeek 已用 5 美分、活动预留 0。不要重跑旧预算脚本提高较小额度。剩余 5 美分不足最坏四项预留 6 美分时，应停止并报告，不自动加预算。
+
+在交互终端运行 `node scripts/run-fixed-cloud-tests.mjs --daily-flow`，通过隐藏输入登录；显式设置 `TEST_DAILY_FLOW_APPROVED=YES` 与付费许可 `TEST_DAILY_FLOW_DEEPSEEK_APPROVED=YES`。两个旧任务仅按 `TEST_DAILY_FLOW_BASELINE_JOB_IDS` 的精确审核名单只读保留，其他健康输入必须为空或属本轮精确 ID。运行器不替本人同意，不改既有私人档案；无法安全清理的本轮记录生成精确清单交管理员审核。
+
+## 发布后验收
+
+依次核对匿名拒绝、两账号保存刷新和隔离、照片上传及撤销/删除、rules 重试零 AI、已确认日程→计划→图片估算→确认餐食→餐后建议应用与撤销、活动记录与恢复限制。另行实际等待 20:00，确认两人目标日和独立发布；再用两台物理设备验收。未跑项保留未运行，模拟不替代真实服务。
+
+真实档案由本人登录导入并核对，公共文档不记录档案数值。照片删除失败中止清除并允许重试；收到成功前不能宣称完成。本站删除与外部供应商/备份保存边界分别说明。

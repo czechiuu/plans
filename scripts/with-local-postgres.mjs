@@ -4,7 +4,6 @@ import { cp, mkdir, mkdtemp, stat, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import EmbeddedPostgres from 'embedded-postgres'
 
 async function command(exe, args, cwd) {
   const output = []
@@ -36,6 +35,7 @@ export async function localPostgres(port) {
   const adminPassword = randomBytes(32).toString('hex')
   const authPassword = randomBytes(32).toString('hex')
   if (process.platform === 'linux') {
+    const { default: EmbeddedPostgres } = await import('embedded-postgres')
     const server = new EmbeddedPostgres({
       databaseDir: join(clusterRoot, 'data'), user: 'test_admin', password: adminPassword, port,
       persistent: true, initdbFlags: ['--locale=C', '--encoding=UTF8'], postgresFlags: ['-h', '127.0.0.1'],

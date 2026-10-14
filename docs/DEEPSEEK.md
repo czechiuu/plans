@@ -1,24 +1,27 @@
-# DeepSeek 合成验收与 005 接口
+# DeepSeek 正式业务与合成验收
 
-005 只为两家 AI 供应商分别记录授权、用途和费用。当前真实健康资料仍只可能选择已独立授权的 OpenAI；DeepSeek 的健康请求在数据库和 Edge Function 两层拒绝。规则计划 `rules` 不需要 AI 同意、密钥或预算。DeepSeek 只留一个管理员密钥保护的**固定合成探针**；没有本人的真实日程、档案、餐食或照片查询。
+截至 2026-10-14，007 候选已接通日程、计划、文字/图片估餐、餐后调整。生产目前仍为 005 与旧函数，只有历史固定合成探针证据；正式业务尚未部署、启用或真实验收。用户已批准管理员启用和本轮最多 5 美分合成验收，个人用途同意仍由两人登录后分别操作。
 
-## 官方依据与边界
+## 模型与预算
 
-- DeepSeek [Responses API](https://api-docs.deepseek.com/api/create-response/) 当前支持 `deepseek-flash`、`/responses`、`text.format.type=json_schema`、`input_image`；[视觉说明](https://api-docs.deepseek.com/guides/vision/) 给出单图最多 1024 输入 token。服务端再按固定 JSON Schema 校验，模型返回并不直接成为已确认的日程或餐食。
-- [官方价格表](https://api-docs.deepseek.com/quick_start/pricing/)中 Flash 高峰、缓存未命中价格为输入 $0.30 / 百万 token，输出 $1.20 / 百万 token。本地预留按这一较高价格计算；结算是根据响应 token 的**保守估算**，不是供应商账单。价格变化必须先更新并复核费用边界。
-- [Responses 兼容说明](https://api-docs.deepseek.com/guides/responses_api/)称接口无服务端对话状态，`store` 参数不支持。这不等于零日志或零数据留存。
-- [英文隐私政策](https://cdn.deepseek.com/policies/en-US/deepseek-privacy-policy.html?locale=en_US)提到服务不以处理健康等敏感个人数据为目标；同一政策也指出开发者下游应用的终端用户处理规则不由该政策直接覆盖。中文政策未找到对应措辞。因此这里不推断 API 永久禁止健康资料；本轮按用户指定先只做合成测试，将来若要发送真实资料，需另核适用的 API 条款并取得本人独立授权。
+当前实现使用 `deepseek-flash` 与 `https://api.deepseek.com/responses`，采用 JSON Schema 和真正的 `input_image`。依据：[Responses](https://api-docs.deepseek.com/api/create-response/)、[视觉输入](https://api-docs.deepseek.com/guides/vision/)、[价格](https://api-docs.deepseek.com/quick_start/pricing/)。当前按高峰、缓存未命中的输入 $0.30 / 百万 token、输出 $1.20 / 百万 token 估算费用；估算不是供应商账单。
 
-## 前端与数据库契约
+原 10 美分月度 DeepSeek 限额由探针与正式业务共用，不另开额度。当前已结算 5 美分、活动预留 0。四项正式合成业务最坏预留 6 美分，剩余 5 美分可能不足；运行器另限本轮最多 5 美分，余额不足停止。
 
-`health_schema_version()` 仍返回 4；`health_provider_schema_version()` 返回 5。未部署 005 时，仅该新 RPC 的 `PGRST202` 可解释为新 AI 入口不可用，旧健康记录继续工作。005 保留旧资料；004 的通用文字/照片授权迁移成**关闭**的 legacy 行，不能自动映射为新授权。
+## 候选接口
 
-`ai_consents` 本人可读，关键列为 `provider,purpose,enabled,monthly_limit_cents,policy_version`。`provider` 为 `openai|deepseek`，`purpose` 为 `parse_schedule|estimate_meal_text|estimate_meal_photo|generate_plan`。本人 RPC `set_ai_provider_consent(p_provider text,p_purpose text,p_enabled boolean,p_monthly_limit_cents integer,p_policy_version text)` 返回一行；OpenAI 政策版本为 `2026-10-13-openai-health-v1`，DeepSeek 为 `2026-10-13-deepseek-health-v1`。当前 DeepSeek 不能开启。`set_ai_plan_provider(p_provider text)` 返回 `rules|openai|deepseek`，默认 `rules`，DeepSeek 目前拒绝选择；取消 OpenAI 生成授权立即切回 `rules`。
+基础健康版本保持 4，服务商版本保持 5；新增 `health_daily_flow_version()=7`、活动版本 `health_activity_schema_version()=8`。Edge `status.schema_version=7` 返回本人计划服务商、配置和预算是否存在、各服务商管理员开关、本人各用途授权与用量，不返回密钥、对方用量或全站余额。
 
-`health-ai` 的 `parse-schedule`、`estimate-meal` 请求必须显式给 `provider:"openai"|"deepseek"`；`generate-plan` 必须显式给 `provider:"rules"|"openai"|"deepseek"`，与本人已存计划供应商选择不一致时拒绝。DeepSeek 的真实健康请求即使客户端绕过按钮也明确失败。`status` 的 005 形状为 `{schema_version:5,plan_provider,global_budget_configured,providers:{openai:{configured,model,budget_configured,health_enabled,consents:{[purpose]:{enabled,monthly_limit_cents}},usage:{[purpose]:{charged_cents,reserved_cents}}},deepseek:{...}}}`；只显示本人用途授权/用量，不返回密钥、对方用量或全站余额。旧 004 `status` 形状不代表 005 已准备好。
+用途为 `parse_schedule|generate_plan|estimate_meal_text|estimate_meal_photo|adjust_plan`。同意 RPC 为 `set_ai_provider_consent(p_provider,p_purpose,p_enabled,p_monthly_limit_cents,p_policy_version)`；政策版本仍为 `2026-10-13-deepseek-health-v1`，OpenAI 使用对应 openai 版本。旧授权不自动转换；图片另行同意。
 
-## 管理员合成探针
+`set_ai_plan_provider(p_provider)` 控制未来自动任务，默认 rules。手动请求 `request_plan_generation(p_target_date,p_provider)` 明确服务商，建立任务后固定 provider；Edge 生成不能覆盖它。007 的管理员开关关闭时，即使客户端有按钮或旧同意也不能发送。
 
-`health-cron` 的 `POST {"action":"probe-deepseek"}` 在确认 `HEALTH_CRON_SECRET` 后运行固定四项合成任务：明确人/日期的日程、文字示例餐、项目内已净化的苹果香蕉公共领域小图、休息型三餐模板计划。照片来源见 [AI-TEST-ASSETS.md](AI-TEST-ASSETS.md)。已部署的 `POST {"action":"probe-deepseek-schedule"}` 只重复同一条固定合成日程，不接收任意文本或图片。它们不读取健康表；只返回每项结构/关键内容是否通过、响应 token、费用上界估算，以及若供应商余额接口可读时的美元余额差额。新版日程结果另返回 `schema_valid` 与 `checks:{slot,date,start,end,duration}` 布尔诊断，不返回模型原文。余额差额不能独立归因到本次探针，故标 `balance_delta_is_attributable:false`，绝不返回绝对余额。
+`health-ai` 的 `parse-schedule`、`estimate-meal`、`generate-plan` 明确传 provider；新增 `adjust-plan {provider,record_date}` 返回独立建议。本人确认应用、撤销和源输入校验见 [完整契约](DAILY-FLOW-CHANGES.md)。配置不明、撤销、超限、超时或无效输出均报告失败，不自动切服务商。
 
-探针依赖服务端 `DEEPSEEK_API_KEY`、当月全站预算和独立 DeepSeek 预算；任一缺失便不发付费请求。005 已在生产执行并回读检查 7 项通过；[本月供应商预算 SQL](../supabase/admin/set-ai-provider-budgets.sql) 也已执行，全站上限 200 美分、DeepSeek 合成上限 10 美分。三份 Edge Function 已部署，最新 `health-ai` 与 `health-cron` 更新也已上线。首次四项合成探针 HTTP 200：文字餐、图片餐、休息计划 3 项通过，日程 1 项未通过；随后仅固定日程复测 HTTP 200，`schema_valid` 与 `slot/date/start/end/duration` 全为 true，单项通过。最新四个用途各有实际有效合成结果，**不是一次四项全部通过**。复测输入 768、输出 97 token，保守结算 1 美分；本月合计 5/10 美分、预留 0。全部为固定合成数据，没有发送真实健康资料。`node scripts/prepare-ai-provider-migration.mjs` 仍可生成 005 SQL Editor 执行包；它先核 001–004 的登记原文、固定两账号，再对 005 源做 LF 规范/MD5，执行与登记同一事务，重复同源执行不重建。
+## 真实验收
+
+运行 `node scripts/run-fixed-cloud-tests.mjs --daily-flow`，隐藏输入两个密码。需要明确的日常验收和 DeepSeek 验收环境许可，以及已部署开关和本人四项用途授权。脚本不自动授权、开开关或改预算；只使用本轮合成输入和精确 ID。旧两条任务必须逐 UUID 审核后只读保留；其他既有健康输入会阻塞。清理清单留在被忽略的私有结果目录，未提供精确删除入口的记录交管理员审核。
+
+历史固定探针最新四用途覆盖 4/0，五次响应累计 4/1，其中一次日程失败后单项复测通过；5 条 settled 合计 5 美分。此历史探针不读取私人健康表，也不能替代正式日程→计划→图片→调整验收。供应商余额差额为 0 不能证明免费。
+
+DeepSeek 接口无服务端对话状态不等于零保存，参见[兼容说明](https://api-docs.deepseek.com/guides/responses_api/)。本人在发送前查看实际数据范围和保存边界；管理员许可不能代替本人资料同意。

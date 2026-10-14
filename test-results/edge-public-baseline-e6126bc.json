@@ -1,0 +1,102 @@
+{
+  "started_at": "2026-10-13T18:05:08.511Z",
+  "generated_at": "2026-10-13T18:05:20.552Z",
+  "scope": "Production public HTTP rejection checks only; no real account, upload, paid AI, or private data",
+  "cases": {
+    "PHOTO_ANON_GET": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "PHOTO_FORGED_JWT": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "PHOTO_BAD_ORIGIN": {
+      "status": "passed",
+      "http_status": 403,
+      "response_code": "ORIGIN_DENIED",
+      "source": "application"
+    },
+    "PHOTO_PREFLIGHT_ALLOWED": {
+      "status": "passed",
+      "http_status": 204,
+      "response_code": null,
+      "source": "preflight"
+    },
+    "PHOTO_PREFLIGHT_DENIED": {
+      "status": "passed",
+      "http_status": 403,
+      "response_code": "ORIGIN_DENIED",
+      "source": "application"
+    },
+    "PHOTO_ANON_POST": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "AI_ANON_POST": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "AI_FORGED_JWT": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "AI_BAD_ORIGIN": {
+      "status": "passed",
+      "http_status": 403,
+      "response_code": "ORIGIN_DENIED",
+      "source": "application"
+    },
+    "AI_PREFLIGHT_ALLOWED": {
+      "status": "passed",
+      "http_status": 204,
+      "response_code": null,
+      "source": "preflight"
+    },
+    "AI_PREFLIGHT_DENIED": {
+      "status": "passed",
+      "http_status": 403,
+      "response_code": "ORIGIN_DENIED",
+      "source": "application"
+    },
+    "CRON_ANON_POST": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "CRON_BAD_SECRET": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    },
+    "CRON_PROBE_BAD_SECRET": {
+      "status": "passed",
+      "http_status": 401,
+      "response_code": "AUTH_REQUIRED",
+      "source": "application"
+    }
+  },
+  "passed": 14,
+  "failed": 0,
+  "not_run": 0,
+  "previous_photo_run": {
+    "started_at": "2026-10-13T16:44:41.881Z",
+    "generated_at": "2026-10-13T16:44:52.886Z",
+    "passed": 14,
+    "failed": 0,
+    "not_run": 0
+  },
+  "script_sha256": "ad48a86722047876c8b3265fa131f79f0e789872553eb634704022f7badb9011"
+}

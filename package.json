@@ -19,7 +19,9 @@
     "test:cloud:health": "node scripts/verify-cloud-health.mjs",
     "test:browser:unconfigured": "node scripts/verify-unconfigured.mjs",
     "test:browser:mock": "node scripts/verify-ui-mock.mjs",
-    "test:browser:cloud": "node scripts/verify-cloud-browser.mjs"
+    "test:browser:cloud": "node scripts/verify-cloud-browser.mjs",
+    "test:concurrency:ai": "node scripts/verify-ai-provider-concurrency.mjs",
+    "test:concurrency:activities": "node scripts/verify-activities-concurrency.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.3"

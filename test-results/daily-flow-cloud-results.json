@@ -1,0 +1,46 @@
+{
+  "generated_at": "2026-10-14T04:25:15.529Z",
+  "scope": "not-run-without-explicit-synthetic-approval",
+  "passed": 0,
+  "failed": 0,
+  "blocked": 9,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "DAILY_FLOW_PREFLIGHT",
+      "status": "blocked"
+    },
+    {
+      "id": "RULES_BOTH_USERS",
+      "status": "blocked"
+    },
+    {
+      "id": "MEAL_PHOTO_PRIVATE",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_SCHEDULE",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_PLAN",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_PHOTO",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_ADJUST",
+      "status": "blocked"
+    },
+    {
+      "id": "ADJUST_APPLY_UNDO",
+      "status": "blocked"
+    },
+    {
+      "id": "SYNTHETIC_CLEANUP",
+      "status": "blocked"
+    }
+  ]
+}

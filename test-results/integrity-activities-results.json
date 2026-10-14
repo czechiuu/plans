@@ -1,0 +1,31 @@
+{
+  "scope": "Isolated PostgreSQL, synthetic records only; no production or paid calls",
+  "cases": {
+    "MEAL_CREATE_REPLAY_RACE": {
+      "status": "passed",
+      "evidence": "second real connection blocked; one record; changed payload denied; delayed retry after deletion denied"
+    },
+    "ACTIVITY_CREATE_REPLAY_RACE": {
+      "status": "passed",
+      "evidence": "second real connection blocked; one record; changed payload denied; delayed retry after deletion denied"
+    },
+    "NON_STRENGTH_RECOVERY_AND_WEEKLY_COUNTS": {
+      "status": "passed",
+      "evidence": "date-only times remain null with bounded recovery; non-strength excluded from weekly count; stopped badminton still affects recovery"
+    }
+  },
+  "passed": 3,
+  "failed": 0,
+  "not_run": 0,
+  "applied_migrations": [
+    "202610130001_initial.sql",
+    "202610130002_space_lock_order.sql",
+    "202610130003_fixed_accounts.sql",
+    "202610130004_health_daily.sql",
+    "202610130005_ai_providers.sql",
+    "202610140006_integrity.sql",
+    "202610140007_daily_flow.sql",
+    "202610140008_activities.sql"
+  ],
+  "generated_at": "2026-10-14T05:02:47.472Z"
+}

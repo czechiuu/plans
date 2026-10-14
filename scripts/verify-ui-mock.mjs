@@ -5,7 +5,7 @@ import { shanghaiDate, addDays } from '../src/domain.js'
 import { report, runCase } from './test-helpers/report.mjs'
 import { browserOrigin, launchBrowser } from './test-helpers/browser.mjs'
 
-const ids = ['UI_FIXED_LOGIN','UI_SIX_NAV','UI_SCHEDULE','UI_MANUAL_PLAN','UI_GENERATE_PLAN','UI_TRAINING','UI_MEAL','UI_PHOTO_SWITCH','UI_WEIGHT_CONFLICT','UI_PRIVATE_SWITCH','UI_RULE_IMPORT','UI_PROVIDER_CONSENT','UI_PROVIDER_GATES','UI_LOGOUT_PENDING','UI_LATE_LOAD','UI_PASSWORD','UI_PASSWORD_SWITCH','UI_PROVIDER_LEGACY']
+const ids = ['UI_FIXED_LOGIN','UI_PRIMARY_PHOTO','UI_SIX_NAV','UI_SCHEDULE','UI_MANUAL_PLAN','UI_GENERATE_PLAN','UI_TRAINING','UI_LOCAL_DEMO','UI_MEAL','UI_NUTRITION','UI_ADJUSTMENT','UI_PHOTO_SWITCH','UI_WEIGHT_CONFLICT','UI_PRIVATE_SWITCH','UI_RULE_IMPORT','UI_PROVIDER_CONSENT','UI_PROVIDER_GATES','UI_LOGOUT_PENDING','UI_LATE_LOAD','UI_PASSWORD','UI_PASSWORD_SWITCH','UI_PROVIDER_LEGACY']
 const cases=[], details=[]
 const check=(id,fn)=>runCase(cases,details,id,fn)
 const noOverflow=async page=>assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
@@ -16,6 +16,7 @@ try {
   await context.route('**/src/api.js*',route=>route.fulfill({status:200,contentType:'application/javascript',body:mockApiModule()}))
   await context.addInitScript(()=>{
     addEventListener('DOMContentLoaded',()=>{
+      if (document.contentType !== 'text/html') return
       const mark=document.createElement('div')
       mark.textContent='界面测试 · 合成资料 / 模拟接口'
       Object.assign(mark.style,{position:'fixed',top:'0',right:'0',zIndex:'999',background:'#772f20',color:'white',fontSize:'11px',padding:'4px 8px',pointerEvents:'none'})
@@ -45,6 +46,15 @@ try {
     await page.getByRole('button',{name:'登录',exact:true}).click()
     await page.getByRole('alert').waitFor()
     await login('me')
+    await noOverflow(page)
+  })
+  await check('UI_PRIMARY_PHOTO',async()=>{
+    const png=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=2;canvas.height=2;canvas.getContext('2d').fillRect(0,0,2,2);return canvas.toDataURL('image/png').split(',')[1]})
+    await page.locator('#quick-photo').setInputFiles({name:'synthetic.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')})
+    await page.getByText('待上传的餐食照片',{exact:true}).waitFor()
+    assert.equal(await page.locator('[data-form="meal"]').count(),1)
+    await page.getByRole('button',{name:'取消这张照片'}).click()
+    await page.getByRole('button',{name:'今日',exact:true}).click()
     await noOverflow(page)
   })
   await check('UI_SIX_NAV',async()=>{
@@ -124,6 +134,14 @@ try {
     await page.screenshot({path:fileURLToPath(new URL('../test-results/desktop-training-synthetic.png',import.meta.url)),fullPage:true})
     await page.setViewportSize({width:390,height:844})
   })
+  await check('UI_LOCAL_DEMO',async()=>{
+    await page.getByRole('button',{name:'播放本地动作示意'}).first().click()
+    await page.waitForFunction(()=>Boolean(document.querySelector('.demo-slot object')?.contentDocument?.querySelector('title')))
+    await page.getByRole('button',{name:'暂停',exact:true}).first().click()
+    assert.ok(await page.locator('.demo-slot object').count()>0)
+    await page.getByRole('button',{name:'播放',exact:true}).first().click()
+    await noOverflow(page)
+  })
   await check('UI_MEAL',async()=>{
     await page.getByRole('button',{name:'饮食',exact:true}).click()
     let form=page.locator('[data-form="meal"]')
@@ -149,6 +167,37 @@ try {
     await noOverflow(page)
     await page.screenshot({path:fileURLToPath(new URL('../test-results/desktop-food-synthetic.png',import.meta.url)),fullPage:true})
     await page.setViewportSize({width:390,height:844})
+  })
+  await check('UI_NUTRITION',async()=>{
+    await page.locator('[data-action="edit-meal"]').first().click()
+    const form=page.locator('[data-form="meal"]'), item=form.locator('[data-meal-item]').first()
+    await form.locator('.nutrition-panel').evaluate(element=>element.open=true)
+    await item.locator('details').evaluate(element=>element.open=true)
+    await form.locator('[name="estimate_method"]').selectOption('confirmed_nutrition')
+    await item.locator('[name="grams_min"]').fill('100')
+    await item.locator('[name="grams_max"]').fill('200')
+    await item.locator('[name="kcal_per_100g"]').fill('100')
+    await form.getByRole('button',{name:'预览标签计算与缺口'}).click()
+    await form.getByText('缺项不按零计算',{exact:false}).waitFor()
+    await item.locator('[name="nutrition_source"]').fill('合成营养标签')
+    await form.locator('[name="additions_status"]').selectOption('none')
+    await form.getByRole('button',{name:'预览标签计算与缺口'}).click()
+    await form.getByText('整份 100.0–200.0 kcal；按已吃比例 50.0–100.0 kcal。',{exact:true}).waitFor()
+    await form.getByRole('button',{name:'保存这餐修改'}).click()
+    await page.getByText('50–100 kcal',{exact:true}).waitFor()
+    assert.deepEqual(pageErrors,[])
+  })
+  await check('UI_ADJUSTMENT',async()=>{
+    await page.evaluate(()=>window.__synthetic.seedAdjustmentConsent())
+    await page.locator('[data-action="refresh"]').first().click()
+    await page.locator('.adjustment [name="adjust_provider"]').selectOption('openai')
+    await page.getByRole('button',{name:'请求后续餐食建议'}).click()
+    await page.getByText('合成餐后建议',{exact:true}).waitFor()
+    await page.getByRole('button',{name:'确认采用这条建议'}).click()
+    await page.getByText('已由本人采用',{exact:false}).waitFor()
+    await page.getByRole('button',{name:'撤销这条建议'}).click()
+    await page.getByText('已撤销',{exact:true}).waitFor()
+    await noOverflow(page)
   })
   await check('UI_PHOTO_SWITCH',async()=>{
     const png=await page.evaluate(()=>{const canvas=document.createElement('canvas');canvas.width=2;canvas.height=2;canvas.getContext('2d').fillRect(0,0,2,2);return canvas.toDataURL('image/png').split(',')[1]})
@@ -214,8 +263,11 @@ try {
     await page.getByText('本人档案与规则已填入相应表单',{exact:false}).waitFor()
     assert.equal(await page.locator('[data-form="rules"] [name="confirmed"]').isChecked(),false)
     assert.equal(await page.locator('[data-form="rules"] [name="is_shared"]').count(),0)
-    assert.equal(await page.locator('[data-form="ai-consent"]').count(),4)
-    for(const box of await page.locator('[data-form="ai-consent"] [name="enabled"]').all()) assert.equal(await box.isChecked(),false)
+    assert.equal(await page.locator('[data-form="ai-consent"]').count(),10)
+    for(const box of await page.locator('[data-form="ai-consent"] [name="enabled"]').all()) {
+      const form=box.locator('xpath=ancestor::form')
+      assert.equal(await box.isChecked(),await form.getAttribute('data-provider')==='openai' && await form.getAttribute('data-purpose')==='adjust_plan')
+    }
     await page.locator('[data-form="rules"]').getByRole('button',{name:'保存本人规则'}).click()
     await page.getByText('本人规则已保存',{exact:true}).waitFor()
     await page.getByRole('button',{name:'训练',exact:true}).click()
@@ -224,17 +276,17 @@ try {
     await page.getByRole('button',{name:'设置',exact:true}).click()
   })
   await check('UI_PROVIDER_CONSENT',async()=>{
-    assert.equal(await page.locator('option[value="deepseek"]').count(),0)
-    await page.getByText('本轮仅验证合成样例，尚未开放个人健康资料处理',{exact:false}).waitFor()
+    assert.ok(await page.locator('option[value="deepseek"]').count()>0)
     await page.locator('[data-action="ai-status"]').click()
+    await page.getByText('DeepSeek 健康用途总开关：已关闭；服务或预算尚未就绪',{exact:false}).waitFor()
     await page.getByText('synthetic-model',{exact:false}).waitFor()
-    const parse=page.locator('[data-form="ai-consent"][data-purpose="parse_schedule"]')
+    const parse=page.locator('[data-form="ai-consent"][data-provider="openai"][data-purpose="parse_schedule"]')
     await parse.locator('[name="enabled"]').check()
     await parse.locator('[name="monthly_limit_cents"]').fill('100')
-    await parse.getByRole('button',{name:'保存此项授权'}).click()
+    await parse.getByRole('button',{name:'保存这一项授权'}).click()
     await page.getByText('授权设置已保存',{exact:true}).waitFor()
     assert.equal(await parse.locator('[name="enabled"]').isChecked(),true)
-    assert.equal(await page.locator('[data-form="ai-consent"][data-purpose="generate_plan"] [name="enabled"]').isChecked(),false)
+    assert.equal(await page.locator('[data-form="ai-consent"][data-provider="openai"][data-purpose="generate_plan"] [name="enabled"]').isChecked(),false)
     await page.locator('[data-action="ai-status"]').click()
     await page.locator('[data-form="plan-provider"] [name="plan_provider"]').selectOption('openai')
     await page.locator('[data-form="plan-provider"] button').click()

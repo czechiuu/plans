@@ -2,15 +2,17 @@ import './style.css'
 import { api, configured, configurationError } from './api.js'
 import { shanghaiDate, addDays, sevenDayAverage, escapeHtml, instantToLocalDateTime, localDateTimeToInstant, validDate } from './domain.js'
 import { exercises, exerciseById } from '../shared/exercises.js'
+import { suggestedMeals, strengthScheduleTypes } from '../shared/health.js'
+import { calculateMealNutrition } from '../shared/meal-nutrition.js'
 
 const root = document.querySelector('#app')
 const safe = (value) => escapeHtml(value ?? '')
 const date = () => shanghaiDate()
 const state = {
   session: null, data: null, page: 'today',
-  scheduleDate: date(), mealDate: date(), scope: 'mine', edit: null, notice: '', error: false, busy: false,
+  scheduleDate: addDays(date(),1), mealDate: date(), scope: 'mine', edit: null, notice: '', error: false, busy: false,
   danger: null, loading: true, profileDraft: null, loginSlot: 'me',
-  exiting: false, planDraft: null, parsedSchedule: null, mealEdit: null, mealEstimateDraft: null, photoUrl: null, rulesDraft: null, aiStatus: null,
+  exiting: false, planDraft: null, parsedSchedule: null, mealEdit: null, activityEdit: null, pendingCreates: {meal:null,training:null,activity:null}, mealEstimateDraft: null, photoUrl: null, pendingPhoto: null, pendingPhotoMealId: null, followupNotice: '', rulesDraft: null, aiStatus: null,
 }
 let generation = 0
 let pendingWork = null
@@ -18,10 +20,11 @@ let pendingWork = null
 function clearSensitive(session = null) {
   generation++
   if (state.photoUrl) URL.revokeObjectURL(state.photoUrl)
-  Object.assign(state, { session, data: null, page: 'today', scheduleDate: date(), mealDate: date(), scope: 'mine', edit: null, notice: '', error: false, busy: false, exiting: false, danger: null, profileDraft: null, loginSlot: 'me', loading: false, planDraft: null, parsedSchedule: null, mealEdit: null, mealEstimateDraft: null, photoUrl: null, rulesDraft: null, aiStatus: null })
+  Object.assign(state, { session, data: null, page: 'today', scheduleDate: addDays(date(),1), mealDate: date(), scope: 'mine', edit: null, notice: '', error: false, busy: false, exiting: false, danger: null, profileDraft: null, loginSlot: 'me', loading: false, planDraft: null, parsedSchedule: null, mealEdit: null, activityEdit: null, pendingCreates: {meal:null,training:null,activity:null}, pendingPhoto: null, pendingPhotoMealId: null, followupNotice: '', photoUrl: null, rulesDraft: null, aiStatus: null })
   root.replaceChildren()
 }
 const accountLabel = account => ({ me: '我', w: 'W' })[account] || ''
+const scheduleTypeChoice = type => strengthScheduleTypes.includes(type) ? '力量训练' : ['羽毛球','其他'].includes(type) ? type : ''
 
 function setNotice(message, error = false) { state.notice = message; state.error = error; render() }
 function message() { return state.notice ? `<div class="notice ${state.error ? 'error' : ''}" role="${state.error ? 'alert' : 'status'}">${safe(state.notice)}</div>` : '' }
@@ -29,26 +32,31 @@ function errorText(error) {
   const code = String(error?.code || '')
   if (code === 'CONFLICT' || /conflict|stale|version/i.test(error?.message || '')) return '这条记录已在其他设备更新。请刷新后再编辑。'
   if (code === '23505') return '这一天已有记录。请刷新后编辑已有记录。'
-  if (error?.message === 'invalid-time') return '结束时间需要晚于开始时间。'
+  if (error?.message === 'invalid-time') return '填写结束时间时也要填写开始时间，且结束时间必须更晚。'
   if (error?.message === 'invalid-date') return '代改伴侣记录时不能修改原日期。'
   if (error?.message === 'measured-date') return '测量时间的日期需要与测量日期一致。'
   if (error?.message === 'empty-schedule') return '请填写至少一项实际日程内容。'
   if (error?.message === 'rest-plan-has-exercises') return '选择休息日时请移除热身、动作和放松步骤，或将训练安排改为“训练”。'
   if (error?.message === 'invalid-exercise') return '请选择动作库中存在的动作。'
+  if (error?.message === 'training-set-complete') return '这个动作计划组数已记录完。请核对后选择下一项。'
   if (error?.message === 'training-plan-limit') return '初学训练最多 3 个动作，每个动作 1–2 组、每组 1–120 秒；做 2 组时组间休息至少 30 秒。'
   if (error?.message === 'meal-template-incomplete') return '三餐模板需完整填写早餐、午餐、晚餐及每餐食物，或全部留空。'
   if (error?.message === 'empty-meal') return '至少填写一种实际食物。'
+  if (error?.message === 'estimate-source-required') return '手动填写热量区间时，请写明本人核对的数据来源。'
+  if (error?.message === 'estimate-range') return '请填写有效的整份热量下限与上限；上限不能小于下限。'
+  if (error?.message === 'activity-time') return '请核对完成日期和实际运动分钟数；如填写时刻，开始与结束需一起填写，且运动时长不能超过该时段。'
   if (error?.message === 'wrong-slot') return '只能为当前登录的本人创建日程。伴侣请用自己的账号确认。'
-  if (error?.message === 'ai-budget') return '要启用 AI，请先填写大于 0 的月度上限；当前不会发起付费调用。'
+  if (error?.message === 'ai-budget') return 'AI 月度上限需为 0–500 美分的整数；启用时必须大于 0。'
   if (error?.message === 'ai-not-enabled') return '文字 AI 尚未授权或服务未配置，请继续手动填写。'
   if (error?.message === 'invalid-ai-draft') return '解析结果不完整，未写入日程。请手动填写或稍后重试。'
   if (code === 'SERVER_NOT_CONFIGURED' || code === 'AI_DISABLED') return 'AI 服务端尚未配置，当前无法使用。'
   if (code === 'AI_CONSENT_REQUIRED') return '本人尚未授权此项 AI 使用，当前不会发送健康内容。'
   if (code === 'AI_BUDGET_EXCEEDED') return '本人或空间的 AI 预算不足，当前不会调用付费服务。'
   if (code === 'MEAL_TEMPLATE_UNCONFIRMED') return '三餐模板尚未由本人完整确认，计划没有生成。'
+  if (code === 'ADJUSTMENT_STALE') return '这条建议对应的餐食或计划已变化，请重新请求建议。'
   if (code === 'AI_PROVIDER_FAILED') return 'AI 服务请求失败，计划没有生成；请稍后查看任务状态。'
   if (code === 'AI_PROVIDER_REQUIRED') return '请先明确选择本次使用的服务。'
-  if (code === 'AI_PROVIDER_UNAVAILABLE') return 'DeepSeek 本轮仅验证合成样例，尚未开放个人健康资料处理。'
+  if (code === 'AI_PROVIDER_UNAVAILABLE') return '所选服务尚未开放个人健康资料处理。'
   if (code === 'AI_EXTENSION_UNAVAILABLE') return '新版 AI 授权尚未部署；手动记录与计划仍可使用。'
   if (code === 'AI_STATUS_REQUIRED') return '请先检查后台服务状态，再设置夜间计划方式。'
   if (code === 'AI_SERVICE_VERSION_MISMATCH') return 'AI 服务版本尚未与授权功能匹配，当前不会发送健康内容。'
@@ -72,9 +80,9 @@ function errorText(error) {
 async function work(action, success = '') {
   if (state.busy) return
   const started = generation
-  state.busy = true; state.notice = ''; render()
+  state.busy = true; state.notice = ''; state.followupNotice=''; render()
   const run=(async()=>{
-    try { await api.withAuthToken(state.session?.access_token,action); if (generation !== started) return; if (success) state.notice = success; state.error = false }
+    try { await api.withAuthToken(state.session?.access_token,action); if (generation !== started) return; if (success) state.notice = success + (state.followupNotice ? `；${state.followupNotice}` : ''); state.error = false }
     catch (error) { if (generation !== started) return; console.error('操作失败', error?.code || error?.name || 'unknown'); state.notice = errorText(error); state.error = true }
     finally { if (generation === started) { state.busy = false; render() } }
   })()
@@ -93,6 +101,7 @@ async function reload(expectedGeneration = generation) {
   }
   const current = await api.session()
   if (started !== generation || state.session?.access_token !== session?.access_token || current?.access_token !== session?.access_token) return
+  if (state.photoUrl) { URL.revokeObjectURL(state.photoUrl); state.photoUrl=null }
   state.data = data
   if (!state.data.space) { state.profileDraft = null; state.page = 'today' }
   state.edit = null
@@ -100,7 +109,7 @@ async function reload(expectedGeneration = generation) {
 function brand() { return `<div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span>两个人的日常</span></div>` }
 function header() {
   const name = accountLabel(state.data?.account)
-  return `<header class="site-header">${brand()}<div class="header-side">${name ? `<span class="pill">${safe(name)}</span>` : ''}${state.data?.space ? `<span class="pill"><span class="status-dot"></span>${safe(state.data.space.name)}</span>` : ''}</div></header>`
+  return `<header class="site-header">${brand()}<div class="header-side">${name ? `<span class="pill">${safe(name)}</span><button type="button" class="header-settings" data-action="page" data-page="settings">设置</button>` : ''}${state.data?.space ? `<span class="pill"><span class="status-dot"></span>${safe(state.data.space.name)}</span>` : ''}</div></header>`
 }
 function layout(content, aside = '') {
   return `<div class="shell">${header()}${message()}<div class="layout"><main class="main-column stack">${content}</main>${aside ? `<aside class="side-column stack">${aside}</aside>` : ''}</div></div>`
@@ -120,17 +129,17 @@ function visibleByScope(row) { return state.scope === 'all' || (state.scope === 
 function ownRows(key) { return (state.data?.[key] || []).filter(row => row.user_id === state.data.user.id) }
 function currentRules() { return ownRows('health_rules')[0] || null }
 function providerConsent(provider,purpose) { return ownRows('ai_consents').find(row=>row.provider===provider && row.purpose===purpose) || null }
+function providerOptions(includeRules=false) { return [['','请明确选择'],...(includeRules ? [['rules','确定性规则（不发送给 AI）']] : []),['openai','OpenAI'],['deepseek','DeepSeek（仅在后台开放且本人单独授权后可用）']] }
 async function requireProviderReady(provider,purpose) {
   const started=generation, token=state.session?.access_token
   if (!state.data?.providerAiAvailable) throw Object.assign(new Error('新版 AI 授权尚未部署'),{code:'AI_EXTENSION_UNAVAILABLE'})
   if (!provider) throw Object.assign(new Error('未选择服务'),{code:'AI_PROVIDER_REQUIRED'})
-  if (provider === 'deepseek') throw Object.assign(new Error('DeepSeek 尚未开放'),{code:'AI_PROVIDER_UNAVAILABLE'})
   const status=await api.aiStatus()
   if (started !== generation || token !== state.session?.access_token) throw Object.assign(new Error('账号已变化'),{code:'ACCOUNT_CHANGED'})
   state.aiStatus=status
   if (provider === 'rules') return status
   const choice=status.providers?.[provider]
-  if (!choice?.configured || !choice.budget_configured || !status.global_budget_configured) throw Object.assign(new Error('服务或预算未就绪'),{code:'AI_SERVICE_NOT_READY'})
+  if (!choice?.configured || !choice.budget_configured || !status.global_budget_configured || choice.health_enabled === false || (provider === 'deepseek' && choice.health_enabled !== true)) throw Object.assign(new Error('服务或预算未就绪'),{code:'AI_SERVICE_NOT_READY'})
   if (!choice.consents?.[purpose]?.enabled) throw Object.assign(new Error('本人未授权该用途'),{code:'AI_CONSENT_REQUIRED'})
   return status
 }
@@ -158,18 +167,20 @@ function dashboard() {
   const latest = [...weightRows].sort((a,b) => b.record_date.localeCompare(a.record_date))[0]
   const avg = sevenDayAverage(weightRows, date())
   const plan = state.data.healthAvailable ? currentPlan(date(),state.scope === 'partner' ? partner()?.user_id : state.data.user.id) : null
-  return `<div class="card soft"><p class="eyebrow">今天 · ${safe(date())}</p><h2>照顾自己，也看见彼此</h2><p class="muted">这里展示真实记录。没有填写的内容会保持空白。</p>${scopeSwitch()}</div><div class="stat-grid"><div class="stat"><span>今日可见日程</span><b>${schedules.length}</b><span>条记录</span></div><div class="stat"><span>${state.scope === 'partner' ? '伴侣' : '我的'}最近体重</span><b>${latest ? `${safe(latest.weight_kg)} kg` : '—'}</b><span>${latest ? safe(latest.record_date) : '尚无记录'}</span></div><div class="stat"><span>${state.scope === 'partner' ? '伴侣' : '我的'}近7日平均</span><b>${avg.count ? `${safe(avg.average.toFixed(1))} kg` : '—'}</b><span>真实记录 ${avg.count} 条</span></div></div>${plan ? planCard(plan) : '<div class="card empty"><strong>今天没有已确认计划</strong>可查看已填写的日程；这里不会生成假安排。</div>'}<div class="card"><div class="card-header"><div><h2>今天的日程</h2><span class="hint">只显示你有权查看的内容</span></div>${button('查看安排','page','secondary','data-page="tomorrow"')}</div>${scheduleList(schedules)}</div><div class="card"><h2>明天 · ${safe(addDays(date(),1))}</h2>${scheduleList(state.data.schedules.filter(r => r.record_date === addDays(date(),1) && visibleByScope(r)))}</div>${!state.data.healthAvailable ? healthStatus() : ''}`
+  const todayPlan = plan ? planCard(plan) : '<div class="card empty"><strong>今天没有已确认计划</strong>可查看已填写的日程；这里不会生成假安排。</div>'
+  const stats = `<div class="stat-grid"><div class="stat"><span>今日可见日程</span><b>${schedules.length}</b><span>条记录</span></div><div class="stat"><span>${state.scope === 'partner' ? '伴侣' : '我的'}最近体重</span><b>${latest ? `${safe(latest.weight_kg)} kg` : '—'}</b><span>${latest ? safe(latest.record_date) : '尚无记录'}</span></div><div class="stat"><span>${state.scope === 'partner' ? '伴侣' : '我的'}近7日平均</span><b>${avg.count ? `${safe(avg.average.toFixed(1))} kg` : '—'}</b><span>真实记录 ${avg.count} 条</span></div></div>`
+  return `${todayPlan}${stats}<div class="card soft"><p class="eyebrow">今天 · ${safe(date())}</p><h2>查看范围</h2><p class="muted">这里只展示有权查看的真实记录。</p>${scopeSwitch()}</div><div class="card"><div class="card-header"><div><h2>今天的日程</h2><span class="hint">只显示你有权查看的内容</span></div>${button('查看安排','page','secondary','data-page="tomorrow"')}</div>${scheduleList(schedules)}</div><div class="card"><h2>明天 · ${safe(addDays(date(),1))}</h2>${scheduleList(state.data.schedules.filter(r => r.record_date === addDays(date(),1) && visibleByScope(r)))}</div>${!state.data.healthAvailable ? healthStatus() : ''}`
 }
 function scheduleList(rows) {
   if (!rows.length) return `<div class="empty"><strong>这一天还没有记录</strong>可以到“明日安排”手动添加。</div>`
-  return `<div class="list">${rows.sort((a,b) => (a.start_time || '').localeCompare(b.start_time || '')).map(r => `<article class="list-item"><div class="row-between"><strong>${safe(person(r.user_id))} · ${safe(r.record_date)}</strong><span class="tag ${r.is_shared ? 'shared' : 'private'}">${r.is_shared ? '共享' : '私有'}</span></div><div class="meta">${r.start_time ? `<span>${safe(r.start_time.slice(0,5))}${r.end_time ? `–${safe(r.end_time.slice(0,5))}` : ''}</span>` : '<span>未指定时段</span>'}<span>运动：${({yes:'愿意',no:'不安排',unknown:'未确定'})[r.exercise_intent] || '未确定'}</span></div>${r.raw_text ? `<p>${safe(r.raw_text)}</p>` : ''}${r.fixed_arrangements ? `<p><b>固定安排：</b>${safe(r.fixed_arrangements)}</p>` : ''}${r.meal_conditions ? `<p><b>用餐条件：</b>${safe(r.meal_conditions)}</p>` : ''}${r.constraints ? `<p><b>限制：</b>${safe(r.constraints)}</p>` : ''}<div class="row-between" style="margin-top:10px">${updateMeta(r)}${canEdit(r,'schedule') ? `<div class="item-actions">${button('编辑','edit-schedule','ghost small',`data-id="${safe(r.id)}"`)}${button('删除','delete-schedule','danger secondary small',`data-id="${safe(r.id)}"`)}</div>` : ''}</div></article>`).join('')}</div>`
+  return `<div class="list">${rows.sort((a,b) => (a.start_time || '').localeCompare(b.start_time || '')).map(r => `<article class="list-item"><div class="row-between"><strong>${safe(person(r.user_id))} · ${safe(r.record_date)}</strong><span class="tag ${r.is_shared ? 'shared' : 'private'}">${r.is_shared ? '共享' : '私有'}</span></div><div class="meta">${r.start_time ? `<span>${safe(r.start_time.slice(0,5))}${r.end_time ? `–${safe(r.end_time.slice(0,5))}` : ''}</span>` : '<span>未指定时段</span>'}<span>运动：${({yes:'愿意',no:'不安排',unknown:'未确定'})[r.exercise_intent] || '未确定'}</span>${r.confirmed_data?.exercise?.type ? `<span>类型：${safe(r.confirmed_data.exercise.type)}</span>` : ''}</div>${r.raw_text ? `<p>${safe(r.raw_text)}</p>` : ''}${r.fixed_arrangements ? `<p><b>固定安排：</b>${safe(r.fixed_arrangements)}</p>` : ''}${r.meal_conditions ? `<p><b>用餐条件：</b>${safe(r.meal_conditions)}</p>` : ''}${r.constraints ? `<p><b>限制：</b>${safe(r.constraints)}</p>` : ''}<div class="row-between" style="margin-top:10px">${updateMeta(r)}${canEdit(r,'schedule') ? `<div class="item-actions">${button('编辑','edit-schedule','ghost small',`data-id="${safe(r.id)}"`)}${button('删除','delete-schedule','danger secondary small',`data-id="${safe(r.id)}"`)}</div>` : ''}</div></article>`).join('')}</div>`
 }
 function scheduleForm() {
   const r = state.edit?.type === 'schedule' ? state.edit.row : null
   const partnerEdit = r && r.user_id !== state.data.user.id
   const draft=state.parsedSchedule
-  const d = draft ? { ...draft, exercise_intent:draft.exercise?.intent, exercise_type:draft.exercise?.type, duration_minutes:draft.exercise?.duration_minutes, location:draft.exercise?.location, equipment:draft.exercise?.equipment, explicit_start_time:draft.exercise?.explicit_start_time, explicit_end_time:draft.exercise?.explicit_end_time, meal_conditions:draft.meal?.conditions, meal:draft.meal?.arrangements, constraints:(draft.constraints || []).join('\n') } : (partnerEdit ? { user_slot: state.data.account === 'me' ? 'w' : 'me' } : {})
-  return `<div class="card"><div class="card-header"><div><h2>${r ? '编辑日程' : '新增日程'}</h2><span class="hint">请本人逐项核对日期、人员与内容，点击保存后才写入。</span></div>${r ? button('取消编辑','cancel-edit','ghost') : ''}</div><form data-form="schedule"><div class="form-grid">${select('这是谁的日程','user_slot',d.user_slot || state.data.account,[['me','我'],['w','W']])}${field('日期','record_date',r?.record_date || d.record_date || state.scheduleDate,'date',`required ${partnerEdit ? 'readonly' : ''}`)}${field('开始时间','start_time',r?.start_time?.slice(0,5) || d.explicit_start_time || '','time')}${field('结束时间','end_time',r?.end_time?.slice(0,5) || d.explicit_end_time || '','time')}${select('运动意愿','exercise_intent',r?.exercise_intent || d.exercise_intent || 'unknown',[['unknown','未确定'],['yes','愿意运动'],['no','不安排运动']])}${textArea('当天原文或备注','raw_text',r?.raw_text || d.raw_text || '')}${textArea('固定安排','fixed_arrangements',r?.fixed_arrangements || d.fixed_arrangements || '')}${textArea('用餐条件','meal_conditions',r?.meal_conditions || d.meal_conditions || '')}${textArea('限制、注意事项','constraints',r?.constraints || d.constraints || '')}${d.raw_text ? `<div class="field full"><b>解析草稿的结构化确认</b><p class="hint">以下内容来自草稿，仍需你逐项检查；未确认前不进入计划。</p>${draft?.ambiguous_fields?.length ? `<p class="callout">仍有疑点：${draft.ambiguous_fields.map(safe).join('；')}。请核对后填写明确值。</p>` : ''}</div>${field('运动类型','exercise_type',d.exercise_type || '')}${field('运动时长分钟','duration_minutes',d.duration_minutes ?? '','number','min="0" max="1440"')}${field('地点','location',d.location || '')}${field('器械','equipment',d.equipment || '')}${field('饮食安排','meal',d.meal || '')}${field('疲劳情况','fatigue',d.fatigue || '')}${field('疼痛情况','pain',d.pain || '')}${field('睡眠情况','sleep',d.sleep || '')}` : ''}<div class="field full">${check('允许伴侣查看这条日程','is_shared',r?.is_shared || false,'同时需要在设置中打开“共享日程”；新记录默认私有。')}</div></div><div class="actions"><button class="btn" ${state.busy ? 'disabled' : ''}>${r ? '保存修改' : '保存日程'}</button></div></form></div>`
+  const d = draft ? { ...draft, exercise_intent:draft.exercise?.intent, exercise_type:draft.exercise?.type, duration_minutes:draft.exercise?.duration_minutes, location:draft.exercise?.location, equipment:draft.exercise?.equipment, explicit_start_time:draft.exercise?.explicit_start_time, explicit_end_time:draft.exercise?.explicit_end_time, meal_conditions:draft.meal?.conditions, meal:draft.meal?.arrangements, constraints:(draft.constraints || []).join('\n') } : (r?.confirmed_data ? { ...r.confirmed_data, exercise_intent:r.confirmed_data.exercise?.intent, exercise_type:r.confirmed_data.exercise?.type, duration_minutes:r.confirmed_data.exercise?.duration_minutes, location:r.confirmed_data.exercise?.location, equipment:r.confirmed_data.exercise?.equipment, meal:r.confirmed_data.meal?.arrangements, fatigue:r.confirmed_data.fatigue, pain:r.confirmed_data.pain, sleep:r.confirmed_data.sleep } : partnerEdit ? { user_slot: state.data.account === 'me' ? 'w' : 'me' } : {})
+  return `<div class="card"><div class="card-header"><div><h2>${r ? '编辑日程' : '新增日程'}</h2><span class="hint">请本人逐项核对日期、人员与内容，点击保存后才写入。</span></div>${r ? button('取消编辑','cancel-edit','ghost') : ''}</div><form data-form="schedule"><div class="form-grid">${select('这是谁的日程','user_slot',d.user_slot || state.data.account,[['me','我'],['w','W']])}${field('日期','record_date',r?.record_date || d.record_date || state.scheduleDate,'date',`required ${partnerEdit ? 'readonly' : ''}`)}${field('开始时间','start_time',r?.start_time?.slice(0,5) || d.explicit_start_time || '','time')}${field('结束时间','end_time',r?.end_time?.slice(0,5) || d.explicit_end_time || '','time')}${select('运动意愿','exercise_intent',r?.exercise_intent || d.exercise_intent || 'unknown',[['unknown','未确定'],['yes','愿意运动'],['no','不安排运动']])}${partnerEdit ? '' : select('运动类型','exercise_type',scheduleTypeChoice(d.exercise_type),[['','未确定'],['力量训练','力量训练'],['羽毛球','羽毛球'],['其他','其他']])}${textArea('当天原文或备注','raw_text',r?.raw_text || d.raw_text || '')}${textArea('固定安排','fixed_arrangements',r?.fixed_arrangements || d.fixed_arrangements || '')}${textArea('用餐条件','meal_conditions',r?.meal_conditions || d.meal_conditions || '')}${textArea('限制、注意事项','constraints',r?.constraints || d.constraints || '')}${!partnerEdit && (r?.raw_text || d.raw_text) ? `<div class="field full"><b>运动与饮食细节确认</b><p class="hint">只保存本人核对的内容；不确定的值留空。</p>${draft?.ambiguous_fields?.length ? `<p class="callout">仍有疑点：${draft.ambiguous_fields.map(safe).join('；')}。请核对后填写明确值。</p>` : ''}</div>${field('运动时长分钟','duration_minutes',d.duration_minutes ?? '','number','min="0" max="1440"')}${field('地点','location',d.location || '')}${field('器械','equipment',d.equipment || '')}${field('饮食安排','meal',d.meal || '')}${field('疲劳情况','fatigue',d.fatigue || '')}${field('疼痛情况','pain',d.pain || '')}${field('睡眠情况','sleep',d.sleep || '')}` : ''}<div class="field full">${check('允许伴侣查看这条日程','is_shared',r?.is_shared || false,'同时需要在设置中打开“共享日程”；新记录默认私有。')}</div></div><div class="actions"><button class="btn" ${state.busy ? 'disabled' : ''}>${r ? '保存修改' : '保存日程'}</button></div></form></div>`
 }
 function schedulePage() {
   const rows = state.data.schedules.filter(r => r.record_date === state.scheduleDate && visibleByScope(r))
@@ -198,11 +209,12 @@ function weightPage() {
   return `<div class="card soft"><p class="eyebrow">真实测量</p><h2>体重记录</h2><p class="hint">趋势只连接已有数据；近 7 日平均按真实记录计算，并标出样本数。已加载全部可见记录。</p><div class="actions">${scopeSwitch()}${button('刷新数据','refresh','secondary')}</div></div>${charts}${weightForm()}<div class="card"><h2>历史记录</h2>${weightList(rows)}</div>`
 }
 function planSource(source) { return ({ manual:'本人手动', rules:'规则生成', ai:'AI 生成' })[source] || '未知来源' }
-function planCard(plan) {
+function planCard(plan, showDetails = true) {
   const content = plan.content || {}
   const training = content.training || {}
   const own = plan.user_id === state.data.user.id
-  return `<article class="card"><div class="row-between"><div><p class="eyebrow">${safe(plan.target_date)} · 版本 ${safe(plan.version)}</p><h2>${safe(content.summary || '尚无摘要')}</h2></div><span class="tag ${plan.is_shared ? 'shared' : 'private'}">${plan.is_shared ? '共享' : '私有'}</span></div><div class="meta"><span>${safe(planSource(plan.source))}</span><span>${safe(plan.status === 'published' ? '已发布' : '草稿')}</span><span>${plan.is_stale ? '输入已变化，请重新核对' : '输入版本仍匹配'}</span><span>${plan.is_locked ? '已锁定' : '未锁定'}</span></div><p class="hint">生成输入版本：${safe(plan.input_version || '未提供')} · ${plan.generated_at ? `生成于 ${safe(instantToLocalDateTime(plan.generated_at).replace('T',' '))}（上海）` : '手动确认'}。${training.mode === 'workout' ? `训练 ${safe(training.items?.length || 0)} 个动作` : '当天休息或未安排训练'}，餐食 ${safe(content.meals?.length || 0)} 项。</p>${content.warnings?.length ? `<p class="callout">${content.warnings.map(safe).join('；')}</p>` : ''}${own ? `<div class="actions">${button(plan.is_locked ? '解锁计划' : '锁定计划','plan-lock','secondary',`data-id="${safe(plan.id)}"`)}</div>` : ''}${updateMeta(plan)}</article>`
+  const meals = (content.meals || []).map(meal => `<div class="list-item"><strong>${safe(meal.title || '未命名餐食')}${meal.time ? ` · ${safe(meal.time)}` : ''}</strong><p>${(meal.foods || []).map(food => `${safe(food.name || '未命名食物')} ${safe(food.portion ?? '')}${safe(food.unit || '')}`).join('、') || '食物待核对'}</p>${meal.prep_method || meal.purchase_or_prep ? `<p class="hint">${safe([meal.prep_method,meal.purchase_or_prep].filter(Boolean).join(' · '))}</p>` : ''}${meal.notes ? `<p class="fine">${safe(meal.notes)}</p>` : ''}</div>`).join('')
+  return `<article class="card"><div class="row-between"><div><p class="eyebrow">${safe(plan.target_date)} · 版本 ${safe(plan.version)}</p><h2>${safe(content.summary || '尚无摘要')}</h2></div><span class="tag ${plan.is_shared ? 'shared' : 'private'}">${plan.is_shared ? '共享' : '私有'}</span></div><div class="meta"><span>${safe(planSource(plan.source))}</span><span>${safe(plan.status === 'published' ? '已发布' : '草稿')}</span><span>${plan.is_stale ? '输入已变化，请重新核对' : '输入版本仍匹配'}</span><span>${plan.is_locked ? '已锁定' : '未锁定'}</span></div><p class="hint">生成输入版本：${safe(plan.input_version || '未提供')} · ${plan.generated_at ? `生成于 ${safe(instantToLocalDateTime(plan.generated_at).replace('T',' '))}（上海）` : '手动确认'}。${training.mode === 'workout' ? `训练 ${safe(training.items?.length || 0)} 个动作` : '当天休息或未安排训练'}，餐食 ${safe(content.meals?.length || 0)} 项。</p>${content.warnings?.length ? `<p class="callout">${content.warnings.map(safe).join('；')}</p>` : ''}${showDetails ? `<section class="plan-details"><h3>三餐安排</h3><div class="plan-meal-grid">${meals || '<p class="hint">尚无餐食安排。</p>'}</div><h3>运动安排</h3>${training.mode === 'workout' ? trainingPlanDetails(training) : '<p class="hint">今天没有正式训练。</p>'}</section>` : ''}${own ? `<div class="actions">${button(plan.is_locked ? '解锁计划' : '锁定计划','plan-lock','secondary',`data-id="${safe(plan.id)}"`)}</div>` : ''}${updateMeta(plan)}</article>`
 }
 function mealPlanRow(meal = {}, fixed = false, label = '') {
   const food = meal.foods?.[0] || {}
@@ -218,25 +230,25 @@ function planEditor(day, plan) {
 }
 function generationPanel(day, job) {
   const r=currentRules()?.rules
-  const ready=Boolean(r?.confirmed && r?.meal_template?.length===3)
-  const selected=state.data.providerAiAvailable ? select('本次生成方式','ai_provider','',[['','请明确选择'],['rules','确定性规则（不发送给 AI）'],['openai','OpenAI']]) : '<p class="hint">新版生成服务尚未部署，请继续手动计划。</p>'
-  return `<div class="card"><h3>生成明日安排</h3><p class="hint">点击后会登记任务并请求所选服务；只有任务显示成功且出现真实计划时才算完成。DeepSeek 本轮仅供合成验证，不处理个人健康资料。</p>${selected}${ready && state.data.providerAiAvailable ? button('请求生成明日计划','request-plan','secondary',`data-day="${safe(day)}"`) : '<p class="hint">请先确认本人规则与三餐模板，并等待新版服务部署。</p>'}${job && ['failed','exhausted'].includes(job.status) && state.data.providerAiAvailable ? button('重试这次生成','retry-job','secondary',`data-id="${safe(job.id)}"`) : ''}</div>`
+  const ready=Boolean(r?.confirmed)
+  const selected=state.data.providerAiAvailable ? select('本次生成方式','ai_provider','',providerOptions(true)) : '<p class="hint">新版生成服务尚未部署，请继续手动计划。</p>'
+  return `<div class="card"><h3>生成明日安排</h3><p class="hint">点击后会登记任务并请求所选服务；成功后仍请本人核对三餐和训练。三餐模板可留空，生成结果会注明假设。</p>${selected}${ready && state.data.providerAiAvailable ? button('请求生成明日计划','request-plan','secondary',`data-day="${safe(day)}"`) : '<p class="hint">请先由本人确认训练与饮食约束，并等待服务部署。</p>'}${job && ['failed','exhausted'].includes(job.status) && state.data.providerAiAvailable ? button('重试这次生成','retry-job','secondary',`data-id="${safe(job.id)}"`) : ''}</div>`
 }
 function parseSchedulePanel() {
   if (!state.data.providerAiAvailable) return '<div class="card warn"><h2>原文整理</h2><p class="hint">新版逐用途授权尚未部署；请在下方手动填写日程。</p></div>'
-  return `<div class="card"><h2>原文整理</h2><p class="hint">先明确选择服务；只有点击解析且本人已授权此用途、服务与预算可用时，才发送当次原文。DeepSeek 本轮不处理个人健康资料。</p><form data-form="parse-schedule">${select('本次服务','ai_provider','',[['','请明确选择'],['openai','OpenAI']])}${textArea('明日原文','raw_text','')}<div class="actions"><button class="btn secondary">解析为可编辑草稿</button></div></form>${state.parsedSchedule ? '<p class="notice">解析内容已填入日程表单。请逐项核对后手动保存。</p>' : ''}</div>`
+  return `<div class="card"><h2>原文整理</h2><p class="hint">先明确选择服务；只有点击解析且本人已授权此用途、服务与预算可用时，才发送当次原文。DeepSeek 仅在后台开放且本人单独授权后可用。</p><form data-form="parse-schedule">${select('本次服务','ai_provider','',providerOptions())}${textArea('明日原文','raw_text','')}<div class="actions"><button class="btn secondary">解析为可编辑草稿</button></div></form>${state.parsedSchedule ? '<p class="notice">解析内容已填入日程表单。请逐项核对后手动保存。</p>' : ''}</div>`
 }
 function tomorrowPage() {
   const day = addDays(date(),1)
   const plan = state.data.healthAvailable ? currentPlan(day) : null
   const history = state.data.healthAvailable ? ownRows('daily_plans').filter(row => row.target_date === day).sort((a,b) => b.version-a.version) : []
   const job = state.data.healthAvailable ? ownRows('generation_jobs').find(row => row.target_date === day) : null
-  return `<div class="card soft"><p class="eyebrow">明日安排 · ${safe(day)}</p><h2>先确认真实日程，再决定明天怎么过</h2><p class="hint">日程、个人规则和档案变化会标记旧计划待更新。系统不会替你补写未知安排。</p></div>${state.data.healthAvailable ? `${parseSchedulePanel()}${plan ? planCard(plan) : '<div class="card empty"><strong>明天还没有计划</strong>可手动创建；自动生成尚未配置时不会出现假结果。</div>'}${job ? `<div class="card"><h3>生成任务</h3><p>${safe(job.status)} · 目标日 ${safe(job.target_date)} · 尝试 ${safe(job.attempts)}/${safe(job.max_attempts)}</p>${job.error_code ? `<p class="hint">错误代码：${safe(job.error_code)}</p>` : ''}</div>` : ''}${generationPanel(day,job)}${planEditor(day,plan)}${history.length>1 ? `<div class="card"><h2>历史版本</h2>${history.slice(1).map(planCard).join('')}</div>` : ''}` : healthStatus()}${schedulePage()}`
+  return `<div class="card soft"><p class="eyebrow">明日安排 · ${safe(day)}</p><h2>先确认真实日程，再决定明天怎么过</h2><p class="hint">日程、个人规则和档案变化会标记旧计划待更新。系统不会替你补写未知安排。</p></div>${state.data.healthAvailable ? `${parseSchedulePanel()}${plan ? planCard(plan) : '<div class="card empty"><strong>明天还没有计划</strong>可手动创建；自动生成尚未配置时不会出现假结果。</div>'}${job ? `<div class="card"><h3>生成任务</h3><p>${safe(job.status)} · 目标日 ${safe(job.target_date)} · 尝试 ${safe(job.attempts)}/${safe(job.max_attempts)}</p>${job.error_code ? `<p class="hint">错误代码：${safe(job.error_code)}</p>` : ''}</div>` : ''}${generationPanel(day,job)}${planEditor(day,plan)}${history.length>1 ? `<div class="card"><h2>历史版本</h2>${history.slice(1).map(row=>planCard(row,false)).join('')}</div>` : ''}` : healthStatus()}${schedulePage()}`
 }
 function exerciseCard(exercise) {
-  const demo = exercise.demo || {}
-  const verified = demo.verificationStatus === 'verified' && /^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]+$/.test(demo.embed || '')
-  return `<article class="list-item exercise-card"><div class="exercise-head">${muscleIllustration(exercise.muscles)}<div><h3>${safe(exercise.name)}</h3><p class="fine">${safe(exercise.equipment)}</p><p class="fine">肌群：${safe((exercise.muscles || []).join('、'))}</p><span class="tag">${verified ? '示范已核验' : '文字指导'}</span></div></div><details class="exercise-steps"><summary>查看动作说明与注意事项</summary><p><b>开始：</b>${safe(exercise.start)}</p><p><b>动作：</b>${safe(exercise.movement)}</p><p><b>要点：</b>${safe((exercise.cues || []).join('；'))}</p><p><b>常见错误：</b>${safe((exercise.errors || []).join('；'))}</p><p><b>停止信号：</b>${safe((exercise.stopSignals || []).join('；'))}</p>${exercise.firstUseReminder ? `<p><b>首次使用：</b>${safe(exercise.firstUseReminder)}</p>` : ''}<p>${safe(exercise.textFallback || '')}</p></details>${verified ? `<div class="demo-slot" data-demo-slot="${safe(exercise.id)}">${button('加载示范','demo-load','secondary small',`data-id="${safe(exercise.id)}"`)}</div><p class="fine">点击后才会连接 ${safe(demo.provider)} 的播放器，再点“播放”。</p>` : `<p class="hint">视频尚未完成准确性和授权核验，暂不提供播放。${demo.source ? `<a href="${safe(demo.source)}" target="_blank" rel="noopener noreferrer">查看原始来源</a>` : ''}</p>`}</article>`
+  const demo=exercise.demo
+  const verified=demo.verificationStatus==='verified'
+  return `<article class="list-item exercise-card"><div class="exercise-head">${muscleIllustration(exercise.muscles)}<div><h3>${safe(exercise.name)}</h3><p class="fine">${safe(exercise.equipment)} · ${safe((exercise.muscles || []).join('、'))}</p></div></div><div class="demo-slot" data-demo-slot="${safe(exercise.id)}">${button('播放本地动作示意','demo-local-load','secondary small',`data-id="${safe(exercise.id)}"`)}</div><p class="fine">本项目原创循环动作示意；${safe(demo.localLicense)}。器械型号不同，首次请现场教练确认。${verified ? `<a href="${safe(demo.source)}" target="_blank" rel="noopener noreferrer">原发布者实拍视频</a>` : ''}</p><details class="exercise-steps"><summary>动作要领、替代与停止信号</summary><p><b>开始：</b>${safe(exercise.start)}</p><p><b>动作：</b>${safe(exercise.movement)}</p><p><b>要点：</b>${safe((exercise.cues || []).join('；'))}</p><p><b>常见错误：</b>${safe((exercise.errors || []).join('；'))}</p><p><b>停止信号：</b>${safe((exercise.stopSignals || []).join('；'))}</p>${exercise.firstUseReminder ? `<p><b>首次使用：</b>${safe(exercise.firstUseReminder)}</p>` : ''}${exercise.alternatives?.length ? `<p><b>可考虑的替代：</b>${safe(exercise.alternatives.map(id=>exerciseById.get(id)?.name || id).join('、'))}</p>` : ''}</details></article>`
 }
 function muscleIllustration(muscles = []) {
   const names=muscles.join('')
@@ -260,24 +272,54 @@ function trainingPlanDetails(training) {
   const steps=(title,rows)=>`<section class="training-phase"><h3>${title}</h3>${rows.length ? `<ol>${rows.map(step=>`<li>${safe(step.description)} · ${safe(step.seconds)} 秒</li>`).join('')}</ol>` : '<p class="hint">未填写步骤。</p>'}</section>`
   return `<div class="training-plan"><div class="training-overview">${muscleIllustration(training.muscles)}<div><p class="hint">${safe(training.purpose || '训练目的未填写')} · ${safe(training.time || '时间未定')} · ${safe(training.intensity || '强度未定')}</p><p class="fine">${safe(training.equipment || '器械未定')} · 主要肌群：${safe(training.muscles?.join('、') || '未填写')} · 预计 ${safe(training.total_seconds || 0)} 秒</p><p class="fine">肌群位置示意，不是动作演示。</p></div></div>${steps('热身',training.warmup || [])}<section class="training-phase"><h3>正式训练</h3>${(training.items || []).map(item=>`<div class="list-item"><strong>${safe(exerciseById.get(item.exercise_id)?.name || item.exercise_id)}</strong><p>${safe(item.sets)} 组 × ${safe(item.reps)} 次；每组动作 ${safe(item.work_seconds)} 秒，组间休息 ${safe(item.rest_seconds)} 秒，换器械 ${safe(item.transition_seconds)} 秒。</p>${item.first_use_check ? `<p class="fine">首次检查：${safe(item.first_use_check)}</p>` : ''}${item.short_option ? `<p class="fine">时间不足时：${safe(item.short_option)}</p>` : ''}</div>`).join('') || '<p class="hint">尚未填写动作。</p>'}</section>${steps('放松',training.cooldown || [])}</div>`
 }
+function trainingOutcome(row) {
+  if (row.data?.activity_type) return `${({badminton:'羽毛球',other:'其他运动',strength:'力量训练'})[row.data.activity_type] || '运动'}${row.data.status === 'stopped' ? '因不适停止' : '已完成'}`
+  if (row.data?.status==='stopped') return '因不适停止'
+  const plan=state.data.daily_plans?.find(item=>item.id===row.data?.plan_id)
+  const expected=(plan?.content?.training?.items || []).reduce((sum,item)=>sum+Number(item.sets || 0),0)
+  const finished=(row.data?.sets || []).filter(set=>!set.skipped).length
+  return expected && finished<expected ? '部分完成' : '已完成'
+}
+function activityForm() {
+  if (!state.data.activityAvailable) return '<div class="card warn"><h2>记录羽毛球或其他运动</h2><p class="hint">运动记录服务尚未更新，请稍后刷新。</p></div>'
+  const pending=state.pendingCreates.activity, row=state.activityEdit
+  if (pending) return `<div class="card warn"><h2>运动提交结果待确认</h2><p class="hint">已保留同一请求与原填写内容。重试不会另建一条；放弃重试前先读取服务器最新记录。</p><div class="actions">${button('重试保存这次运动','retry-activity')}${button('放弃重试并刷新','cancel-pending-activity','ghost')}</div></div>`
+  const d=row?.data || {}, started=d.started_at ? instantToLocalDateTime(d.started_at) : '', ended=d.ended_at ? instantToLocalDateTime(d.ended_at) : ''
+  return `<div class="card"><details class="activity-editor" ${row ? 'open' : ''}><summary>${row ? '修改已完成运动' : '记录羽毛球／其他已完成运动'}</summary><p class="hint">只记实际发生的运动，默认私有。完成日期和运动时长必填，具体时刻不清楚可留空；不换算卡路里。其他运动请在备注写名称。</p><form data-form="activity"><div class="form-grid">${select('运动类型','activity_type',d.activity_type || 'badminton',[['badminton','羽毛球'],['other','其他运动']])}${field('完成日期','record_date',d.record_date || row?.record_date || date(),'date','required')}${field('实际运动分钟','duration_minutes',d.duration_seconds ? d.duration_seconds/60 : '','number','required min="1" max="1440" step="1"')}${field('实际开始时间（可空）','started_at',started,'datetime-local')}${field('实际结束时间（可空）','ended_at',ended,'datetime-local')}${select('主观强度','intensity',d.intensity || 'moderate',[['light','轻松'],['moderate','中等'],['vigorous','较高']])}${select('不适程度','pain',d.pain || 'none',[['none','没有'],['mild','轻微'],['moderate','中等'],['severe','明显']])}${textArea('备注（可写运动名称与不适细节）','notes',d.notes || '','maxlength="1000"')}</div><div class="actions"><button class="btn">${row ? '保存运动修改' : '保存实际运动'}</button>${row ? button('取消修改','cancel-activity-edit','ghost') : ''}</div></form></details></div>`
+}
+function activityHistory() {
+  const rows=ownRows('training_sessions').filter(row=>row.data?.activity_type).sort((a,b)=>b.record_date.localeCompare(a.record_date))
+  return `<div class="card"><h2>羽毛球与其他运动记录</h2>${rows.length ? `<div class="list">${rows.map(row=>`<article class="list-item"><strong>${safe(row.record_date)} · ${safe(trainingOutcome(row))}</strong><p class="hint">${safe(row.data.duration_seconds/60)} 分钟 · ${safe(({light:'轻松',moderate:'中等',vigorous:'较高'})[row.data.intensity] || '未填强度')} · 不适：${safe(({none:'没有',mild:'轻微',moderate:'中等',severe:'明显'})[row.data.pain] || '未填')}</p>${row.data.notes ? `<p>${safe(row.data.notes)}</p>` : ''}<div class="actions">${button('修改','edit-activity','ghost small',`data-id="${safe(row.id)}"`)}${button('删除','delete-activity','danger secondary small',`data-id="${safe(row.id)}"`)}</div>${updateMeta(row)}</article>`).join('')}</div>` : '<p class="empty">还没有已完成运动记录。</p>'}</div>`
+}
+function pendingTrainingStartCard() {
+  if (!state.pendingCreates.training) return ''
+  return `<div class="card warn"><h2>开始训练的结果待确认</h2><p class="hint">网络没有确认结果。可用同一请求重试，或先刷新服务器记录再放弃重试。</p><div class="actions">${button('重试开始训练','retry-training-start')}${button('放弃重试并刷新','cancel-pending-training','ghost')}</div></div>`
+}
 function trainingPage() {
   if (!state.data.healthAvailable) return healthStatus()
   const plan = currentPlan(date()), training = plan?.content?.training, session = liveTrainingSession()
-  const completed = ownRows('training_sessions').filter(row => ['completed','stopped'].includes(row.data?.status)).sort((a,b) => b.created_at.localeCompare(a.created_at)).slice(0,8)
+  const completed = ownRows('training_sessions').filter(row => ['completed','stopped'].includes(row.data?.status) && !row.data?.activity_type).sort((a,b) => b.created_at.localeCompare(a.created_at)).slice(0,8)
   const selected = [...new Set((training?.items || []).map(item => item.exercise_id))].map(id => exerciseById.get(id)).filter(Boolean)
-  return `<div class="card soft"><p class="eyebrow">按真实完成记录</p><h2>训练</h2><p class="hint">计划不是完成记录。每组次数、重量、不适和休息都由本人保存；不确定的动作先看文字步骤，出现停止信号及时停下。</p><div class="actions">${button('刷新数据','refresh','secondary')}</div></div>${session ? trainingSessionCard(session) : `<div class="card"><h2>今天的训练安排</h2>${plan ? `<p>${safe(plan.content?.summary || '')}</p><p class="hint">${plan.is_stale ? '输入已变化，请先核对计划。' : ''}${training?.mode === 'workout' ? `${safe(training.items?.length || 0)} 个动作 · 计划总时长 ${safe(training.total_seconds || 0)} 秒` : '今天安排休息。'}</p>${trainingPlanDetails(training)}${training?.mode === 'workout' && !plan.is_stale ? button('开始本次训练','training-start') : ''}` : '<p class="hint">今天没有已确认计划。可到“明日安排”手动编排后再开始。</p>'}</div>`}${selected.length ? `<div class="card"><h2>动作说明</h2><div class="exercise-grid">${selected.map(exerciseCard).join('')}</div></div>` : `<div class="card"><h2>动作库</h2><p class="hint">下面是可选动作的文字说明，不代表今天需要全部完成。</p><div class="exercise-grid">${exercises.map(exerciseCard).join('')}</div></div>`}<div class="card"><h2>已保存的训练</h2>${completed.length ? `<div class="list">${completed.map(row => `<article class="list-item"><strong>${safe(shanghaiDate(row.data.started_at))} · ${safe(row.data.status === 'completed' ? '已完成' : '因不适停止')}</strong><p class="hint">${safe(row.data.sets?.length || 0)} 组实际记录 · ${safe(row.data.elapsed_seconds || 0)} 秒</p>${updateMeta(row)}</article>`).join('')}</div>` : '<p class="empty">还没有真实完成记录。</p>'}</div>`
+  return `<div class="card soft"><p class="eyebrow">按真实完成记录</p><h2>训练</h2><p class="hint">计划不是完成记录。每组次数、重量、不适和休息都由本人保存；不确定的动作先看文字步骤，出现停止信号及时停下。</p><div class="actions">${button('刷新数据','refresh','secondary')}</div></div>${pendingTrainingStartCard()}${session ? trainingSessionCard(session) : `<div class="card"><h2>今天的训练安排</h2>${plan ? `<p>${safe(plan.content?.summary || '')}</p><p class="hint">${plan.is_stale ? '输入已变化，请先核对计划。' : ''}${training?.mode === 'workout' ? `${safe(training.items?.length || 0)} 个动作 · 计划总时长 ${safe(training.total_seconds || 0)} 秒` : '今天安排休息。'}</p>${trainingPlanDetails(training)}${training?.mode === 'workout' && !plan.is_stale && !state.pendingCreates.training ? button('开始本次训练','training-start') : ''}` : '<p class="hint">今天没有已确认计划。可到“明日安排”手动编排后再开始。</p>'}</div>`}${activityForm()}${activityHistory()}${selected.length ? `<div class="card"><h2>动作说明</h2><div class="exercise-grid">${selected.map(exerciseCard).join('')}</div></div>` : `<div class="card"><h2>动作库</h2><p class="hint">下面是可选动作的文字说明，不代表今天需要全部完成。</p><div class="exercise-grid">${exercises.map(exerciseCard).join('')}</div></div>`}<div class="card"><h2>已保存的力量训练</h2>${completed.length ? `<div class="list">${completed.map(row => `<article class="list-item"><strong>${safe(shanghaiDate(row.data.started_at))} · ${safe(trainingOutcome(row))}</strong><p class="hint">${safe(row.data.sets?.length || 0)} 组实际记录 · ${safe(row.data.elapsed_seconds || 0)} 秒</p>${updateMeta(row)}</article>`).join('')}</div>` : '<p class="empty">还没有真实完成记录。</p>'}</div>`
 }
-function mealItemRow(item = {}) { return `<div class="form-grid repeat-row" data-meal-item>${field('食物名称','name',item.name || '','text','required')}${field('份量','portion',item.portion ?? '','text','required')}${field('单位','unit',item.unit || '','text','required')}${button('移除食物','remove-row','ghost small')}</div>` }
+function mealItemRow(item = {}) { return `<div class="form-grid repeat-row" data-meal-item>${field('食物名称','name',item.name || '','text','required')}${field('份量','portion',item.portion ?? '','text','required')}${field('单位','unit',item.unit || '','text','required')}<details class="field full"><summary>这一项的营养标签（可选）</summary><div class="form-grid">${field('重量下限 g','grams_min',item.grams_min ?? '','number','min="0" step="0.1"')}${field('重量上限 g','grams_max',item.grams_max ?? '','number','min="0" step="0.1"')}${field('每100g kcal','kcal_per_100g',item.kcal_per_100g ?? '','number','min="0" step="0.1"')}${field('本人核对的数据来源','nutrition_source',item.nutrition_source || '','text','maxlength="120"')}</div></details>${button('移除食物','remove-row','ghost small')}</div>` }
 function estimateDraftNotice() {
   const draft=state.mealEstimateDraft
   if (!draft) return ''
   return `<div class="callout"><strong>AI 识别草稿，尚未保存</strong><p>识别状态：${safe(draft.recognition_status || '未知')}；请核对下方每种食物、份量、烹调和估算区间，确认后才会写入。</p>${draft.items.map(item=>`<p class="fine">${safe(item.name || '未识别')} · ${safe(item.portion || '份量未知')} ${safe(item.unit || '')} · 可信程度 ${safe(({high:'高',medium:'中',low:'低'})[item.confidence] || '未提供')}</p>`).join('')}</div>`
 }
+function estimatePanel(data) {
+  const estimate=data.estimate
+  const method=estimate?.method==='confirmed_nutrition' ? 'confirmed_nutrition' : estimate ? 'existing' : 'none'
+  return `<details class="nutrition-panel" ${estimate ? 'open' : ''}><summary>热量区间与营养标签（可选）</summary><p class="hint">只填本人查到的标签或数据来源；每项重量、每100g热量与来源齐全才可确定性计算。区间按整份保存，已吃比例只在汇总时乘一次。</p><div class="form-grid">${select('估算方式','estimate_method',method,[['none','暂无可靠估算'],...(estimate ? [['existing','沿用已核对区间']] : []),['manual','本人按明确来源填写区间'],['confirmed_nutrition','按每项营养标签计算']])}${select('油酱是否计入','additions_status',estimate?.nutrition_additions_status || 'unmeasured',[['unmeasured','未计量；结果会提示缺口'],['none','没有额外油酱'],['included','已作为独立食物计入']])}${field('整份最低 kcal','energy_min_kcal',estimate?.energy_min_kcal ?? '','number','min="0" step="0.1"')}${field('整份最高 kcal','energy_max_kcal',estimate?.energy_max_kcal ?? '','number','min="0" step="0.1"')}${field('本人核对的来源说明','estimate_source',estimate?.source || '','text','maxlength="200"')}${textArea('不确定性说明','uncertainty',estimate?.uncertainty || '')}</div><div class="actions">${button('预览标签计算与缺口','preview-nutrition','secondary small')}</div><p class="hint" data-nutrition-preview role="status"></p></details>`
+}
 function mealForm() {
+  const pending=state.pendingCreates.meal
+  if (pending) return `<div class="card warn"><h2>餐食提交结果待确认</h2><p class="hint">原填写内容已暂存在本页：${safe(pending.payload.data.items.map(item=>item.name).join('、'))}。可用同一请求重试，或先刷新服务器记录再放弃重试；放弃时本页待上传照片也会取消。</p><div class="actions">${button('重试保存这餐','retry-pending-meal')}${button('放弃重试并刷新','cancel-pending-meal','ghost')}</div></div>`
   const row = state.mealEdit, d = row?.data || {}
   const partnerEdit = row && row.user_id !== state.data.user.id
   const sharedMeals = (state.data.meals || []).filter(item => item.user_id !== state.data.user.id && item.status === 'confirmed')
-  return `<div class="card"><div class="card-header"><div><h2>${row ? '修正这餐' : '记录一餐'}</h2><p class="hint">草稿不计入摄入；确认后更正仍修改同一条记录。新记录默认私有。</p></div>${row ? button('取消编辑','cancel-meal','ghost') : ''}</div>${estimateDraftNotice()}<form data-form="meal"><div class="form-grid">${field('实际用餐时间','recorded_at',d.recorded_at ? instantToLocalDateTime(d.recorded_at) : instantToLocalDateTime(new Date().toISOString()),'datetime-local',`required ${partnerEdit ? 'readonly' : ''}`)}${select('餐别','kind',d.kind || 'other',[['breakfast','早餐'],['lunch','午餐'],['dinner','晚餐'],['snack','加餐'],['other','其他']])}${field('实际吃掉比例（0–1）','eaten_fraction',d.eaten_fraction ?? 1,'number','required min="0" max="1" step="0.05"')}${partnerEdit ? '' : select('与伴侣同一餐（可空）','shared_meal_id',d.shared_meal_id || '',[['','不关联'],...sharedMeals.map(item => [item.id,`${shanghaiDate(item.data.recorded_at)} · ${item.data.kind}`])])}${textArea('烹调方式','cooking',d.cooking || '')}${textArea('油和酱汁','oil',d.oil || '')}${textArea('剩余食物','leftover',d.leftover || '')}${d.estimate ? `${field('估算最低 kcal','energy_min_kcal',d.estimate.energy_min_kcal ?? '','number','min="0" max="10000"')}${field('估算最高 kcal','energy_max_kcal',d.estimate.energy_max_kcal ?? '','number','min="0" max="10000"')}${textArea('估算不确定性','uncertainty',d.estimate.uncertainty || '')}${textArea('估算假设（每行一项）','assumptions',(d.estimate.assumptions || []).join('\n'))}` : ''}</div><h3>实际食物</h3><div data-meal-items>${(d.items?.length ? d.items : [{}]).map(mealItemRow).join('')}</div>${button('添加食物','add-meal-item','secondary small')}<div class="actions">${partnerEdit ? '<span class="hint">代改不能改变共享或确认状态。</span>' : `${check('允许伴侣查看这一餐','is_shared',row?.is_shared || false)}${select('保存状态','status',row?.status || 'draft',[['draft','先存草稿'],['confirmed','确认实际摄入']])}`}<button class="btn">${row ? '保存这餐修改' : '保存餐食'}</button></div></form></div>`
+  return `<div class="card"><div class="card-header"><div><h2>${row ? '修正这餐' : '记录一餐'}</h2><p class="hint">草稿不计入摄入；确认后更正仍修改同一条记录。新记录默认私有。</p></div>${row ? button('取消编辑','cancel-meal','ghost') : ''}</div>${estimateDraftNotice()}<form data-form="meal"><div class="form-grid">${field('实际用餐时间','recorded_at',d.recorded_at ? instantToLocalDateTime(d.recorded_at) : instantToLocalDateTime(new Date().toISOString()),'datetime-local',`required ${partnerEdit ? 'readonly' : ''}`)}${select('餐别','kind',d.kind || 'other',[['breakfast','早餐'],['lunch','午餐'],['dinner','晚餐'],['snack','加餐'],['other','其他']])}${field('实际吃掉比例（0–1）','eaten_fraction',d.eaten_fraction ?? 1,'number','required min="0" max="1" step="0.05"')}${partnerEdit ? '' : select('与伴侣同一餐（可空）','shared_meal_id',d.shared_meal_id || '',[['','不关联'],...sharedMeals.map(item => [item.id,`${shanghaiDate(item.data.recorded_at)} · ${item.data.kind}`])])}${textArea('烹调方式','cooking',d.cooking || '')}${textArea('油和酱汁','oil',d.oil || '')}${textArea('剩余食物','leftover',d.leftover || '')}</div><h3>实际食物</h3><div data-meal-items>${(d.items?.length ? d.items : [{}]).map(mealItemRow).join('')}</div>${button('添加食物','add-meal-item','secondary small')}${estimatePanel(d)}<div class="actions">${partnerEdit ? '<span class="hint">代改不能改变共享或确认状态。</span>' : `${check('允许伴侣查看这一餐','is_shared',row?.is_shared || false)}${select('保存状态','status',row?.status || 'draft',[['draft','先存草稿'],['confirmed','确认实际摄入']])}`}${!partnerEdit && state.data.dailyFlowAvailable ? select('确认后请求后续餐食建议（可选）','adjust_provider','',providerOptions()) : ''}<button class="btn">${row ? '保存这餐修改' : '保存餐食'}</button></div></form></div>`
 }
 function estimateNotice(estimate) {
   const range=estimate.energy_min_kcal == null || estimate.energy_max_kcal == null
@@ -287,20 +329,20 @@ function estimateNotice(estimate) {
 }
 function mealCard(row) {
   const d = row.data || {}, own = row.user_id === state.data.user.id
-  const photos = (state.data.photo_assets || []).filter(photo => photo.meal_id === row.id)
+  const photos = (state.data.photo_assets || []).filter(photo => photo.meal_id === row.id && !photo.deleting && !photo.uploading)
   const estimate = d.estimate
-  return `<article class="list-item"><div class="row-between"><div><strong>${safe(shanghaiDate(d.recorded_at))} · ${safe(({breakfast:'早餐',lunch:'午餐',dinner:'晚餐',snack:'加餐',other:'其他'})[d.kind] || '餐食')}</strong><p class="fine">${safe(person(row.user_id))} · ${safe(row.status === 'confirmed' ? '已确认实际摄入' : '草稿未计入')}</p></div><span class="tag ${row.is_shared ? 'shared' : 'private'}">${row.is_shared ? '共享' : '私有'}</span></div><p>${(d.items || []).map(item => `${safe(item.name)} ${safe(item.portion)} ${safe(item.unit)}`).join('、') || '尚未填写食物'}</p><p class="hint">实际吃掉 ${safe(Math.round(Number(d.eaten_fraction || 0)*100))}%${d.cooking ? ` · ${safe(d.cooking)}` : ''}${d.oil ? ` · 油/酱汁：${safe(d.oil)}` : ''}${d.leftover ? ` · 剩余：${safe(d.leftover)}` : ''}</p>${estimate ? estimateNotice(estimate) : ''}${photos.length ? `<div class="actions">${photos.map(photo => button('查看私人照片','view-photo','secondary small',`data-id="${safe(photo.id)}"`)).join('')}</div>` : ''}${own && state.data.providerAiAvailable ? `<div class="actions">${select('本次估算服务','ai_provider','',[['','请明确选择'],['openai','OpenAI']])}${button(photos.length ? '请求图片估算草稿' : '请求文字估算草稿','estimate-meal','secondary small',`data-id="${safe(row.id)}"`)}</div>` : ''}<div class="actions">${own ? `${button('编辑','edit-meal','ghost small',`data-id="${safe(row.id)}"`)}${button('删除','delete-meal','danger secondary small',`data-id="${safe(row.id)}"`)}` : canEdit(row,'meal') ? button('代改正文','edit-meal','ghost small',`data-id="${safe(row.id)}"`) : ''}</div>${updateMeta(row)}</article>`
+  return `<article class="list-item"><div class="row-between"><div><strong>${safe(shanghaiDate(d.recorded_at))} · ${safe(({breakfast:'早餐',lunch:'午餐',dinner:'晚餐',snack:'加餐',other:'其他'})[d.kind] || '餐食')}</strong><p class="fine">${safe(person(row.user_id))} · ${safe(row.status === 'confirmed' ? '已确认实际摄入' : '草稿未计入')}</p></div><span class="tag ${row.is_shared ? 'shared' : 'private'}">${row.is_shared ? '共享' : '私有'}</span></div><p>${(d.items || []).map(item => `${safe(item.name)} ${safe(item.portion)} ${safe(item.unit)}`).join('、') || '尚未填写食物'}</p><p class="hint">实际吃掉 ${safe(Math.round(Number(d.eaten_fraction || 0)*100))}%${d.cooking ? ` · ${safe(d.cooking)}` : ''}${d.oil ? ` · 油/酱汁：${safe(d.oil)}` : ''}${d.leftover ? ` · 剩余：${safe(d.leftover)}` : ''}</p>${estimate ? estimateNotice(estimate) : ''}${photos.length ? `<div class="actions">${photos.map(photo => button('查看私人照片','view-photo','secondary small',`data-id="${safe(photo.id)}"`)).join('')}</div>` : ''}${own && state.data.providerAiAvailable ? `<div class="actions">${select('本次估算服务','ai_provider','',providerOptions())}${button(photos.length ? '请求图片估算草稿' : '请求文字估算草稿','estimate-meal','secondary small',`data-id="${safe(row.id)}"`)}</div>` : ''}<div class="actions">${own ? `${button('编辑','edit-meal','ghost small',`data-id="${safe(row.id)}"`)}${button('删除','delete-meal','danger secondary small',`data-id="${safe(row.id)}"`)}` : canEdit(row,'meal') ? button('代改正文','edit-meal','ghost small',`data-id="${safe(row.id)}"`) : ''}</div>${updateMeta(row)}</article>`
 }
 function mealPrepCard() {
   const rules=currentRules()?.rules
-  const lunch=rules?.confirmed && rules.meal_template?.length===3 ? rules.meal_template[1] : null
-  if (!lunch) return '<div class="card"><h2>周日午餐备餐 · 5 份</h2><p class="hint">本人确认三餐模板后，才会从午餐列出五份采购草案；目前没有可用模板。</p></div>'
+  const template=rules?.confirmed && rules.meal_template?.length===3
+  const lunch=template ? rules.meal_template[1] : suggestedMeals()[1]
   const shopping=new Map()
   for (const food of lunch.foods || []) {
     const key=`${food.name}\u0000${food.portion}\u0000${food.unit}`
     shopping.set(key,(shopping.get(key)||0)+5)
   }
-  return `<div class="card"><p class="eyebrow">根据本人确认的午餐模板</p><h2>周日备好 5 份午餐</h2><p class="hint">${safe(lunch.title)}；采购草案没有扣减家中库存，购买前请本人核对。备餐尚未被记录为完成。</p><h3>合并采购清单</h3><ul class="prep-list">${[...shopping].map(([key,count])=>{const [name,portion,unit]=key.split('\u0000');return `<li>${safe(name)}：${safe(count)} × ${safe(portion)} ${safe(unit)}</li>`}).join('')}</ul><p class="hint">周一、周二份及时冷藏；周三至周五份在备好后及时冷冻。分浅盒尽快冷却，2 小时内放入冰箱或冷冻；冷藏不高于 4°C，冷冻不高于 −18°C。运输保持低温，复热均匀且彻底。按食材和包装要求进一步核对。</p><a href="https://www.fda.gov/media/101389/download?attachment=" target="_blank" rel="noopener noreferrer">FDA 食品储存指引</a></div>`
+  return `<div class="card"><p class="eyebrow">${template ? '根据本人确认的午餐模板' : '一般备餐示例 · 未经本人确认'}</p><h2>周日备好 5 份午餐</h2><p class="hint">${safe(lunch.title)}；采购草案没有扣减家中库存，购买前请本人核对。备餐尚未被记录为完成。</p><h3>合并采购清单</h3><ul class="prep-list">${[...shopping].map(([key,count])=>{const [name,portion,unit]=key.split('\u0000');return `<li>${safe(name)}：${safe(count)} × ${safe(portion)} ${safe(unit)}</li>`}).join('')}</ul><p class="hint">分成 5 盒，周一、周二份及时冷藏；周三至周五份及时冷冻。分浅盒尽快冷却，2 小时内入冰箱或冷冻；冷藏不高于 4°C，冷冻不高于 −18°C。运输保持低温，复热均匀彻底。</p><a href="https://www.fda.gov/media/101389/download?attachment=" target="_blank" rel="noopener noreferrer">FDA 食品储存指引</a></div>`
 }
 function dailyIntakeCard(rows, day) {
   const confirmed=rows.filter(row=>row.status==='confirmed' && shanghaiDate(row.data.recorded_at)===day)
@@ -320,29 +362,35 @@ function trendsPage() {
   const rows = ownRows('weights'), days = new Set(rows.filter(row => row.record_date >= addDays(date(),-6) && row.record_date <= date()).map(row => row.record_date))
   const waist = [...rows].filter(row => row.waist_cm != null).sort((a,b) => b.record_date.localeCompare(a.record_date))[0]
   const completed = ownRows('training_sessions').filter(row => row.data?.status === 'completed')
-  const realSets = completed.flatMap(row => row.data?.sets || []).filter(set => !set.skipped && set.completed_at)
-  return `<div class="card soft"><p class="eyebrow">只看实际记录</p><h2>趋势</h2><p class="hint">过去 7 天体重有记录 ${days.size}/7 天；缺失保持空白。训练表现只统计已保存的完成组，计划次数不算完成。</p></div><div class="stat-grid"><div class="stat"><span>最近腰围</span><b>${waist ? `${safe(waist.waist_cm)} cm` : '—'}</b><span>${waist ? safe(waist.record_date) : '无记录'}</span></div><div class="stat"><span>已完成训练</span><b>${completed.length}</b><span>真实会话</span></div><div class="stat"><span>完成组数</span><b>${realSets.length}</b><span>含实际次数与重量</span></div></div>${weightPage()}${state.data.healthAvailable ? `<div class="card"><h2>最近完成的动作</h2>${realSets.length ? `<div class="list">${realSets.slice(-12).reverse().map(set => `<div class="list-item">${safe(exerciseById.get(set.exercise_id)?.name || set.exercise_id)} · ${safe(set.reps)} 次${set.load_kg != null ? ` · ${safe(set.load_kg)} kg` : ''}${set.rpe != null ? ` · RPE ${safe(set.rpe)}` : ''}</div>`).join('')}</div>` : '<p class="empty">暂无实际完成组。</p>'}</div>` : healthStatus()}`
+  const strength = completed.filter(row => !row.data?.activity_type || row.data.activity_type === 'strength')
+  const badminton = completed.filter(row => row.data?.activity_type === 'badminton')
+  const other = completed.filter(row => row.data?.activity_type === 'other')
+  const realSets = strength.flatMap(row => row.data?.sets || []).filter(set => !set.skipped && set.completed_at)
+  return `<div class="card soft"><p class="eyebrow">只看实际记录</p><h2>趋势</h2><p class="hint">过去 7 天体重有记录 ${days.size}/7 天；缺失保持空白。训练表现只统计已保存的完成组，计划次数不算完成。</p></div><div class="stat-grid"><div class="stat"><span>最近腰围</span><b>${waist ? `${safe(waist.waist_cm)} cm` : '—'}</b><span>${waist ? safe(waist.record_date) : '无记录'}</span></div><div class="stat"><span>力量训练</span><b>${strength.length}</b><span>已完成会话</span></div><div class="stat"><span>羽毛球</span><b>${badminton.length}</b><span>已完成 · ${badminton.reduce((sum,row)=>sum+row.data.duration_seconds,0)/60} 分钟</span></div><div class="stat"><span>其他运动</span><b>${other.length}</b><span>已完成记录</span></div><div class="stat"><span>力量完成组数</span><b>${realSets.length}</b><span>含实际次数与重量</span></div></div>${weightPage()}${state.data.healthAvailable ? `<div class="card"><h2>最近完成的动作</h2>${realSets.length ? `<div class="list">${realSets.slice(-12).reverse().map(set => `<div class="list-item">${safe(exerciseById.get(set.exercise_id)?.name || set.exercise_id)} · ${safe(set.reps)} 次${set.load_kg != null ? ` · ${safe(set.load_kg)} kg` : ''}${set.rpe != null ? ` · RPE ${safe(set.rpe)}` : ''}</div>`).join('')}</div>` : '<p class="empty">暂无实际完成组。</p>'}</div>` : healthStatus()}`
 }
 function photoManager() {
   const photos = ownRows('photo_assets')
-  return `<div class="card"><h3>我的私人照片</h3><p class="hint">共 ${photos.length} 张，只有按当前权限点开时才临时下载。</p>${photos.map(photo => `<div class="list-item"><span>${safe(shanghaiDate(photo.created_at))} · ${safe(photo.width)}×${safe(photo.height)}</span><div class="actions">${button('查看','view-photo','secondary small',`data-id="${safe(photo.id)}"`)}${button('删除','delete-photo','danger secondary small',`data-id="${safe(photo.id)}"`)}</div></div>`).join('')}</div>`
+  return `<div class="card"><h3>我的私人照片</h3><p class="hint">共 ${photos.filter(photo=>!photo.deleting && !photo.uploading).length} 张可查看。待清理照片仅本人可见。</p>${photos.map(photo => `<div class="list-item"><span>${safe(shanghaiDate(photo.created_at))} · ${photo.deleting ? '删除待清理' : photo.uploading ? '上传未完成待清理' : `${safe(photo.width)}×${safe(photo.height)}`}</span><div class="actions">${photo.deleting || photo.uploading ? '' : button('查看','view-photo','secondary small',`data-id="${safe(photo.id)}"`)}${button(photo.deleting || photo.uploading ? '重试清理' : '删除','delete-photo','danger secondary small',`data-id="${safe(photo.id)}"`)}</div></div>`).join('')}</div>`
 }
 function settingsChecks(m) { return `<div class="stack">${check('共享个人档案','share_profile',m.share_profile)}${check('共享日程','share_schedule',m.share_schedule)}${check('共享体重','share_weight',m.share_weight)}${check('允许伴侣修改已共享记录','allow_partner_edit',m.allow_partner_edit,'需同时满足类别共享和该条记录共享。')}</div>` }
 function healthSharingForm(m) { return `<div class="card"><h2>新记录的共享类别</h2><p class="hint">每一类和每一条都需本人分别开启。代改仍使用上面的独立许可。</p><form data-form="health-sharing" class="stack">${check('共享每日计划','share_plan',m.share_plan)}${check('共享训练记录','share_training',m.share_training)}${check('共享餐食','share_meal',m.share_meal)}${check('共享照片','share_photo',m.share_photo)}<div class="actions"><button class="btn">保存新类别共享</button></div></form></div>` }
 function rulesForm() {
   const row = currentRules(), r = state.rulesDraft || row?.rules || {}
   const weekdays = ['周一','周二','周三','周四','周五','周六','周日']
-  return `<div class="card"><h2>本人训练与饮食约束</h2><p class="hint">首次使用请从“未知”开始，只填写你本人确认的情况；规则未确认或关键项未知时，不生成有约束力的训练。变化后旧计划会标记待更新。</p><form data-form="rules"><div class="form-grid">${select('可用器械','equipment',r.equipment || 'unknown',[['unknown','未知'],['machines_only','仅固定器械'],['dorm','寝室器械'],['mixed','两种环境均可']])}${select('踝部状态','ankle_status',r.ankle_status || 'unknown',[['unknown','未知'],['recovery_unknown','旧伤恢复情况不明'],['limited','存在限制'],['cleared','本人已确认可正常训练'],['no_issue','本人无踝部问题']])}${field('希望运动分钟数','exercise_minutes',r.exercise_minutes ?? '','number','min="0" max="600"')}${field('单次最长分钟数','max_session_minutes',r.max_session_minutes ?? '','number','min="0" max="600"')}${field('每周最多去健身房次数','max_gym_visits',r.max_gym_visits ?? '','number','min="0" max="7"')}${field('每周力量训练上限','weekly_strength_limit',r.weekly_strength_limit ?? '','number','min="0" max="7"')}${textArea('习惯的饭量','meal_portions',r.meal_portions || '')}${textArea('备餐方式','prep_method',r.prep_method || '')}${textArea('其他饮食条件','meal_notes',r.meal_notes || '')}${textArea('运动限制与伤情','limitations',r.limitations || '')}${textArea('睡眠与恢复情况','sleep_condition',r.sleep_condition || '')}<fieldset class="field full"><legend>本人自由日（可多选）</legend><div class="weekday-grid">${weekdays.map((day,index) => check(day,`weekday_${index+1}`,(r.free_weekdays || []).includes(index+1))).join('')}</div></fieldset><div class="field full">${check('自由日不安排正式训练','free_day_training_forbidden',r.free_day_training_forbidden || false)}</div><div class="field full">${check('自由日不提供饮食菜单','free_day_meal_unrestricted',r.free_day_meal_unrestricted || false)}</div><div class="field full">${check('近 48 小时含外部训练已完整记录','training_history_complete',r.training_history_complete || false)}</div><div class="field full">${check('已逐项确认上述本人约束','confirmed',r.confirmed || false)}</div></div><details class="field full"><summary>本人三餐模板（可选；要生成完整次日饮食计划需确认三餐）</summary><p class="hint">只写你本人确认的三餐，不填写则只保存其他约束。</p>${['早餐','午餐','晚餐'].map((name,index)=>mealPlanRow(r.meal_template?.[index] || {},true,name)).join('')}</details><div class="actions"><button class="btn">保存本人规则</button></div></form>${row?.rules?.training_history_complete ? `<div class="callout"><p>近 48 小时训练史上次确认：${row.training_history_confirmed_at ? `${safe(instantToLocalDateTime(row.training_history_confirmed_at).replace('T',' '))}（上海）` : '尚未确认'}。超过 48 小时需再次确认，生成器会安排休息。</p>${button('重新确认近 48 小时训练史','confirm-training-history','secondary')}</div>` : ''}${row ? updateMeta(row) : ''}</div>`
+  return `<div class="card"><h2>本人训练与饮食约束</h2><p class="hint">首次使用请从“未知”开始，只填写你本人确认的情况；规则未确认或关键项未知时，不生成有约束力的训练。变化后旧计划会标记待更新。</p><form data-form="rules"><div class="form-grid">${select('可用器械','equipment',r.equipment || 'unknown',[['unknown','未知'],['machines_only','仅固定器械'],['dorm','寝室器械'],['mixed','两种环境均可']])}${select('踝部状态','ankle_status',r.ankle_status || 'unknown',[['unknown','未知'],['recovery_unknown','旧伤恢复情况不明'],['limited','存在限制'],['cleared','本人已确认可正常训练'],['no_issue','本人无踝部问题']])}${field('希望运动分钟数','exercise_minutes',r.exercise_minutes ?? '','number','min="0" max="600"')}${field('单次最长分钟数','max_session_minutes',r.max_session_minutes ?? '','number','min="0" max="600"')}${field('每周最多去健身房次数','max_gym_visits',r.max_gym_visits ?? '','number','min="0" max="7"')}${field('每周力量训练上限','weekly_strength_limit',r.weekly_strength_limit ?? '','number','min="0" max="7"')}${textArea('习惯的饭量','meal_portions',r.meal_portions || '')}${textArea('备餐方式','prep_method',r.prep_method || '')}${textArea('其他饮食条件','meal_notes',r.meal_notes || '')}${textArea('运动限制与伤情','limitations',r.limitations || '')}${textArea('睡眠与恢复情况','sleep_condition',r.sleep_condition || '')}<fieldset class="field full"><legend>本人自由日（可多选）</legend><div class="weekday-grid">${weekdays.map((day,index) => check(day,`weekday_${index+1}`,(r.free_weekdays || []).includes(index+1))).join('')}</div></fieldset><div class="field full">${check('自由日不安排正式训练','free_day_training_forbidden',r.free_day_training_forbidden || false)}</div><div class="field full">${check('自由日不提供饮食菜单','free_day_meal_unrestricted',r.free_day_meal_unrestricted || false)}</div><div class="field full">${check('近 48 小时含外部训练已完整记录','training_history_complete',r.training_history_complete || false)}</div><div class="field full">${check('已逐项确认上述本人约束','confirmed',r.confirmed || false)}</div></div><details class="field full"><summary>本人三餐模板（可选）</summary><p class="hint">只写你本人确认的三餐；留空时计划会使用明确标注的一般建议，仍须本人核对。</p>${['早餐','午餐','晚餐'].map((name,index)=>mealPlanRow(r.meal_template?.[index] || {},true,name)).join('')}</details><div class="actions"><button class="btn">保存本人规则</button></div></form>${row?.rules?.training_history_complete ? `<div class="callout"><p>近 48 小时训练史上次确认：${row.training_history_confirmed_at ? `${safe(instantToLocalDateTime(row.training_history_confirmed_at).replace('T',' '))}（上海）` : '尚未确认'}。超过 48 小时需再次确认，生成器会安排休息。</p>${button('重新确认近 48 小时训练史','confirm-training-history','secondary')}</div>` : ''}${row ? updateMeta(row) : ''}</div>`
 }
 function aiServiceStatus() {
-  const s=state.aiStatus
-  const openai=s?.providers?.openai
-  return `<div class="callout"><div class="row-between"><strong>服务实际状态</strong>${state.data.providerAiAvailable ? button('检查 AI 服务状态','ai-status','secondary small') : ''}</div>${s ? `<p>OpenAI：${openai?.configured && openai?.budget_configured && s.global_budget_configured ? `服务端已配置 ${safe(openai.model || '模型')}；调用仍受逐用途授权和额度限制。` : '密钥或预算未就绪，无法发送健康资料。'}</p><p class="fine">下方费用是按用量估算，不是供应商账单。已选择的夜间计划方式：${safe(({rules:'确定性规则',openai:'OpenAI',deepseek:'DeepSeek（本轮禁用）'})[s.plan_provider] || '未知')}。</p>` : '<p class="fine">尚未从服务端核对；保存授权不会立即调用。</p>'}</div>`
+  const status=state.aiStatus
+  return `<div class="callout"><div class="row-between"><strong>服务实际状态</strong>${button('检查 AI 服务状态','ai-status','secondary small')}</div>${status ? ['openai','deepseek'].map(provider=>{const item=status.providers?.[provider];const switchText=item?.health_enabled===true?'已开启':item?.health_enabled===false?'已关闭':'后台未返回';const open=item?.configured && item?.budget_configured && status.global_budget_configured && item?.health_enabled !== false && (provider !== 'deepseek' || item.health_enabled === true);return `<p>${provider==='openai'?'OpenAI':'DeepSeek'} 健康用途总开关：${switchText}；${open ? `服务可用（${safe(item.model || '模型未显示')}），仍需本人逐用途授权` : '服务或预算尚未就绪'}。</p>`}).join('') : '<p class="fine">后台健康用途总开关尚未核对；请点击检查。保存授权不会立即调用。</p>'}</div>`
 }
 function aiConsentPanel() {
-  if (!state.data.providerAiAvailable) return '<div class="card warn"><h2>逐用途 AI 授权尚未部署</h2><p class="hint">现有手动功能可继续使用；不会把旧版的笼统授权自动转为新版授权。</p></div>'
-  const purposes=[['parse_schedule','日程文字解析'],['generate_plan','AI 生成计划'],['estimate_meal_text','文字餐食估算'],['estimate_meal_photo','图片餐食估算']]
-  return `<div class="card"><h2>AI 服务与逐用途授权</h2><p class="hint">四种用途分别确认，默认不新增授权。每次调用还需明确选择服务；照片上传和手动记录无需 AI。月上限以美元美分计，系统按用量估算费用，不等于供应商账单。</p><p class="hint">OpenAI 的 <a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">数据政策</a>；服务端请求不保存响应，但不能据此推断零保留。</p>${aiServiceStatus()}<div class="consent-grid">${purposes.map(([purpose,title])=>{const row=providerConsent('openai',purpose),usage=state.aiStatus?.providers?.openai?.usage?.[purpose];return `<form data-form="ai-consent" data-purpose="${purpose}" class="consent-card"><h3>OpenAI · ${title}</h3>${check('允许此次用途发送给 OpenAI','enabled',row?.enabled || false)}${field('每月上限（美元美分）','monthly_limit_cents',row?.monthly_limit_cents ?? 0,'number','required min="0" max="100000" step="1"')}<p class="fine">当前：${row?.enabled ? '已授权' : '未授权'}${usage ? ` · 本月估算已用 ${safe(usage.charged_cents)}、预留 ${safe(usage.reserved_cents)} 美分` : ''}</p><button class="btn secondary">保存此项授权</button></form>`}).join('')}</div><form data-form="plan-provider" class="stack"><h3>夜间计划方式</h3><p class="hint">默认使用确定性规则，不发送给 AI；选择 OpenAI 前需先检查服务并单独授权“AI 生成计划”。</p>${select('由本人选择','plan_provider',state.aiStatus?.plan_provider || 'rules',[['rules','确定性规则'],['openai','OpenAI']])}<button class="btn secondary">保存夜间计划方式</button></form><div class="callout"><h3>DeepSeek 候选</h3><p>本轮仅验证合成样例，尚未开放个人健康资料处理；需核实适用 API 条款并重新确认授权。不会自动切换到 DeepSeek。</p><p class="fine"><a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-privacy-policy.html" target="_blank" rel="noopener noreferrer">DeepSeek 隐私政策</a> · <a href="https://api-docs.deepseek.com/guides/responses_api/" target="_blank" rel="noopener noreferrer">API 说明</a></p></div></div>`
+  if (!state.data.providerAiAvailable) return '<div class="card warn"><h2>逐用途 AI 授权尚未部署</h2><p class="hint">手动记录可继续使用，旧授权不会自动迁移。</p></div>'
+  const purposes=[['parse_schedule','日程文字解析','发送本次日程原文、提交时刻与上海时刻、当前本人账号槽位。'],['generate_plan','计划生成','发送目标日、本人确认规则、档案中的年龄/性别/身高/目标/偏好/健康备注、当日日程、近 8 日训练摘要、同周其他计划的日期与训练/休息状态、规则基线。'],['estimate_meal_text','文字餐食估算','发送食物清单、份量、已吃比例、烹调、油酱和剩余。'],['estimate_meal_photo','图片餐食估算','发送上述餐食文字信息及这餐仍获准使用的最多 2 张净化照片。'],['adjust_plan','餐后调整建议','发送当天原计划、全部已确认餐食的实际内容与估算、日程、训练反馈、本人规则及账号槽位。']]
+  const forms=['openai','deepseek'].map(provider=>purposes.map(([purpose,title,scope])=>{
+    const row=providerConsent(provider,purpose), usage=state.aiStatus?.providers?.[provider]?.usage?.[purpose]
+    return `<form data-form="ai-consent" data-provider="${provider}" data-purpose="${purpose}" class="consent-card"><h3>${provider==='openai'?'OpenAI':'DeepSeek'} · ${title}</h3><p class="hint">${scope}</p>${check('允许这一项发送给该服务', 'enabled', row?.enabled || false)}${field('每月上限（美元美分）','monthly_limit_cents',row?.monthly_limit_cents ?? 0,'number','required min="0" max="500" step="1"')}<p class="fine">${row?.enabled?'本人已授权':'未授权'}${usage ? ` · 本月估算已用 ${safe(usage.charged_cents)} 美分` : ''}</p><button class="btn secondary">保存这一项授权</button></form>`
+  }).join('')).join('')
+  return `<div class="card"><h2>AI 服务与逐用途授权</h2><p class="hint">两家服务分别授权，每项默认关闭。授权可随时撤销；调用前还会核对后台开关、预算与本次选择。照片上传无需 AI。</p>${aiServiceStatus()}<div class="consent-grid">${forms}</div><form data-form="plan-provider" class="stack"><h3>夜间计划方式</h3><p class="hint">由本人选择，确定性规则不发送健康资料给 AI。</p>${select('夜间计划服务','plan_provider',state.aiStatus?.plan_provider || 'rules',[['rules','确定性规则'],['openai','OpenAI'],['deepseek','DeepSeek']])}<button class="btn secondary">保存夜间计划方式</button></form><p class="fine"><a href="https://developers.openai.com/api/docs/guides/your-data" target="_blank" rel="noopener noreferrer">OpenAI 数据政策</a> · <a href="https://cdn.deepseek.com/policies/zh-CN/deepseek-privacy-policy.html" target="_blank" rel="noopener noreferrer">DeepSeek 隐私政策</a></p></div>`
 }
 function profileForm() {
   const p = state.profileDraft || state.data.profile || {}
@@ -366,10 +414,38 @@ function passwordForm() {
 }
 function settingsPage() {
   const m = mine() || {}
-  return `<div class="card soft"><p class="eyebrow">由你掌控</p><h2>设置与隐私</h2><p class="hint">当前固定账号：${accountLabel(state.data.account)}。“我 / 伴侣 / 共同”只是查看范围，不会切换账号。</p><div class="actions">${button('刷新跨设备数据','refresh','secondary')}${button('退出此设备／切换账号','signout','ghost')}</div></div>${profileForm()}${sharedPartnerProfile()}<div class="card"><h2>共享范围</h2><p class="hint">类别开关与每条记录的共享确认缺一不可。代改还需要单独授权；改动会留下修改者和更新时间。</p><form data-form="settings">${settingsChecks(m)}<div class="actions"><button class="btn">保存共享设置</button></div></form></div>${state.data.healthAvailable ? `${healthSharingForm(m)}${rulesForm()}${aiConsentPanel()}` : healthStatus()}${passwordForm()}<div class="card danger-zone"><h2>数据与空间</h2><p class="hint">导出只包含你自己的资料。删除健康数据或退出空间前，建议先导出。</p><div class="actions">${button('导出我的 JSON','export','secondary')}${button('删除我的健康数据','danger-erase','danger secondary')}${button('退出空间','danger-leave','danger secondary')}</div><p class="fine">退出空间会删除本人在空间中的健康数据，但不会删除登录账号；管理员需重新关联空间。</p></div>${dangerPanel()}<div class="card"><h3>自动服务状态</h3><p class="hint">手动记录可用；服务器定时生成、AI 调用和手机推送尚未完成实际配置与验收；动作示范由你点击后才加载第三方播放器。资料不会在未经本人授权时发送给 AI。</p></div>`
+  return `<div class="card soft"><p class="eyebrow">由你掌控</p><h2>设置与隐私</h2><p class="hint">当前固定账号：${accountLabel(state.data.account)}。“我 / 伴侣 / 共同”只是查看范围，不会切换账号。</p><div class="actions">${button('刷新跨设备数据','refresh','secondary')}${button('退出此设备／切换账号','signout','ghost')}</div></div>${profileForm()}${sharedPartnerProfile()}<div class="card"><h2>共享范围</h2><p class="hint">类别开关与每条记录的共享确认缺一不可。代改还需要单独授权；改动会留下修改者和更新时间。</p><form data-form="settings">${settingsChecks(m)}<div class="actions"><button class="btn">保存共享设置</button></div></form></div>${state.data.healthAvailable ? `${healthSharingForm(m)}${rulesForm()}${aiConsentPanel()}` : healthStatus()}${passwordForm()}<div class="card danger-zone"><h2>数据与空间</h2><p class="hint">导出只包含你自己的资料。删除健康数据或退出空间前，建议先导出。</p><div class="actions">${button('导出我的 JSON','export','secondary')}${button('删除我的健康数据','danger-erase','danger secondary')}${button('退出空间','danger-leave','danger secondary')}</div><p class="fine">退出空间会删除本人在空间中的健康数据，但不会删除登录账号；管理员需重新关联空间。</p></div>${dangerPanel()}<div class="card"><h3>当前可用操作</h3><p class="hint">${state.data.healthAvailable ? '可手动记录与核对明日安排、餐食和训练。' : '健康记录服务尚未就绪，请稍后刷新。'}${state.data.providerAiAvailable ? '如需 AI，请先在上方检查后台状态，并由本人逐用途授权。' : '逐用途 AI 授权尚未就绪。'}训练页的站内动作示意由你点击后播放。</p></div>`
+}
+function todayActions() {
+  const day=date(), plan=currentPlan(day)
+  const meals=ownRows('meals').filter(row=>shanghaiDate(row.data?.recorded_at)===day)
+  const done=ownRows('training_sessions').filter(row=>row.record_date===day && row.data?.status==='completed')
+  return `<section class="card today-actions"><p class="eyebrow">今天先做这些</p><h2>记录当下，再看下一步</h2><input id="quick-photo" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" capture="environment" aria-label="拍摄餐食照片"><div class="quick-grid"><button class="quick-action primary" data-action="photo-quick" type="button"><span aria-hidden="true">＋</span><strong>拍照记餐</strong><small>先记录，再核对估算</small></button><button class="quick-action" data-action="page" data-page="tomorrow" type="button"><span aria-hidden="true">▦</span><strong>明日安排</strong><small>写原文并核对计划</small></button><button class="quick-action" data-action="page" data-page="training" type="button"><span aria-hidden="true">◇</span><strong>训练记录</strong><small>按实际完成保存</small></button></div><div class="today-metrics"><span>今日餐食 <b>${meals.length}</b> 条</span><span>完成训练 <b>${done.length}</b> 次</span><span>今日计划 <b>${plan ? `版本 ${safe(plan.version)}` : '未生成'}</b></span></div></section>`
+}
+function adjustmentPanel() {
+  if (!state.data.dailyFlowAvailable) return ''
+  const day=date(), rows=ownRows('meal_adjustments').filter(row=>row.record_date===day).sort((a,b)=>b.created_at.localeCompare(a.created_at))
+  const current=rows[0]
+  const mealNames=(current?.content?.meal_changes || []).map(change=>`<li><b>${safe(change.meal?.title || `第 ${Number(change.meal_index)+1} 餐`)}</b>：${safe((change.meal?.foods || []).map(food=>`${food.name} ${food.portion}${food.unit}`).join('、'))}${change.reason ? ` · ${safe(change.reason)}` : ''}</li>`).join('')
+  return `<section class="card adjustment"><div class="card-header"><div><p class="eyebrow">独立建议 · 本人决定</p><h2>今天后续餐食怎么调整</h2></div><span class="tag private">原计划保留</span></div><p class="hint">根据已确认的餐食请求建议。未记录和未估算不当作零；建议不会自行改写计划。</p><div class="actions">${select('本次建议服务','adjust_provider','',providerOptions())}${button('请求后续餐食建议','request-adjustment','secondary')}</div>${current ? `<article class="list-item"><p><b>${safe(({running:'生成中',draft:'待本人确认',applied:'已由本人采用',stale:'已过期',reverted:'已撤销',failed:'生成失败'})[current.status] || current.status)}</b> · ${safe(current.record_date)}</p>${current.content?.reason ? `<p>${safe(current.content.reason)}</p>` : ''}${mealNames ? `<ul>${mealNames}</ul>` : ''}${current.content?.warnings?.length ? `<p class="hint">${current.content.warnings.map(safe).join('；')}</p>` : ''}<div class="actions">${current.status==='draft' ? button('确认采用这条建议','apply-adjustment','',`data-id="${safe(current.id)}"`) : ''}${current.status==='applied' ? button('撤销这条建议','undo-adjustment','secondary',`data-id="${safe(current.id)}"`) : ''}</div>${updateMeta(current)}</article>` : '<p class="empty">还没有后续餐食建议。</p>'}${rows.length>1 ? `<details><summary>查看历史建议（${rows.length-1}）</summary><div class="list">${rows.slice(1).map(row=>`<div class="list-item">${safe(row.record_date)} · ${safe(row.status)}${row.content?.reason ? `<p>${safe(row.content.reason)}</p>` : ''}</div>`).join('')}</div></details>` : ''}</section>`
+}
+function weeklySummary() {
+  const now=date(), prior=addDays(now,-7), weights=ownRows('weights')
+  const currentAvg=sevenDayAverage(weights,now), previousAvg=sevenDayAverage(weights,prior)
+  const sessions=ownRows('training_sessions').filter(row=>row.data?.status==='completed')
+  const countTrain=(from,to,type)=>sessions.filter(row=>row.record_date>=from && row.record_date<=to && (row.data.activity_type || 'strength')===type).length
+  const mealRange=(from,to)=>{
+    const meals=ownRows('meals').filter(row=>row.status==='confirmed' && shanghaiDate(row.data?.recorded_at)>=from && shanghaiDate(row.data?.recorded_at)<=to)
+    const known=meals.filter(row=>{const e=row.data?.estimate;return e?.recognition_status!=='unrecognized' && Number.isFinite(e?.energy_min_kcal) && Number.isFinite(e?.energy_max_kcal)})
+    const total=known.reduce(([lo,hi],row)=>[lo+row.data.estimate.energy_min_kcal*row.data.eaten_fraction,hi+row.data.estimate.energy_max_kcal*row.data.eaten_fraction],[0,0])
+    return {meals:meals.length,known:known.length,total}
+  }
+  const currentMeals=mealRange(addDays(now,-6),now), previousMeals=mealRange(addDays(now,-13),addDays(now,-7))
+  return `<section class="card"><p class="eyebrow">本周与上周 · 实际记录</p><h2>周变化</h2><div class="stat-grid"><div class="stat"><span>7日平均体重变化</span><b>${currentAvg.count>=2 && previousAvg.count>=2 ? `${safe((currentAvg.average-previousAvg.average).toFixed(1))} kg` : '数据不足'}</b><span>本周 ${currentAvg.count} 天，上周 ${previousAvg.count} 天</span></div><div class="stat"><span>力量训练完成</span><b>${countTrain(addDays(now,-6),now,'strength')} / ${countTrain(addDays(now,-13),addDays(now,-7),'strength')}</b><span>本周 / 上周</span></div><div class="stat"><span>羽毛球完成</span><b>${countTrain(addDays(now,-6),now,'badminton')} / ${countTrain(addDays(now,-13),addDays(now,-7),'badminton')}</b><span>本周 / 上周；不换算热量</span></div><div class="stat"><span>本周已知餐食区间</span><b>${currentMeals.known ? `${Math.round(currentMeals.total[0])}–${Math.round(currentMeals.total[1])}` : '数据不足'}</b><span>${currentMeals.known}/${currentMeals.meals} 餐有估算；上周 ${previousMeals.known}/${previousMeals.meals} 餐</span></div></div><p class="fine">缺少的测量和餐食不补零，餐食区间只覆盖已确认且有估算的部分。</p></section>`
 }
 function app() {
-  const content = ({today:dashboard,tomorrow:tomorrowPage,training:trainingPage,food:foodPage,trends:trendsPage,settings:settingsPage})[state.page]()
+  const pending = state.page==='food' && state.pendingPhoto ? `<div class="card soft" role="status"><h2>待上传的餐食照片</h2><p class="hint">照片只留在此页面内存中。${state.pendingPhotoMealId ? '餐食已保存，照片尚未上传；可单独重试。' : '请先核对下方餐食并保存，照片随后关联到这一餐。'}</p><div class="actions">${state.pendingPhotoMealId ? button('重试上传照片','retry-pending-photo') : ''}${button('取消这张照片','cancel-pending-photo','ghost')}</div></div>` : ''
+  const content = `${state.page==='today' && state.data.healthAvailable ? todayActions() : ''}${pending}${state.page==='trends' && state.data.healthAvailable ? weeklySummary() : ''}${({today:dashboard,tomorrow:tomorrowPage,training:trainingPage,food:foodPage,trends:trendsPage,settings:settingsPage})[state.page]()}${state.page==='food' ? adjustmentPanel() : ''}`
   root.innerHTML = `${layout(content, `<div class="card soft"><p class="eyebrow">温柔提醒</p><h3>慢慢记录就好</h3><p class="hint">这里不评价或比较两个人的数据。每一项内容都来自你们真实填写。</p><div class="divider"></div><p class="fine">数据需要主动刷新才能看到其他设备的最新修改。</p></div>${state.page === 'food' && state.data.healthAvailable ? photoManager() : ''}`)}${nav()}`
 }
 function render() {
@@ -412,12 +488,37 @@ function planContent(form) {
   const total_seconds = [...warmup,...cooldown].reduce((sum,step) => sum + step.seconds,0) + items.reduce((sum,item) => sum + item.sets*item.work_seconds + Math.max(0,item.sets-1)*item.rest_seconds + item.transition_seconds,0)
   return { summary:rowValue(form,'summary').trim(), meals, training:{ mode, purpose:rowValue(form,'purpose').trim(), time:nullable(rowValue(form,'training_time')), intensity:rowValue(form,'intensity').trim(), equipment:rowValue(form,'equipment').trim(), muscles:rowValue(form,'muscles').split(/[，,]/).map(text => text.trim()).filter(Boolean), warmup, items:mode === 'workout' ? items : [], cooldown, total_seconds }, warnings:rowValue(form,'warnings').split(/\r?\n/).map(text => text.trim()).filter(Boolean) }
 }
+function readMealItems(form) {
+  return [...form.querySelectorAll('[data-meal-item]')].map(row => {
+    const item={name:rowValue(row,'name').trim(),portion:rowValue(row,'portion').trim(),unit:rowValue(row,'unit').trim()}
+    for (const key of ['grams_min','grams_max','kcal_per_100g']) if (rowValue(row,key)!=='') item[key]=Number(rowValue(row,key))
+    if (rowValue(row,'nutrition_source').trim()) item.nutrition_source=rowValue(row,'nutrition_source').trim()
+    return item
+  })
+}
 function mealPayload(form, previous = null) {
   const d = previous?.data || {}
-  const items = [...form.querySelectorAll('[data-meal-item]')].map(row => ({ name:rowValue(row,'name').trim(), portion:rowValue(row,'portion').trim(), unit:rowValue(row,'unit').trim() }))
+  const items = readMealItems(form)
   if (!items.length) throw new Error('empty-meal')
   const partnerEdit = previous && previous.user_id !== state.data.user.id
-  const estimate = d.estimate ? { ...d.estimate, energy_min_kcal:numberOrNull(rowValue(form,'energy_min_kcal')), energy_max_kcal:numberOrNull(rowValue(form,'energy_max_kcal')), uncertainty:rowValue(form,'uncertainty').trim(), assumptions:rowValue(form,'assumptions').split(/\r?\n/).map(value=>value.trim()).filter(Boolean) } : null
+  const changedFood = Boolean(previous && (JSON.stringify(items)!==JSON.stringify(d.items || []) || ['cooking','oil','leftover'].some(key=>nullable(rowValue(form,key).trim()) !== (d[key] || null))))
+  const changedEnergy = Boolean(d.estimate && (numberOrNull(rowValue(form,'energy_min_kcal'))!==d.estimate.energy_min_kcal || numberOrNull(rowValue(form,'energy_max_kcal'))!==d.estimate.energy_max_kcal))
+  let method=rowValue(form,'estimate_method'), estimate=null
+  const source=rowValue(form,'estimate_source').trim(), additions=rowValue(form,'additions_status')
+  if (method==='existing' && changedEnergy) method='manual'
+  if (method==='existing') {
+    if (d.estimate && !(changedFood && !changedEnergy)) estimate={...d.estimate,uncertainty:rowValue(form,'uncertainty').trim()}
+    else if (d.estimate) state.followupNotice='食物或油酱等内容变了，旧热量区间已清除，请重新估算'
+  } else if (method==='manual') {
+    const low=numberOrNull(rowValue(form,'energy_min_kcal')), high=numberOrNull(rowValue(form,'energy_max_kcal'))
+    if (!source) throw new Error('estimate-source-required')
+    if (!Number.isFinite(low) || !Number.isFinite(high) || low<0 || high<low) throw new Error('estimate-range')
+    estimate={recognition_status:'recognized',items,energy_min_kcal:low,energy_max_kcal:high,uncertainty:rowValue(form,'uncertainty').trim(),assumptions:[source],method:'manual_source',source,nutrition_additions_status:additions}
+  } else if (method==='confirmed_nutrition') {
+    const result=calculateMealNutrition(items,{eaten_fraction:Number(rowValue(form,'eaten_fraction')),additions_status:additions})
+    if (result.complete) estimate={recognition_status:'recognized',items,energy_min_kcal:result.energy_min_kcal,energy_max_kcal:result.energy_max_kcal,uncertainty:'按本人提供的营养标签与克重计算',assumptions:items.map(item=>`${item.name}：${item.nutrition_source}`),method:'confirmed_nutrition',nutrition_additions_status:additions}
+    else state.followupNotice=`标签计算未完成，${result.gaps.length} 项缺口；餐食已保存但不计入已知热量区间`
+  }
   const photoIds=partnerEdit ? (d.photo_ids || []) : previous ? (state.data.photo_assets || []).filter(photo=>photo.meal_id===previous.id).map(photo=>photo.id) : []
   return { data:{ recorded_at:partnerEdit ? d.recorded_at : localDateTimeToInstant(rowValue(form,'recorded_at')), kind:rowValue(form,'kind'), items, eaten_fraction:Number(rowValue(form,'eaten_fraction')), shared_meal_id:partnerEdit ? d.shared_meal_id : nullable(rowValue(form,'shared_meal_id')), photo_ids:photoIds, cooking:nullable(rowValue(form,'cooking').trim()), oil:nullable(rowValue(form,'oil').trim()), leftover:nullable(rowValue(form,'leftover').trim()), estimate }, status: partnerEdit ? previous.status : rowValue(form,'status'), is_shared: partnerEdit ? previous.is_shared : checked(form,'is_shared'), ...(previous ? {expected_updated_at:previous.updated_at} : {}) }
 }
@@ -463,13 +564,14 @@ async function submit(form) {
     }
     if (kind === 'ai-consent') {
       const limit = Number(v.monthly_limit_cents)
-      if (checked(form,'enabled') && limit <= 0) throw new Error('ai-budget')
+      if (!Number.isInteger(limit) || limit < 0 || limit > 500 || (checked(form,'enabled') && limit === 0)) throw new Error('ai-budget')
       if (!state.data.providerAiAvailable) throw Object.assign(new Error('新版授权尚未部署'),{code:'AI_EXTENSION_UNAVAILABLE'})
-      await api.setAiProviderConsent('openai',form.dataset.purpose,checked(form,'enabled'),limit,'2026-10-13-openai-health-v1'); state.aiStatus=null; await reload(started); return
+      const selectedProvider=form.dataset.provider
+      await api.setAiProviderConsent(selectedProvider,form.dataset.purpose,checked(form,'enabled'),limit,`2026-10-13-${selectedProvider}-health-v1`); state.aiStatus=null; await reload(started); return
     }
     if (kind === 'plan-provider') {
       if (!state.aiStatus) throw Object.assign(new Error('请先检查服务状态'),{code:'AI_STATUS_REQUIRED'})
-      await requireProviderReady(v.plan_provider,v.plan_provider === 'openai' ? 'generate_plan' : null)
+      await requireProviderReady(v.plan_provider,v.plan_provider === 'rules' ? null : 'generate_plan')
       if (started !== generation) return
       await api.setAiPlanProvider(v.plan_provider); state.aiStatus=null; await reload(started); return
     }
@@ -483,13 +585,13 @@ async function submit(form) {
       const r = state.edit?.type === 'schedule' ? state.edit.row : null
       if (!r && v.user_slot !== state.data.account) throw new Error('wrong-slot')
       if (r && v.user_slot !== (r.user_id === state.data.user.id ? state.data.account : state.data.account === 'me' ? 'w' : 'me')) throw new Error('wrong-slot')
-      if (![v.raw_text,v.fixed_arrangements,v.meal_conditions,v.constraints].some(value => value?.trim()) && v.exercise_intent === 'unknown' && !v.start_time && !v.end_time) throw new Error('empty-schedule')
-      if (v.start_time && v.end_time && v.end_time <= v.start_time) throw new Error('invalid-time')
+      if (![v.raw_text,v.fixed_arrangements,v.meal_conditions,v.constraints].some(value => value?.trim()) && v.exercise_intent === 'unknown' && !v.exercise_type && !v.start_time && !v.end_time) throw new Error('empty-schedule')
+      if (v.end_time && (!v.start_time || v.end_time <= v.start_time)) throw new Error('invalid-time')
       if (r && r.user_id !== state.data.user.id && v.record_date !== r.record_date) throw new Error('invalid-date')
       const payload = {user_id:r?.user_id || state.data.user.id,record_date:v.record_date,raw_text:nullable(v.raw_text),start_time:nullable(v.start_time),end_time:nullable(v.end_time),exercise_intent:v.exercise_intent,fixed_arrangements:nullable(v.fixed_arrangements),meal_conditions:nullable(v.meal_conditions),constraints:nullable(v.constraints),is_shared:checked(form,'is_shared'),...(r ? {expected_updated_at:r.updated_at} : {})}
-      if (state.parsedSchedule && !r) {
+      if (state.data.healthAvailable && (!r || r.user_id === state.data.user.id)) {
         const confirmed_data = {user_slot:v.user_slot, record_date:v.record_date, exercise:{intent:v.exercise_intent,type:nullable(v.exercise_type),duration_minutes:numberOrNull(v.duration_minutes),location:nullable(v.location),equipment:nullable(v.equipment),explicit_start_time:nullable(v.start_time),explicit_end_time:nullable(v.end_time)}, meal:{conditions:nullable(v.meal_conditions),arrangements:nullable(v.meal)}, constraints:v.constraints.split(/\r?\n/).map(value=>value.trim()).filter(Boolean), fatigue:nullable(v.fatigue), pain:nullable(v.pain), sleep:nullable(v.sleep), ambiguous_fields:[]}
-        await api.saveConfirmedSchedule({...payload,confirmed_data,submitted_at:state.parsedSchedule.submitted_at,parse_version:state.parsedSchedule.parse_version})
+        await api.saveConfirmedSchedule({...payload,confirmed_data,submitted_at:state.parsedSchedule?.submitted_at || new Date().toISOString(),parse_version:state.parsedSchedule?.parse_version || 'manual-schedule-v1'},r?.id || null)
       } else await api.saveSchedule(payload,r?.id || null)
       if (started !== generation) return
       state.parsedSchedule = null; state.scheduleDate = v.record_date; await reload(started); return
@@ -506,7 +608,30 @@ async function submit(form) {
       render(); return
     }
     if (kind === 'plan') { const plan = currentPlan(addDays(date(),1)); await api.saveDailyPlan(addDays(date(),1),planContent(form),plan?.version || null,checked(form,'is_shared')); await reload(started); return }
-    if (kind === 'meal') { const previous = state.mealEdit; await api.saveMeal(mealPayload(form,previous),previous?.id || null); if (started !== generation) return; state.mealEdit = null; state.mealEstimateDraft=null; await reload(started); return }
+    if (kind === 'meal') {
+      const previous = state.mealEdit
+      const payload=mealPayload(form,previous)
+      const request=previous ? {payload,meta:{status:v.status,adjust_provider:v.adjust_provider}} : {payload:{...payload,client_request_id:crypto.randomUUID()},meta:{status:v.status,adjust_provider:v.adjust_provider}}
+      if (!previous) state.pendingCreates.meal=request
+      await saveMealFlow(request,previous,started)
+      return
+    }
+    if (kind === 'activity') {
+      if (!state.data.activityAvailable) throw new Error('运动记录服务尚未更新')
+      const row=state.activityEdit, begin=v.started_at ? localDateTimeToInstant(v.started_at) : null, end=v.ended_at ? localDateTimeToInstant(v.ended_at) : null
+      const minutes=Number(v.duration_minutes), duration=minutes*60, windowSeconds=begin && end ? (Date.parse(end)-Date.parse(begin))/1000 : null
+      if (!validDate(v.record_date) || v.record_date>date() || !['badminton','other'].includes(v.activity_type) || !['light','moderate','vigorous'].includes(v.intensity) || !['none','mild','moderate','severe'].includes(v.pain) || !Number.isInteger(minutes) || minutes<1 || minutes>1440 || Boolean(begin)!==Boolean(end) || (begin && (windowSeconds<duration || Date.parse(end)>Date.now() || shanghaiDate(end)!==v.record_date))) throw new Error('activity-time')
+      const payload={data:{plan_id:null,status:'completed',record_date:v.record_date,started_at:begin,ended_at:end,active_since:null,rest_until:null,rest_remaining_seconds:0,elapsed_seconds:duration,stop_reason:null,sets:[],activity_type:v.activity_type,duration_seconds:duration,intensity:v.intensity,pain:v.pain,notes:v.notes.trim()},status:'completed',is_shared:row?.is_shared || false,...(row ? {expected_updated_at:row.updated_at} : {})}
+      if (row) await api.saveTrainingSession(payload,row.id)
+      else {
+        if (!state.pendingCreates.activity) state.pendingCreates.activity={payload:{...payload,client_request_id:crypto.randomUUID()}}
+        await api.saveTrainingSession(state.pendingCreates.activity.payload)
+        if (started !== generation) return
+        state.pendingCreates.activity=null
+      }
+      if (started !== generation) return
+      state.activityEdit=null; await reload(started); return
+    }
     if (kind === 'training-set') {
       const session = liveTrainingSession(), d = session?.data
       if (!session || d.status !== 'active' || !exerciseById.has(v.exercise_id)) throw new Error('invalid-exercise')
@@ -514,6 +639,7 @@ async function submit(form) {
       const item = plan?.content?.training?.items?.find(row => row.exercise_id === v.exercise_id)
       if (!item) throw new Error('invalid-exercise')
       const done=(d.sets || []).filter(set=>set.exercise_id===v.exercise_id).length+1
+      if (done>item.sets || Number(v.set_index)!==done) throw new Error('training-set-complete')
       const nextItem=plan.content.training.items[plan.content.training.items.indexOf(item)+1]
       const now = new Date().toISOString(), rest = Number(done < item.sets ? item.rest_seconds : nextItem ? item.transition_seconds : 0)
       const skipped=checked(form,'skipped')
@@ -546,7 +672,7 @@ async function submit(form) {
       if (started !== generation) return
       state.danger = null; state.profileDraft = null; await reload(started); return
     }
-  }, ({signin:'登录成功',settings:'共享设置已保存','health-sharing':'新类别共享已保存',rules:'本人规则已保存','ai-consent':'授权设置已保存','plan-provider':'夜间计划方式已保存',profile:'档案已保存',schedule:'日程已保存','parse-schedule':'解析草稿已载入，请确认后保存',plan:'手动计划新版本已保存',meal:'餐食已保存','training-set':'实际训练组已保存',photo:'照片已上传',weight:'体重已保存',danger:'操作已完成'})[kind] || '')
+  }, ({signin:'登录成功',settings:'共享设置已保存','health-sharing':'新类别共享已保存',rules:'本人规则已保存','ai-consent':'授权设置已保存','plan-provider':'夜间计划方式已保存',profile:'档案已保存',schedule:'日程已保存','parse-schedule':'解析草稿已载入，请确认后保存',plan:'手动计划新版本已保存',meal:'餐食已保存',activity:'实际运动已保存','training-set':'实际训练组已保存',photo:'照片已上传',weight:'体重已保存',danger:'操作已完成'})[kind] || '')
 }
 function exportJson(data) {
   const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'})
@@ -566,8 +692,58 @@ async function cleanPhoto(file) {
     return new File([blob],'meal.png',{type:'image/png'})
   } finally { bitmap.close() }
 }
+async function saveMealFlow(request, previous, started) {
+  const saved=await api.saveMeal(request.payload,previous?.id || null)
+  if (started !== generation) return
+  state.pendingCreates.meal=null; state.mealEdit=null; state.mealEstimateDraft=null
+  if (state.pendingPhoto && !state.pendingPhotoMealId) {
+    state.pendingPhotoMealId=saved.id
+    try { await api.uploadPhoto(state.pendingPhoto,saved.id,false); state.pendingPhoto=null; state.pendingPhotoMealId=null }
+    catch(error) { state.followupNotice=`餐食已保存，照片未上传：${errorText(error)}；可单独重试或取消照片` }
+  }
+  await reload(started)
+  if (request.meta.status==='confirmed' && request.meta.adjust_provider && started===generation) {
+    if (shanghaiDate(request.payload.data.recorded_at) !== date()) state.followupNotice='后续餐食建议只支持今天的餐食'
+    else try { await requireProviderReady(request.meta.adjust_provider,'adjust_plan'); await api.requestMealAdjustment(date(),request.meta.adjust_provider); await reload(started); state.followupNotice='后续餐食建议已单独请求，请本人核对' }
+    catch(error) { state.followupNotice=`餐食已确认，后续建议未完成：${errorText(error)}` }
+  }
+}
 async function act(el) {
   const action = el.dataset.action
+  if (state.busy && !['page','signout','scope','close-photo'].includes(action)) return
+  if (action === 'edit-activity') { const row=ownRows('training_sessions').find(item=>item.id===el.dataset.id && item.data?.activity_type); if (!row) return; state.activityEdit=row; state.page='training'; render(); root.querySelector('.activity-editor')?.scrollIntoView(); return }
+  if (action === 'cancel-activity-edit') { state.activityEdit=null; render(); return }
+  if (action === 'delete-activity') { const row=ownRows('training_sessions').find(item=>item.id===el.dataset.id && item.data?.activity_type); if (!row || !confirm('确认删除这条本人运动记录？')) return; const started=generation; await work(async()=>{await api.deleteTrainingSession(row.id);state.activityEdit=null;await reload(started)},'运动记录已删除'); return }
+  if (action === 'retry-activity') { const pending=state.pendingCreates.activity; if (!pending) return; const started=generation; await work(async()=>{await api.saveTrainingSession(pending.payload);if(started!==generation)return;state.pendingCreates.activity=null;await reload(started)},'实际运动已保存'); return }
+  if (action === 'cancel-pending-activity') { const started=generation; await work(async()=>{await reload(started);if(started!==generation)return;state.pendingCreates.activity=null},'已读取服务器记录并放弃本次重试'); return }
+  if (action === 'retry-training-start') { const pending=state.pendingCreates.training; if (!pending) return; const started=generation; await work(async()=>{await api.saveTrainingSession(pending.payload);if(started!==generation)return;state.pendingCreates.training=null;await reload(started)},'训练已开始；请记录实际完成的每一组'); return }
+  if (action === 'cancel-pending-training') { const started=generation; await work(async()=>{await reload(started);if(started!==generation)return;state.pendingCreates.training=null},'已读取服务器记录并放弃本次重试'); return }
+  if (action === 'retry-pending-meal') { const pending=state.pendingCreates.meal; if (!pending) return; const started=generation; await work(async()=>saveMealFlow(pending,null,started),'餐食已保存'); return }
+  if (action === 'cancel-pending-meal') { const started=generation; await work(async()=>{await reload(started);if(started!==generation)return;state.pendingCreates.meal=null;state.pendingPhoto=null;state.pendingPhotoMealId=null},'已读取服务器记录并放弃本次重试'); return }
+  if (action === 'photo-quick') { root.querySelector('#quick-photo')?.click(); return }
+  if (action === 'cancel-pending-photo') { state.pendingPhoto=null; state.pendingPhotoMealId=null; render(); return }
+  if (action === 'retry-pending-photo') { if(!state.pendingPhoto || !state.pendingPhotoMealId)return; const started=generation; await work(async()=>{await api.uploadPhoto(state.pendingPhoto,state.pendingPhotoMealId,false);state.pendingPhoto=null;state.pendingPhotoMealId=null;await reload(started)},'照片已上传并关联餐食'); return }
+  if (action === 'preview-nutrition') {
+    const form=el.closest('[data-form="meal"]'), target=form?.querySelector('[data-nutrition-preview]')
+    if (!form || !target) return
+    try {
+      const result=calculateMealNutrition(readMealItems(form),{eaten_fraction:Number(rowValue(form,'eaten_fraction')),additions_status:rowValue(form,'additions_status')})
+      target.textContent=result.complete ? `整份 ${result.energy_min_kcal.toFixed(1)}–${result.energy_max_kcal.toFixed(1)} kcal；按已吃比例 ${result.consumed_min_kcal.toFixed(1)}–${result.consumed_max_kcal.toFixed(1)} kcal。` : `尚缺 ${result.gaps.length} 项：${result.gaps.map(gap=>`${gap.name || `第${gap.index+1}项`}（${gap.fields.join('、')}）`).join('；')}。缺项不按零计算。`
+    } catch(error) { target.textContent=errorText(error) }
+    return
+  }
+  if (action === 'request-adjustment') {
+    const selected=el.closest('.adjustment')?.querySelector('[name="adjust_provider"]')?.value, started=generation
+    await work(async()=>{await requireProviderReady(selected,'adjust_plan');if(started!==generation)return;await api.requestMealAdjustment(date(),selected);await reload(started)},'后续餐食建议已请求；请核对后决定是否采用')
+    return
+  }
+  if (action === 'apply-adjustment' || action === 'undo-adjustment') {
+    const row=ownRows('meal_adjustments').find(item=>item.id===el.dataset.id)
+    if(!row)return
+    const started=generation
+    await work(async()=>{if(action==='apply-adjustment')await api.applyMealAdjustment(row.id,row.updated_at);else await api.undoMealAdjustment(row.id,row.updated_at);await reload(started)},action==='apply-adjustment'?'建议已由本人确认，原计划和历史仍可查看':'建议已撤销，原计划和历史仍可查看')
+    return
+  }
   if (action === 'remove-row') { el.closest('.repeat-row')?.remove(); return }
   if (action === 'add-plan-meal') { root.querySelector('[data-plan-meals]')?.insertAdjacentHTML('beforeend',mealPlanRow()); return }
   if (action === 'add-plan-food') { el.closest('[data-plan-meal]')?.querySelector('[data-food-extra]')?.insertAdjacentHTML('beforeend',foodPlanRow()); return }
@@ -576,40 +752,35 @@ async function act(el) {
   if (action === 'add-meal-item') { root.querySelector('[data-meal-items]')?.insertAdjacentHTML('beforeend',mealItemRow()); return }
   if (action === 'cancel-meal') { state.mealEdit=null; state.mealEstimateDraft=null; render(); return }
   if (action === 'close-photo') { if (state.photoUrl) URL.revokeObjectURL(state.photoUrl); state.photoUrl=null; render(); return }
-  if (action.startsWith('demo-')) {
-    const exercise=exerciseById.get(el.dataset.id), embed=exercise?.demo?.embed
-    if (exercise?.demo?.verificationStatus !== 'verified' || !/^https:\/\/www\.youtube\.com\/embed\/[A-Za-z0-9_-]+$/.test(embed || '')) return
-    if (action === 'demo-load') {
-      const slot=el.closest('[data-demo-slot]'), frame=document.createElement('iframe'), url=new URL(embed)
-      if (!slot || slot.querySelector('iframe')) return
-      url.searchParams.set('enablejsapi','1'); url.searchParams.set('origin',location.origin)
-      frame.id=`demo-${exercise.id}`; frame.className='demo-frame'; frame.title=`${exercise.name}示范`
-      frame.allow='autoplay; encrypted-media; picture-in-picture'
-      frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-presentation')
-      frame.src=url.href
-      slot.replaceChildren(frame)
+  if (action.startsWith('demo-local-')) {
+    const exercise=exerciseById.get(el.dataset.id), slot=el.closest('[data-demo-slot]')
+    if (!exercise || !slot || exercise.demo.localAsset!==`media/exercises/${exercise.id}.svg`) return
+    const source=`${import.meta.env.BASE_URL}${exercise.demo.localAsset}`
+    if (action==='demo-local-load') {
+      const object=document.createElement('object')
+      object.type='image/svg+xml'; object.data=source; object.className='demo-frame'; object.setAttribute('aria-label',`${exercise.name}原创动作示意`)
+      slot.replaceChildren(object)
       const controls=document.createElement('div'); controls.className='actions'
-      for (const [label,kind] of [['播放','demo-play'],['暂停','demo-pause'],['重播','demo-replay']]) {
-        const control=document.createElement('button'); control.type='button'; control.className='btn secondary small'
-        control.textContent=label; control.dataset.action=kind; control.dataset.id=exercise.id; controls.append(control)
+      for (const [title,name] of [['播放','demo-local-play'],['暂停','demo-local-pause'],['重播','demo-local-replay']]) {
+        const button=document.createElement('button'); button.type='button'; button.className='btn secondary small'; button.textContent=title; button.dataset.action=name; button.dataset.id=exercise.id; controls.append(button)
       }
       slot.append(controls)
       return
     }
-    const frame=document.getElementById(`demo-${exercise.id}`), origin=new URL(embed).origin
-    const command=action === 'demo-play' ? 'playVideo' : action === 'demo-pause' ? 'pauseVideo' : 'seekTo'
-    frame?.contentWindow?.postMessage(JSON.stringify({event:'command',func:command,args:action === 'demo-replay' ? [0,true] : []}),origin)
-    if (action === 'demo-replay') frame?.contentWindow?.postMessage(JSON.stringify({event:'command',func:'playVideo',args:[]}),origin)
+    const object=slot.querySelector('object'), svg=object?.contentDocument?.documentElement
+    if (!svg) return setNotice('本地动作示意尚未载入，请稍后再试。',true)
+    if (action==='demo-local-replay') { object.data=`${source}?replay=${Date.now()}`; return }
+    svg.querySelectorAll('.a,.b').forEach(node=>{node.style.animationPlayState=action==='demo-local-pause'?'paused':'running'})
     return
   }
   if (action === 'plan-lock') { const plan=(state.data.daily_plans || []).find(row => row.id === el.dataset.id); if (!plan || plan.user_id !== state.data.user.id) return; const started=generation; await work(async()=>{await api.setPlanLock(plan.id,!plan.is_locked,plan.updated_at);await reload(started)},'计划锁定状态已保存'); return }
   if (action === 'request-plan' || action === 'retry-job') {
     const started=generation
     await work(async()=>{
-      const selectedProvider=el.closest('.card')?.querySelector('[name="ai_provider"]')?.value
-      await requireProviderReady(selectedProvider,selectedProvider === 'openai' ? 'generate_plan' : null)
+      const selectedProvider=action === 'retry-job' ? ownRows('generation_jobs').find(row=>row.id===el.dataset.id)?.provider : el.closest('.card')?.querySelector('[name="ai_provider"]')?.value
+      await requireProviderReady(selectedProvider,selectedProvider === 'rules' ? null : 'generate_plan')
       if (started !== generation) return
-      const job=action === 'request-plan' ? await api.requestPlanGeneration(el.dataset.day) : await api.retryGenerationJob(el.dataset.id)
+      const job=action === 'request-plan' ? await api.requestPlanGeneration(el.dataset.day,selectedProvider) : await api.retryGenerationJob(el.dataset.id)
       if (started !== generation) return
       try {
         const outcome=await api.generatePlan(job.id,selectedProvider)
@@ -622,9 +793,10 @@ async function act(el) {
   if (action === 'confirm-training-history') { const row=currentRules(); if(!row?.rules?.training_history_complete)return; const started=generation; await work(async()=>{await api.confirmTrainingHistory(row.updated_at);await reload(started)},'近 48 小时训练史已再次由本人确认。'); return }
   if (action === 'training-start') {
     const plan=currentPlan(date())
-    if (!plan || plan.is_stale || plan.content?.training?.mode !== 'workout' || liveTrainingSession()) return setNotice('请先核对今天的训练计划与现有会话。',true)
+    if (!plan || plan.is_stale || plan.content?.training?.mode !== 'workout' || liveTrainingSession() || state.pendingCreates.training) return setNotice('请先核对今天的训练计划与现有会话。',true)
     const started=generation, now=new Date().toISOString()
-    await work(async()=>{await api.saveTrainingSession({data:{plan_id:plan.id,status:'active',started_at:now,active_since:now,rest_until:null,rest_remaining_seconds:0,ended_at:null,elapsed_seconds:0,stop_reason:null,sets:[]},status:'active',is_shared:false});await reload(started)},'训练已开始；请记录实际完成的每一组'); return
+    state.pendingCreates.training={payload:{data:{plan_id:plan.id,status:'active',started_at:now,active_since:now,rest_until:null,rest_remaining_seconds:0,ended_at:null,elapsed_seconds:0,stop_reason:null,sets:[]},status:'active',is_shared:false,client_request_id:crypto.randomUUID()}}
+    await work(async()=>{await api.saveTrainingSession(state.pendingCreates.training.payload);if(started!==generation)return;state.pendingCreates.training=null;await reload(started)},'训练已开始；请记录实际完成的每一组'); return
   }
   if (['training-pause','training-resume','training-finish','training-stop'].includes(action)) {
     const session=liveTrainingSession(); if (!session) return
@@ -642,8 +814,8 @@ async function act(el) {
   if (action === 'delete-meal') { const row=ownRows('meals').find(item => item.id === el.dataset.id); if (!row || !confirm('确认删除这条本人餐食记录？')) return; const started=generation; await work(async()=>{await api.deleteMeal(row.id);await reload(started)},'餐食记录已删除'); return }
   if (action === 'delete-photo') { const row=ownRows('photo_assets').find(item => item.id === el.dataset.id); if (!row || !confirm('确认删除这张本人照片？')) return; const started=generation; await work(async()=>{await api.deletePhoto(row.id);if(state.photoUrl){URL.revokeObjectURL(state.photoUrl);state.photoUrl=null}await reload(started)},'照片已删除'); return }
   if (action === 'view-photo') { const started=generation; await work(async()=>{const blob=await api.downloadPhoto(el.dataset.id);if(started!==generation)return;if(!(blob instanceof Blob))throw new Error('photo-invalid');if(state.photoUrl)URL.revokeObjectURL(state.photoUrl);state.photoUrl=URL.createObjectURL(blob)},'照片已按当前权限读取'); return }
-  if (action === 'estimate-meal') { const row=ownRows('meals').find(item => item.id === el.dataset.id); if (!row) return; const started=generation; await work(async()=>{const selectedProvider=el.closest('article')?.querySelector('[name="ai_provider"]')?.value;const hasPhotos=(state.data.photo_assets||[]).some(photo=>photo.meal_id===row.id);await requireProviderReady(selectedProvider,hasPhotos?'estimate_meal_photo':'estimate_meal_text');if(started!==generation)return;const response=await api.estimateMeal(row.id,selectedProvider);if(started!==generation)return;const draft=response?.draft;if(response?.needs_confirmation!==true || !draft || typeof draft!=='object' || !Array.isArray(draft.items)) throw new Error('invalid-ai-draft');state.mealEstimateDraft=draft;state.mealEdit={...row,data:{...row.data,items:draft.items.map(item=>({name:item.name || '',portion:item.portion || '',unit:item.unit || ''})),cooking:draft.cooking ?? row.data.cooking,oil:draft.oil ?? row.data.oil,leftover:draft.leftover ?? row.data.leftover,estimate:draft}};state.page='food'},'识别草稿已填入，请逐项核对后保存'); return }
-  if (action === 'page') { state.page = el.dataset.page; state.edit = null; state.mealEdit = null; state.mealEstimateDraft=null; state.notice = ''; render(); scrollTo(0,0); return }
+  if (action === 'estimate-meal') { const row=ownRows('meals').find(item => item.id === el.dataset.id); if (!row) return; const started=generation; await work(async()=>{const selectedProvider=el.closest('article')?.querySelector('[name="ai_provider"]')?.value;const hasPhotos=(state.data.photo_assets||[]).some(photo=>photo.meal_id===row.id && !photo.deleting && !photo.uploading);await requireProviderReady(selectedProvider,hasPhotos?'estimate_meal_photo':'estimate_meal_text');if(started!==generation)return;const response=await api.estimateMeal(row.id,selectedProvider);if(started!==generation)return;const draft=response?.draft;if(response?.needs_confirmation!==true || !draft || typeof draft!=='object' || !Array.isArray(draft.items)) throw new Error('invalid-ai-draft');state.mealEstimateDraft=draft;state.mealEdit={...row,data:{...row.data,items:draft.items.map(item=>({name:item.name || '',portion:item.portion || '',unit:item.unit || ''})),cooking:draft.cooking ?? row.data.cooking,oil:draft.oil ?? row.data.oil,leftover:draft.leftover ?? row.data.leftover,estimate:draft}};state.page='food'},'识别草稿已填入，请逐项核对后保存'); return }
+  if (action === 'page') { if (state.photoUrl) {URL.revokeObjectURL(state.photoUrl);state.photoUrl=null} state.page = el.dataset.page; state.edit = null; state.mealEdit = null; state.mealEstimateDraft=null; state.notice = ''; render(); scrollTo(0,0); return }
   if (action === 'scope') { state.scope = el.dataset.scope; render(); return }
   if (action === 'cancel-edit') { state.edit = null; render(); return }
   if (action === 'cancel-danger') { state.danger = null; render(); return }
@@ -668,6 +840,13 @@ async function act(el) {
 root.addEventListener('click', event => { const el = event.target.closest('[data-action]'); if (el) act(el) })
 root.addEventListener('submit', event => { const form = event.target.closest('[data-form]'); if (form) { event.preventDefault(); submit(form) } })
 root.addEventListener('change', async event => {
+  if (event.target.id === 'quick-photo') {
+    const file=event.target.files?.[0], started=generation
+    if (!file) return
+    try { const cleaned=await cleanPhoto(file); if(started!==generation)return; state.pendingPhoto=cleaned; state.pendingPhotoMealId=null; state.page='food'; render(); root.querySelector('[data-form="meal"]')?.scrollIntoView() }
+    catch(error) { if(started===generation)setNotice(errorText(error),true) }
+    return
+  }
   if (event.target.name === 'skipped' && event.target.closest('[data-form="training-set"]')) { event.target.form.elements.reps.value = event.target.checked ? '0' : ''; return }
   if (event.target.id === 'schedule-date') { state.scheduleDate = event.target.value; state.edit = null; render(); return }
   if (event.target.id === 'meal-date') { state.mealDate = event.target.value; render(); return }

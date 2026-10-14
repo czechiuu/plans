@@ -42,6 +42,9 @@ function childEnvironment(config, mePassword, wPassword, browser) {
     TEST_FIXED_ACCOUNTS_APPROVED:'YES'
   })
   if (browser) env.E2E_BASE_URL=site
+  for(const name of ['TEST_DAILY_FLOW_APPROVED','TEST_DAILY_FLOW_DEEPSEEK_APPROVED'])
+    if(process.env[name]==='YES') env[name]='YES'
+  if(process.env.TEST_DAILY_FLOW_BASELINE_JOB_IDS) env.TEST_DAILY_FLOW_BASELINE_JOB_IDS=process.env.TEST_DAILY_FLOW_BASELINE_JOB_IDS
   return env
 }
 
@@ -69,10 +72,12 @@ async function reportStatus(name, startedAt, exitCode) {
 async function main() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive TTY required')
   const mode=process.argv[2] || 'all'
-  if (process.argv.length>3 || !['all','--browser-only','--health-only'].includes(mode))
-    throw new Error('仅支持 --browser-only 或 --health-only 参数')
+  if (process.argv.length>3 || !['all','--browser-only','--health-only','--daily-flow'].includes(mode))
+    throw new Error('仅支持 --browser-only、--health-only 或 --daily-flow 参数')
+  if(mode==='--daily-flow'&&process.env.TEST_DAILY_FLOW_APPROVED!=='YES')
+    throw new Error('日常链路验收需要显式 TEST_DAILY_FLOW_APPROVED=YES；可能保留本轮计划和任务待管理员按精确 ID 清理')
   const config=await publicConfig()
-  const intro=mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
+  const intro=mode==='--daily-flow'?`仅运行日常链路合成验收。${process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'?'已明确允许 DeepSeek 合成业务，本轮费用不超过 5 美分；本人分用途同意仍须已存在。':'付费 AI 不运行。'}`:mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
   const safety=mode==='--health-only'
     ? '只写本轮标记的合成健康记录，按本轮 ID 清理；无法安全验证的项目会阻塞。'
     : mode==='--browser-only'
@@ -100,9 +105,10 @@ async function main() {
     for (const [name,script,browser] of [
       ['cloud-api','scripts/verify-cloud.mjs',false],
       ['cloud-health','scripts/verify-cloud-health.mjs',false],
+      ['daily-flow-cloud','scripts/verify-daily-flow-cloud.mjs',false],
       ['cloud-browser','scripts/verify-cloud-browser.mjs',true]
-    ].filter(([name])=>mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health'))) {
-      process.stdout.write(name==='cloud-api'?'开始云端接口验收。\n':name==='cloud-health'?'开始健康功能云验收。\n':'开始浏览器云验收。\n')
+    ].filter(([name])=>mode==='--daily-flow'?name==='daily-flow-cloud':name!=='daily-flow-cloud'&&(mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health')))) {
+      process.stdout.write(name==='cloud-api'?'开始云端接口验收。\n':name==='cloud-health'?'开始健康功能云验收。\n':name==='daily-flow-cloud'?'开始合成日常链路验收，规则计划等待现有后台调度。\n':'开始浏览器云验收。\n')
       let env=childEnvironment(config,mePassword,wPassword,browser)
       const startedAt=Date.now()
       let exitCode

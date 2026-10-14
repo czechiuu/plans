@@ -1,0 +1,68 @@
+{
+  "started_at": "2026-10-14T04:12:01.665Z",
+  "generated_at": "2026-10-14T04:12:14.996Z",
+  "scope": "Isolated local PostgreSQL; synthetic fixed accounts only; no production connection",
+  "cases": {
+    "CLIENT_RLS_SERVICE_BOUNDARY": {
+      "status": "passed",
+      "evidence": "client role non-elevated; service-only RPC and direct write rejected"
+    },
+    "DUPLICATE_QUEUE_AND_CLAIM": {
+      "status": "passed",
+      "evidence": "same-date queue idempotent; SKIP LOCKED single claim; one plan persisted"
+    },
+    "LEASE_FENCING": {
+      "status": "passed",
+      "evidence": "expired token rejected after reclaim; duplicate finish rejected"
+    },
+    "FINITE_RETRY": {
+      "status": "passed",
+      "evidence": "three attempts exhausted; fourth claim unavailable"
+    },
+    "INPUT_UPDATE_VS_PUBLISH": {
+      "status": "passed",
+      "evidence": "stale publish rejected"
+    },
+    "PHOTO_ATTACH_DELETE_LOCK_ORDER": {
+      "status": "passed",
+      "evidence": "deletion marker committed while attachment waited; attachment rejected; unlink left no dangling reference"
+    },
+    "MANUAL_SAVE_DURING_RUNNING": {
+      "status": "failed",
+      "error_name": "error",
+      "error_code": "P0001",
+      "reason": "Invalid or stale generated plan"
+    },
+    "MANUAL_SCHEDULED_PUBLISH_RACE": {
+      "status": "passed",
+      "evidence": "manual and scheduled jobs claimed separately; second finish waited and reused first plan id"
+    },
+    "SHARE_REVOKE_AND_LEAVE": {
+      "status": "passed",
+      "evidence": "default private; grant permits edit; actual blocked edit/revoke race serialized; leave removes record"
+    },
+    "MONTHLY_BUDGET_RACE": {
+      "status": "passed",
+      "evidence": "second connection blocked on budget row; over-limit rejected; released capacity reusable"
+    },
+    "FINISH_VS_LEAVE": {
+      "status": "passed",
+      "evidence": "both lock orders observed: finish then leave, leave then finish; no deadlock or post-leave plan"
+    }
+  },
+  "passed": 10,
+  "failed": 1,
+  "not_run": 0,
+  "postgresql_version": "17.10",
+  "applied_migrations": [
+    "202610130001_initial.sql",
+    "202610130002_space_lock_order.sql",
+    "202610130003_fixed_accounts.sql",
+    "202610130004_health_daily.sql",
+    "202610130005_ai_providers.sql",
+    "202610140006_integrity.sql",
+    "202610140007_daily_flow.sql"
+  ],
+  "migration_004_sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
+  "script_sha256": "99ea8b104d83764f871347da316a665a085466750e1aa794cda4deebd925a639"
+}

@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-10-14T05:13:08.031Z",
+  "scope": "synthetic-activity-and-full-plan",
+  "passed": 5,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "ACTIVITY_DATE_ONLY",
+      "status": "passed"
+    },
+    {
+      "id": "ACTIVITY_EDIT_DELETE",
+      "status": "passed"
+    },
+    {
+      "id": "CREATE_RETRY",
+      "status": "passed"
+    },
+    {
+      "id": "SCHEDULE_TYPE_TIME",
+      "status": "passed"
+    },
+    {
+      "id": "FULL_PLAN_PREVIEW",
+      "status": "passed"
+    }
+  ]
+}

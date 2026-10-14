@@ -1,6 +1,6 @@
 import { allowedOrigin, preflight, authenticate, json, safeError, readBounded } from '../_shared/runtime.js'
 import { scheduleDraftSchema, mealEstimateSchema } from '../../../shared/ai-schema.js'
-import { status, response, generate } from '../_shared/ai-core.js'
+import { status, response, generate, adjustPlan } from '../_shared/ai-core.js'
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -17,12 +17,14 @@ async function handle(request){
   if(body?.action==='status') return json(200,await status(ctx),origin)
   if(body?.action==='generate-plan'){
     if(!['rules','openai','deepseek'].includes(body.provider)) throw new Error('INVALID_REQUEST')
-    if(body.provider==='deepseek') throw new Error('AI_DISABLED')
     return json(200,await generate(ctx,body.job_id,body.provider),origin)
+  }
+  if(body?.action==='adjust-plan'){
+    if(!['openai','deepseek'].includes(body.provider)||!/^\d{4}-\d{2}-\d{2}$/.test(body.record_date??'')) throw new Error('INVALID_REQUEST')
+    return json(200,await adjustPlan(ctx,body.provider,body.record_date),origin)
   }
   if(body?.action==='parse-schedule'){
     if(!['openai','deepseek'].includes(body.provider)) throw new Error('INVALID_REQUEST')
-    if(body.provider==='deepseek') throw new Error('AI_DISABLED')
     if(typeof body.raw_text!=='string'||new TextEncoder().encode(body.raw_text).length>3000||
       typeof body.submitted_at!=='string'||!Number.isFinite(Date.parse(body.submitted_at))) throw new Error('INVALID_REQUEST')
     const submittedShanghai=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',
@@ -30,32 +32,38 @@ async function handle(request){
       .format(new Date(body.submitted_at))
     const draft=await response(ctx,body.provider,'parse_schedule',{name:'schedule_draft',schema:scheduleDraftSchema,
       userText:JSON.stringify({raw_text:body.raw_text,submitted_at:body.submitted_at,
-        submitted_shanghai:submittedShanghai})})
-    return json(200,{draft,needs_confirmation:true,parse_version:'health-schedule-v1',submitted_at:body.submitted_at},origin)
+        submitted_shanghai:submittedShanghai,current_user_slot:ctx.slot})})
+    return json(200,{draft,ai_request_id:ctx.aiRequestId,raw_text:body.raw_text,needs_confirmation:true,parse_version:'health-schedule-v1',submitted_at:body.submitted_at},origin)
   }
   if(body?.action==='estimate-meal'){
     if(!['openai','deepseek'].includes(body.provider)) throw new Error('INVALID_REQUEST')
-    if(body.provider==='deepseek') throw new Error('AI_DISABLED')
     if(!uuid.test(body.meal_id??'')) throw new Error('INVALID_REQUEST')
     const meal=await ctx.user.from('meals').select('data').eq('id',body.meal_id).eq('user_id',ctx.id).maybeSingle()
     if(meal.error||!meal.data) throw new Error('INVALID_REQUEST')
     const data=meal.data.data
     const photos=await ctx.user.from('photo_assets').select('id,storage_path').eq('meal_id',body.meal_id)
-      .eq('user_id',ctx.id).limit(3)
+      .eq('user_id',ctx.id).eq('deleting',false).eq('uploading',false).limit(3)
     if(photos.error||photos.data.length>2) throw new Error('INVALID_REQUEST')
     const images=[]
     for(const photo of photos.data){
       const object=await ctx.admin.storage.from('health-photos').download(photo.storage_path)
       if(object.error||!object.data) throw new Error('INVALID_REQUEST')
-      const stillAllowed=await ctx.user.from('photo_assets').select('id').eq('id',photo.id).eq('meal_id',body.meal_id).maybeSingle()
+      const stillAllowed=await ctx.user.from('photo_assets').select('id').eq('id',photo.id).eq('meal_id',body.meal_id)
+        .eq('user_id',ctx.id).eq('deleting',false).eq('uploading',false).maybeSingle()
       if(stillAllowed.error||!stillAllowed.data) throw new Error('INVALID_REQUEST')
       images.push(new Uint8Array(await object.data.arrayBuffer()))
     }
     const draft=await response(ctx,body.provider,images.length?'estimate_meal_photo':'estimate_meal_text',
       {name:'meal_estimate',schema:mealEstimateSchema,
       userText:JSON.stringify({items:data.items,eaten_fraction:data.eaten_fraction,cooking:data.cooking,
-        oil:data.oil,leftover:data.leftover}),images})
-    return json(200,{draft,needs_confirmation:true},origin)
+        oil:data.oil,leftover:data.leftover}),images,beforeSend:async()=>{
+          for(const photo of photos.data){
+            const current=await ctx.user.from('photo_assets').select('id').eq('id',photo.id).eq('meal_id',body.meal_id)
+              .eq('user_id',ctx.id).eq('deleting',false).eq('uploading',false).maybeSingle()
+            if(current.error||!current.data) throw new Error('INVALID_REQUEST')
+          }
+        }})
+    return json(200,{draft,ai_request_id:ctx.aiRequestId,needs_confirmation:true},origin)
   }
   throw new Error('INVALID_REQUEST')
 }

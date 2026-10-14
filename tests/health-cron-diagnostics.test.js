@@ -22,13 +22,31 @@ test('cron denies anonymous calls and exposes only aggregated safe failure codes
     process.env.SUPABASE_URL='https://synthetic.supabase.co'
     process.env.SUPABASE_SERVICE_ROLE_KEY='SYNTHETIC_NOT_A_KEY'
     const ids=['11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222']
-    globalThis.fetch=async url=>{
-      const path=new URL(url).pathname
+    const jobs=ids.map(id=>({id,user_id:id,provider:'rules',input_version:'SYNTHETIC_INPUT',
+      target_date:'2026-10-14',claim_token:id,space_id:'33333333-3333-4333-8333-333333333333',status:'queued',lease_until:null}))
+    let claimed=0,deniedPlanReads=0,failedJobs=0
+    globalThis.fetch=async(url,options)=>{
+      const parsed=new URL(url),path=parsed.pathname
       if(path==='/rest/v1/rpc/enqueue_scheduled_plans') return Response.json(2)
-      if(path==='/rest/v1/generation_jobs') return Response.json(ids.map(id=>({id,user_id:id,
-        space_id:'33333333-3333-4333-8333-333333333333',status:'queued',lease_until:null})))
-      if(path==='/rest/v1/ai_plan_preferences') return Response.json(
-        {code:'42501',message:'private health text',details:'private-id'}, {status:403})
+      if(path==='/rest/v1/generation_jobs'){
+        const id=parsed.searchParams.get('id')?.replace(/^eq\./,'')
+        return Response.json(id?jobs.filter(job=>job.id===id):jobs)
+      }
+      if(path==='/rest/v1/rpc/claim_generation_job'){
+        claimed++
+        const id=JSON.parse(options.body).p_id
+        return Response.json(jobs.filter(job=>job.id===id).map(job=>({...job,status:'running'})))
+      }
+      if(path==='/rest/v1/rpc/health_input_version') return Response.json('SYNTHETIC_INPUT')
+      if(path==='/rest/v1/daily_plans'){
+        deniedPlanReads++
+        return Response.json({code:'42501',message:'private health text',details:'private-id'}, {status:403})
+      }
+      if(path==='/rest/v1/rpc/finish_generation_job'){
+        failedJobs++
+        assert.equal(JSON.parse(options.body).p_error_code,'INVALID_REQUEST')
+        return Response.json(null)
+      }
       throw new Error(`Unexpected test path ${path}`)
     }
     const response=await handle(new Request('https://example.test/health-cron',{
@@ -37,6 +55,7 @@ test('cron denies anonymous calls and exposes only aggregated safe failure codes
     const body=await response.json()
     assert.deepEqual(body,{enqueued:2,attempted:2,
       failures:[{code:'INVALID_REQUEST',count:2}]})
+    assert.deepEqual({claimed,deniedPlanReads,failedJobs},{claimed:2,deniedPlanReads:2,failedJobs:2})
     assert.ok(!JSON.stringify(body).includes('private'))
     assert.ok(ids.every(id=>!JSON.stringify(body).includes(id)))
   }finally{

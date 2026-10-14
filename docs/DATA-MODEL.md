@@ -1,43 +1,36 @@
 # 数据结构与权限
 
-生产已应用 001、002、003，并执行两固定账号初始化。本轮 004 正在本地实现及验证；未应用到生产。以下新增实体的存在不代表其云端功能已经验收。
-
-| 实体 | 第一阶段内容与边界 |
-|---|---|
-| auth.users | Supabase 托管两位指定密码用户；前端不查询对方邮箱 |
-| fixed_accounts（003） | `me`、`w` 两固定槽位，唯一 Auth user_id 与指定 space_id；RLS 启用，匿名及普通客户端无直接读写权限 |
-| spaces / members | 同一私人空间最多两人，成员昵称及四个共享/代改开关；只有管理员初始化固定空间，普通客户端不能建空间 |
-| invites | 001 历史表保留，不向客户端开放邀请或加入入口；003 撤销相关 RPC 执行权 |
-| health_profiles | 可空的个人基线、目标、偏好、伤情原文；仅本人编辑，基线不算体重记录 |
-| schedules | 每人每天一条手动确认日程，可补录、更正及删除；编辑冲突明确报错 |
-| weights | 每人每天一条真实体重、可选腰围与测量时刻；缺失不补造 |
-| audit_events | 实体、动作、所有者、实际修改者、时间；无健康原文、数值、照片或密钥 |
-
-健康表共同字段 `id,space_id,user_id,created_at,updated_at,updated_by`。Auth 与固定槽位、指定空间及成员关系共同决定业务身份。新增默认私有；对方读取 = 同空间 + 所有者类别共享 + 单条 `is_shared`。代改再要求 `allow_partner_edit`，不能更改对方共享确认、所有者或空间。档案和删除仅本人。读使用 RLS，写通过固定 search_path、显式授权的 RPC；匿名无表权限。编辑用 `expected_updated_at` 防静默覆盖。
-
-日程、体重与本人导出按页全量加载，不限制历史补录；审计只显示最近 100 条元数据。7 日均值只算实际体重点并显示样本数。日期按 Asia/Shanghai 解释，不用宿主时区猜目标日。
-
-003 的 `current_account()` 只返回调用者 `me` 或 `w`。 `current_space_id()` 在两槽齐全、槽位同属指定空间且本人仍是该空间成员时才返回空间 ID。退出后保留固定身份与空空间，删除本人健康记录/成员关系，并将留守成员的共享/代改开关归零；需管理员重关联。本人清除健康记录不删除 Auth 用户；服务商备份保留期限仍待核实，不宣称即时擦除备份。
-
-001/002 的邀请、加入、退出并发锁序修复作为历史迁移保留；003 撤销普通账号的建空间/创建邀请/加入 RPC 权限。真实多连接回归仅说明 001/002 旧路径。生产 003 与初始化的 [12 项只读回验](../test-results/cloud-fixed-setup-results.json)只证明结构和初始状态，不等于两账号实际业务验收。
-
-## 004 日常健康功能
-
-接口及 JSON 字段以 [HEALTH-API.md](HEALTH-API.md) 为准。新增表默认私有，不因两人同空间而共享。
+截至 2026-10-14，生产已应用 001–005；006–008 为未部署候选。表与接口的源码存在不代表云端验收通过。旧字段细节见 [HEALTH-API](HEALTH-API.md)，新增契约见 [DAILY-FLOW-CHANGES](DAILY-FLOW-CHANGES.md)，有差异时以迁移源为准。
 
 | 实体 | 内容与边界 |
 |---|---|
-| health_rules | 本人确认的器械、时间、伤情限制、餐食方式等；未知保持未知 |
-| daily_plans | 每人每日的不可覆盖版本、输入版本、来源、锁定和待更新状态；伴侣只可看当前且获共享的版本 |
-| generation_jobs | 每人每日任务、应执行时间、目标日期、领取状态、有限重试和错误码；两人独立执行 |
-| training_sessions | 实际训练和逐组记录、暂停/休息状态；与计划值分开，刷新不以计划冒充完成 |
-| meals | 草稿或已确认的餐食；份量修正更新原记录，只有确认的摄入参与估算汇总 |
-| photo_assets | 私有对象元数据及内容摘要；下载逐次校验当前权限，删除须同时处理 Storage 对象 |
-| ai_consents | 本人分别管理文字与图片授权，默认关闭 |
-| ai_usage / ai_monthly_budgets | 服务端调用预留与结算、管理员月度上限；不存健康原文，清除健康数据不能重置当月费用 |
+| auth.users / fixed_accounts | 两个指定密码身份及 me/w 槽位；前端不查询对方邮箱 |
+| spaces / members | 固定私人空间、类别共享与代改开关；普通客户端不能创建空间或邀请 |
+| health_profiles / health_rules | 本人基线、偏好及确认限制；未知字段保留未知，基线不生成测量记录 |
+| schedules | 原文、提交时间、解析版本、确认结构与明确时段；每人每日一条 |
+| weights | 真实体重及可选腰围/测量时刻，缺失不造点 |
+| daily_plans | 按日版本、源输入摘要、source、锁定、current/stale；新发布保留旧版本 |
+| generation_jobs | 目标日、原调度锚点、状态、重试与错误；006 原子绑定 provider，重试不变 |
+| plan_input_revisions（006） | 手改/锁状态修订，避免目标日自己的自动输出反过来污染源输入摘要 |
+| training_sessions | 计划计时及逐组实际记录；008 增加显式 activity_type、record_date、duration_seconds、intensity、pain、notes |
+| meals | 草稿/确认状态、食物份量、油酱、剩余及估算区间；只汇总确认摄入 |
+| photo_assets | 私有对象、摘要、uploading/deleting 生命周期；上传、清除、退出共享锁序 |
+| ai_consents / ai_plan_preferences（005） | 每人每服务商每用途的可撤销同意、未来自动计划服务商 |
+| ai_provider_settings（007） | 管理员健康业务开关，初始 DeepSeek 关闭 |
+| ai_usage / ai_monthly_budgets / ai_provider_budgets | 最小费用账本、全站与服务商限额；原子预留，不存健康原文 |
+| ai_request_results（007） | 服务端私有输入摘要/结果缓存，completed 可复用，未知发送失败不重复付费 |
+| meal_adjustments（007） | 原计划、源输入快照/摘要、建议、状态及应用版本，有限重试并保留历史 |
+| record_create_requests（008） | 本人 client_request_id 原子创建回执，餐食/活动重复提交不重复入账 |
+| audit_events | 实体、动作、所有者、操作者和时间；不放健康原文、数值、照片或密钥 |
 
-新增类别共享为计划、训练、餐食、照片，仍要求类别与单条均同意。照片及个人规则不能由伴侣代改。计划/训练/餐食的代改沿用独立授权，并记录操作者；代改不允许扩大共享、转移身份或删除对方记录。
+Auth、固定槽位、指定空间和当前成员关系共同确认身份。新增默认私有，对方读取同时需要同空间、所有者类别共享和单条共享；代改再需独立许可且不能转移所有权、扩展共享或删对方数据。写 RPC 固定 search_path 并显式授权，RLS 不能由前端展示代替。编辑以 expected_updated_at 检测冲突。
 
-日程保留原文、提交时刻和本人确认的结构。修改日程或相关输入只标记计划待更新；锁定版本和实际完成记录不能被后台生成覆盖。自动任务以原应执行时刻的上海日期计算次日，不能按延迟运行时的机器日期重算。
+006 的新手动任务接口是 `request_plan_generation(p_target_date,p_provider)`；scheduled 任务从已保存偏好快照绑定。旧未绑定 provider 的任务明确耗尽，不猜服务商。输入摘要排除目标日自身自动输出，发布前重新核对输入，旧任务不能覆盖新输入或手动版本。
 
-本人导出及清除需覆盖新增实体。清除/退出先删除私有图片，再清数据库；任一步失败必须报告，不用按钮成功提示代替结果。最小费用记录为防止绕过预算而保留，服务商备份和外部 AI 保留政策不等于本站删除操作，见 [AI-CONFIG.md](AI-CONFIG.md)。
+007 的 `adjust-plan` 只生成建议；`apply_meal_adjustment` 创建新手动版本，`undo_meal_adjustment` 在无后续冲突时另存恢复版本，均不改已吃记录。草稿在源输入变动后过期。食物等变动若仍带相同旧估算，旧估算失效。
+
+008 活动类型为 strength/badminton/other，可只保存本人确认日期与实际时长，started_at/ended_at 同时为 null；如填时刻须一致且真实。日期活动按下一上海零点的时间上界判断恢复，不把此界限存为实际时刻。外部非力量活动不计力量周次数。
+
+版本探测：health_schema_version=4、health_provider_schema_version=5、health_daily_flow_version=7、health_activity_schema_version=8；Edge status.schema_version=7，分别检测，不能用基础版本推断全部能力。
+
+本人导出与清除覆盖健康内容、建议和 AI 结果缓存；最小计费记录仍保留。清除/退出先可靠处理照片，失败中止并允许本人重试；退出后不能自助重入。数据库删除不承诺供应商日志和备份同时擦除。001/002 邀请表与历史并发回归保留，不代表生产重新开放入口。

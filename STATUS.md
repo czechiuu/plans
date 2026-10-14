@@ -1,28 +1,31 @@
 # 项目状态
 
-更新于 2026-10-14（上海时间）。源码、已发布网站、数据库和真实使用分别验收。
+更新于 2026-10-14（上海时间）。后台已部署，网页正在发布；真实用户业务单独验收。
 
-新版 `b55346a6001ff21ff91f70d4e6e76dd607b2625a` 已发布到[实际网站](https://czechiuu.github.io/plans/)；[push CI](https://github.com/czechiuu/plans/actions/runs/38429761363)和[手动发布的 test-build、deploy](https://github.com/czechiuu/plans/actions/runs/38430307904)均成功。公开页面实际冒烟 **8/0**，覆盖 HTTPS、`/plans/` 静态资源、手机/桌面、刷新和合成回跳地址；[报告](test-results/deployed-public-results.json)、[手机截图](test-results/public-mobile-login.png)、[桌面截图](test-results/public-desktop-login.png)。未输入真实密码，不算登录或健康功能验收。
+| 层面 | 当前可证实状态 |
+|---|---|
+| 本地候选 | 全部源码已冻结，正在提交原 main；手机端最后定向5通过/0失败 |
+| 生产数据库 | 001–008 已应用；006–008原文哈希回读一致，照片Storage保护触发器已存在 |
+| 生产三函数 | health-ai、health-photo、health-cron已部署本轮bundle，分别下载源码SHA256核对一致，见[发布记录](test-results/daily-flow-release.json) |
+| Pages | 已发布 `b55346a`；不包含当前候选改动 |
+| 旧定时任务 | 两条旧任务均 exhausted、各尝试 3 次，错误为餐食模板未确认；生成计划 0。只读保留，不作为新版任务成功证据 |
+| 月度预算 | 全站 200 美分、OpenAI 200 美分、DeepSeek 10 美分；DeepSeek 已用 5 美分、活动预留 0 |
+| 本轮用户许可 | 已批准启用 DeepSeek 和最多 5 美分合成验收，不提高原预算；业务开关已启用、用途同意仍0条，安全登录及真实调用待网页发布后本人操作 |
 
-原 Supabase 项目已在 SQL Editor 执行 004 健康迁移。原有 3 张健康表仍为空，固定账号仍为 2 个；9 张新表的 RLS、私人照片 bucket、默认私有、无 AI 授权及匿名/普通客户端拒绝等结构检查 9/0。历史登记首次因粘贴的 CRLF 与原文不符而失败；严格限定为换行差异的修复后，回读 004 原文 MD5 `9a430516e9a44d8d27c651cf24e73e2b`、67968 字节，最终历史检查 1/0，总计 **10/0**。[生产 004 回读记录](test-results/cloud-health-deployment.json)保留了首次失败。没有重跑 001–003，也没有导入真实健康档案。
+候选已取消“必须有三餐模板才能生成”的业务前置条件，提供标注假设的三餐及替代；仍严格核对伤情、器械、训练史与明确时间。日程、照片估算、已确认摄入、餐后建议、本人应用/撤销分别留痕。规则任务绑定 rules 后不会因偏好、重试或 cron 改成 AI。008 记录羽毛球、力量及其他实际活动，支持仅日期和实际时长，恢复判断不伪造时刻。
 
-005 服务商分用途授权迁移已在原项目执行，7 项配置回查通过；源 MD5 `2c57e2948216f3e08e2170754e1fd883`。本月预算上限为全站 200 美分、OpenAI 200 美分、DeepSeek 固定合成探针 10 美分。UUID 校验修复源码为 `69006400aee6f603073579ae5bfb9af9896070e1`，[CI](https://github.com/czechiuu/plans/actions/runs/38442975458)成功；`health-ai` 与 `health-cron` 两个修复包已部署，前端和 `health-photo` 仍为 `b55346a`。本地定向 6/0（[报告](test-results/cron-uuid-local-results.json)），公开 Edge 边界重新 14/0；这些均不代替登录验证。
-
-DeepSeek 固定合成探针 id=14 中食物文字、苹果香蕉图片、休息模板计划通过，日程解析失败；单项 id=19 日程复测 1/0，身份、日期、起止时间、时长五项与 schema 均核对为 true。最新各项覆盖 4/0，历史一次失败保留为五次响应共 4/1。SQL 合计 settled 5 美分/10 美分限额、reserved=0；账户余额差额 0 不能说明免费。真实健康资料仍禁止发送给 DeepSeek，夜间服务默认未切换。
-
-Vault 与 Edge 调度密钥核对四项均通过。`*/5 * * * *` 调度已配置，按最近上海 20:00 锚点派发；早期 HTTP 401 和 UUID 校验拒绝保留为历史。18:06 UTC 的 dispatch id=20 返回 HTTP 503，failure 为 `MEAL_TEMPLATE_UNCONFIRMED`、count=2；两项 job 已实际领取并标为 failed、attempts=1。锚点 `2026-10-13T12:00Z` 的目标为 2026-10-14，跨午夜日期正确。两人尚未确认餐食模板，因此没有生成计划；需本人在设置确认餐食模板及训练条件，但新版真实权限验收前不导入原始真实档案。HTTP 响应或成功入队均不等于计划已生成；真实 20:00 自动执行仍未验收。
-
-| 验证环境 | 通过/失败 | 边界 |
+| 本轮证据 | 通过 / 失败 | 说明 |
 |---|---:|---|
-| 本地 `node --test` | 先前全套 61/0 | 随后受影响项 8/0、探针定向 3/0、UUID/cron 定向 6/0；未合并计数，也未把沙箱中的 `pnpm` EPERM 当作通过 |
-| 隔离 PostgreSQL 的 004 包 | 12/0 | [报告](test-results/health-migration-wrapper-results.json)，不是云端执行 |
-| 隔离 PostgreSQL 的 005 权限/预算并发 | 5/0 | [报告](test-results/ai-provider-concurrency-results.json)，无付费调用 |
-| 合成浏览器界面 | 18/0 | [报告](test-results/ui-mock-results.json)，不触生产账号 |
-| 未配置页面 / 动作逐项核对 | 2/0、11/0 | [页面报告](test-results/unconfigured-results.json)、[动作来源](docs/EXERCISE-SOURCES.md) |
-| 生产 004 结构与历史 | 10/0 | [回读记录](test-results/cloud-health-deployment.json)；不代替业务/API 验收 |
-| 生产 005 配置回查 | 7/0 | 迁移、预算与服务商边界已核对；不代替真实账号调用 |
-| 公开 Edge 边界 / 新版公开网页 | 重新 14/0、此前 8/0 | [Edge 报告](test-results/edge-public-results.json)、[页面报告](test-results/deployed-public-results.json)，均未登录 |
-| DeepSeek 固定合成探针 | 最新覆盖 4/0；历史合计 4/1 | 日程 id=19 复测通过，id=14 一次失败保留；五条 SQL settled、计费记录 5/10 美分；不涉及真实健康资料 |
-| cron 真实领取与计划 | 领取 2、生成 0 | 两项因未确认餐食模板失败、attempts=1；真实 20:00 未验收 |
+| 全套首轮 | 75 / 3 | [原始 TAP](test-results/takeover-unit.tap)，保留失败 |
+| 三项针对性复测 | 3 / 0 | [复测](test-results/takeover-unit-recheck.tap)；两项沙箱限制与一项旧 job 夹具修复，不能改写首轮为全套通过 |
+| 隔离健康并发 | 15 / 0 | [报告](test-results/integrity-health-concurrency-results.json) |
+| 隔离服务商与执行包 | 7 / 0 | [报告](test-results/integrity-ai-provider-concurrency-results.json)；最终 008 包以最新报告为准 |
+| 合成界面 | 22 / 0 | [报告](test-results/ui-mock-results.json)；008 后续界面验证单独记录 |
+| AI 日常链路定向 | 18 / 0 | SQL、图片输入、授权重检、缓存、调整和 rules；[说明](docs/DAILY-FLOW-CHANGES.md) |
+| cron 隐私 / 日期活动衔接 | 1 / 0；6 / 0 | 不与以上重复累加 |
 
-旧版真实 API [11/0](test-results/cloud-api-results.json)、旧版浏览器 [9/1](test-results/cloud-browser-results.json)是历史记录，不能算新源码通过。新版真实双账号健康读写、照片、完整 AI、实际 20:00 和两台物理设备仍未验收；公开边界与登录页测试不能代替它们。手动记录默认私有；另一设备需手动刷新，站内提示不是手机推送。完整步骤见[测试清单](docs/TEST-CHECKLIST.md)和[部署说明](docs/HEALTH-DEPLOY.md)。
+真实云端完整日程→计划→照片→餐后调整、实际 20:00、两台物理设备均未跑。合成接口、图片尺寸模拟、构建和公开登录页不能替代。
+
+历史证据单独保留：004 生产结构与历史回读 10/0，005 配置 7/0，公开 Edge 14/0，公开网页 8/0；旧 DeepSeek 固定探针最新用途覆盖 4/0、累计响应 4/1。这些不证明当前正式业务已通过。旧 API 11/0、旧浏览器 9/1及首次 CRLF、401、UUID、模板错误报告均保留，不抹去历史失败。
+
+下一步发布前端，然后安全登录进行已批准的合成验收。私人档案仅本人导入核对，不写入公共报告。详见 [部署](docs/HEALTH-DEPLOY.md)与[验收清单](docs/TEST-CHECKLIST.md)。

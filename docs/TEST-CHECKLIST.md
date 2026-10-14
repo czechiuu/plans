@@ -1,54 +1,38 @@
 # 验收清单与证据
 
-截至2026-10-14。只统计实际执行；本地、模拟、真实云端和真机不可互相代替。报告/截图不含密码、密钥、会话或真实健康资料。
+截至 2026-10-14。候选版本尚未部署；本地、隔离数据库、模拟界面、真实服务和物理设备分别报告，不互相代替。不得把密码、令牌、密钥或私人健康内容放报告。
 
-## 本轮本地与媒体
+## 当前候选已有证据
 
-| 运行 | 通过 | 失败 | 证据 |
-|---|---:|---:|---|
-| `node --test` 全套 | 61 | 0 | 此前实际执行；随后受影响项 8/0、合成探针定向 3/0、[UUID/cron 定向 6/0](../test-results/cron-uuid-local-results.json)，均未合并计数。旧 [56/0 报告](../test-results/unit-results.json)仅为历史，`pnpm` 沙箱 EPERM 不计通过 |
-| `pnpm test:concurrency` | 5 | 0 | [历史邀请多连接](../test-results/concurrency-results.json) |
-| `pnpm test:concurrency:health` | 11 | 0 | [健康多连接](../test-results/health-concurrency-results.json) |
-| 004部署包隔离PG核验 | 12 | 0 | [历史匹配/换行修复/幂等/回滚](../test-results/health-migration-wrapper-results.json) |
-| 005供应商/用途预算并发 | 5 | 0 | [隔离PostgreSQL](../test-results/ai-provider-concurrency-results.json)，无付费调用 |
-| `pnpm test:browser:unconfigured` | 2 | 0 | [独立空配置页面](../test-results/unconfigured-results.json) |
-| `pnpm test:browser:mock` | 18 | 0 | [合成界面](../test-results/ui-mock-results.json) |
-| 逐个人工动作核对与嵌入播放 | 11 | 0 | [来源、许可方式及核对](EXERCISE-SOURCES.md) |
+| 验证 | 通过 / 失败 | 证据与边界 |
+|---|---:|---|
+| 全套首次运行 | 75 / 3 | [原始 TAP](../test-results/takeover-unit.tap)，原失败保留 |
+| 三项定向复测 | 3 / 0 | [复测 TAP](../test-results/takeover-unit-recheck.tap)；两项沙箱限制、一项过时 provider 夹具，不冒称新一轮全套通过 |
+| 健康隔离 PostgreSQL | 15 / 0 | [报告](../test-results/integrity-health-concurrency-results.json)，照片生命周期、任务绑定与并发 |
+| 服务商及执行包隔离 PostgreSQL | 7 / 0 | [报告](../test-results/integrity-ai-provider-concurrency-results.json)，最终 008 追加验证另记 |
+| 合成网页 | 22 / 0 | [报告](../test-results/ui-mock-results.json)，008 活动界面后续另测 |
+| AI 日常链路定向 | 18 / 0 | [说明](DAILY-FLOW-CHANGES.md)，SQL 调整、业务结构、图片 payload、撤销重检和缓存 |
+| cron 聚合隐私 / 日期活动恢复 | 1 / 0；6 / 0 | 定向证据，不能与全套重复相加 |
 
-未配置测试用独立Vite子进程，明确设 `VITE_SUPABASE_URL=""` 和 `VITE_SUPABASE_PUBLISHABLE_KEY=""`，`E2E_BASE_URL` 指向该端口。模拟界面用另一进程及合成接口，不触云库。两者不能共用已配置/未配置前提。测试后关闭各自进程，未改真实配置。
+两类界面测试分别启动独立进程：未配置测试显式清空两个 VITE 配置，模拟测试用合成接口。图片尺寸模拟不能当作两台物理设备；PGlite 和隔离 PostgreSQL 不能当作生产部署。
 
-本轮本地覆盖退出等待、快速切换/旧请求、日程确认、训练/休息保存、手动饮食确认与汇总、照片净化边界、AI无效输出/超时、预算并发、权限/代改、版本冲突、重试和重复发布。数据库并发用真实PostgreSQL多连接；合成图片不对真实健康图调用AI。
+## 仍需真实完成
 
-## 生产与真实服务
+- 部署后核对数据库 006–008、三函数 bundle、Pages 版本，匿名与错误来源拒绝。
+- 两人安全登录、分别保存刷新、私有隔离、双重共享与撤销，代改边界及冲突。
+- 私人照片实际上传、估算图片输入、草稿确认、删除失败重试和精确清理。
+- 明确日程→完整三餐/训练计划→已确认餐食→独立餐后建议→本人应用/撤销；同源重放不重复付费或入账。
+- 实际活动日期/时长、力量与羽毛球区分、近期负荷、不伪造时间。
+- rules 在偏好变化、重试与 cron 下仍零 AI；零预算、撤销及配置未知必须阻塞。
+- 真实上海 20:00 两人独立任务、延迟跨午夜目标不变，锁定和新输入不被旧任务覆盖。
+- 两台物理设备登录、记录、刷新、图片和训练使用；步骤见 [DEVICE-ACCEPTANCE](DEVICE-ACCEPTANCE.md)。
 
-| 项目 | 本轮结果 | 方法/限制 |
-|---|---|---|
-| 004健康迁移 | 10通过、0失败 | [实际生产回读](../test-results/cloud-health-deployment.json)；9项结构/权限和1项历史摘要，首次CRLF失败及修复保留 |
-| 005配置回查 | 7通过、0失败 | 原项目迁移与本月预算已执行；全站200美分、OpenAI200美分、DeepSeek合成10美分为上限，非已花费 |
-| 三项Edge Function与公开边界 | 修复后重新14通过、0失败 | `health-ai`、`health-cron` 的 UUID 修复包已部署，`health-photo` 仍为 `b55346a`；[匿名/伪造令牌/来源/预检报告](../test-results/edge-public-results.json)，未测真实登录 |
-| 新版公开网页 | 8通过、0失败 | [HTTPS/资源/手机桌面/刷新/合成回跳报告](../test-results/deployed-public-results.json)；[手机截图](../test-results/public-mobile-login.png)，未登录 |
-| `pnpm test:cloud` | 新版未执行 | 安全输入两密码；旧版[11/0](../test-results/cloud-api-results.json)不转为新版证据 |
-| `pnpm test:browser:cloud` | 新版未执行 | 正式HTTPS实际构建；旧版[9/1](../test-results/cloud-browser-results.json)待复测 |
-| `pnpm test:cloud:health` | 新版未执行 | [旧阻塞报告](../test-results/cloud-health-results.json)产生于004部署前；真实双账号权限需重新验收 |
-| 照片上传/权限/删除回读 | 未执行 | 真实私有存储；直接接口本人/伴侣/匿名、撤销、去重、精确ID清理 |
-| 日程→生成→次日查看→训练/餐食→趋势 | 未执行 | 最新部署与真实服务，合成输入，不改已有个人设置 |
-| OpenAI真实调用 | 未执行 | 005逐用途授权、预算、费用和本人确认均须核对；旧笼统同意不自动转换 |
-| DeepSeek合成探针 | 最新覆盖4通过、0失败；历史五次响应4/1 | id=14 日程曾失败，id=19 单项复测 1/0，五项字段与 schema 全 true；食物文字、苹果香蕉图片、休息模板计划此前通过。SQL五条均 settled，计费记录5/10美分、reserved=0；余额差额0不等于免费。真实健康资料仍禁用 |
-| 20:00服务端任务 | 两项真正领取，计划未生成 | 18:06 UTC 请求 id=20 HTTP 503，`MEAL_TEMPLATE_UNCONFIRMED` count=2；两项 failed、attempts=1。锚点 `2026-10-13T12:00Z` 目标 2026-10-14 正确。需本人确认餐食模板及训练条件，新版真实权限验收前不导入原始真实档案；真实到点执行未验收 |
-| 两台物理设备 | 未执行 | [最短步骤](DEVICE-ACCEPTANCE.md)，手机尺寸模拟不算真机 |
+用户已批准 DeepSeek 启用和本轮合成最多 5 美分，不提高原全站 200/供应商 DeepSeek 10 美分月度限额。批准不是已启用、本人授权或测试成功。管理员部署开关后，两人自行同意各用途；使用 `node scripts/run-fixed-cloud-tests.mjs --daily-flow` 的隐藏口令入口。四项最坏预留共 6 美分，剩余 5 美分不足时必须如实阻塞。
 
-新增健康脚本只建本轮marker+精确ID的餐食/停止训练，不改既有规则/共享。训练用超出计划有效日期上限的合成日期，避免使真实计划过期。计划生成、共享配置、图片、AI需要独立受控验收，脚本未覆盖项记阻塞，不能把子集叫完整链路。
+脚本只动本轮合成精确 ID。生产两个旧 exhausted 任务仅按明确 UUID 白名单只读核对，不能删旧 job 或误把已有私人输入当测试数据。无安全精确清理入口时留下审核清单，不全库清除。真实档案不用于本轮合成付费测试。
 
-新版 `b55346a6001ff21ff91f70d4e6e76dd607b2625a` 已在[实际网站](https://czechiuu.github.io/plans/)发布，[push CI](https://github.com/czechiuu/plans/actions/runs/38429761363)及[手动 test-build/deploy](https://github.com/czechiuu/plans/actions/runs/38430307904)成功。004回读显示原3张健康表当时为空，不保证此后一直为空。第三用户只用隔离合成Auth，不开放生产注册。
+## 历史证据
 
-邮件确认、邀请、邮件找回：**需求取消**，不是通过。改密/管理员重置/双设备门槛见[报告](../test-results/cloud-manual-gates.json)。生产只按本轮标记和ID清理，不全量清空；当前表删除不等于备份擦除。
+004 生产结构与历史回读 10/0，005 配置 7/0；旧公开 Edge 14/0、公开网页 8/0；旧 API 11/0、旧浏览器 9/1。旧固定 DeepSeek 探针最新用途覆盖 4/0，累计响应 4/1，结算 5 美分；不能代替正式四用途链路。首次迁移换行、401、UUID 与模板失败报告保留。旧 cron 后续两条 exhausted、各尝试 3 次、计划 0，不是实际 20:00 成功。
 
-## 必须继续核对
-
-- 相对日期按提交时上海时间，人物/日期不明须确认；伤情未知不当已康复。
-- 每人每日幂等且版本保留；20:00后修改标待更新；手动/锁定/完成不被覆盖。
-- 组间休息、动作、转场和热身放松均计入总时长；受控动作匹配器械，自由日/伤情/负荷遵守确定性规则。
-- 草稿不入账；同餐修改不新增，摄入比例只乘一次，未知热量不当0。
-- 图片每次下载鉴权；已传输字节不能追回；删除失败可重试不虚报成功。
-- 体重仅真实手动记录，七日均值标样本数/缺口，无到期保证或两人排名。
-- 无密钥/真实资料公开；未授权不发AI。AI、到点定时与真机未验收前不称完整版。
+邮件确认、邀请和邮件找回是已取消入口，不记为通过。构建、匿名边界或模拟登录页均不能把真实链路未运行改为完成。

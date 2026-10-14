@@ -12,7 +12,7 @@ const caseIds = [
   'FINITE_RETRY', 'INPUT_UPDATE_VS_PUBLISH', 'PHOTO_ATTACH_DELETE_LOCK_ORDER',
   'MANUAL_SAVE_DURING_RUNNING', 'MANUAL_SCHEDULED_PUBLISH_RACE',
   'SHARE_REVOKE_AND_LEAVE', 'MONTHLY_BUDGET_RACE',
-  'FINISH_VS_LEAVE',
+  'FINISH_VS_LEAVE','GENERATION_REPLAY_PROVIDER_BINDING','PHOTO_STORAGE_DELETE_RECOVERY','UPLOAD_CLEAR_LEAVE_LOCK_ORDER','SCHEDULED_PROVIDER_LOCK_ORDER',
 ];
 const report = {
   started_at: new Date().toISOString(), generated_at: null,
@@ -20,8 +20,8 @@ const report = {
   cases: Object.fromEntries(caseIds.map(id => [id, { status: 'not_run' }])),
   passed: 0, failed: 0, not_run: caseIds.length,
 };
-const templateMeals = ['08:00', '12:00', '18:00'].map(time => ({
-  time, title: 'SYNTHETIC', foods: [{ name: 'SYNTHETIC', portion: '1', unit: '份' }],
+const templateMeals = ['08:00', '12:00', '18:00'].map((time,index) => ({
+  time, title: ['早餐','午餐','晚餐'][index], foods: [{ name: 'SYNTHETIC', portion: '1', unit: '份' }],
   prep_method: 'SYNTHETIC', purchase_or_prep: 'SYNTHETIC', alternative: 'SYNTHETIC',
   notes: '', snack_reason: null,
 }));
@@ -101,6 +101,10 @@ try {
   };
   const admin = await connect('test_admin');
   report.postgresql_version = (await admin.query('show server_version')).rows[0].server_version;
+  await admin.query('create schema storage');
+  await admin.query('create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text not null,name text unique not null)');
+  await admin.query('grant usage on schema storage to service_role');
+  await admin.query('grant select,insert,delete on storage.objects to service_role');
   await admin.query('create schema auth');
   await admin.query('create table auth.users(id uuid primary key,email text unique,email_confirmed_at timestamptz,encrypted_password text)');
   await admin.query(`create function auth.uid() returns uuid language sql stable as $$
@@ -113,8 +117,14 @@ try {
   );
   const migrationDir = new URL('../supabase/migrations/', import.meta.url);
   const migrationNames = (await readdir(migrationDir)).filter(name => name.endsWith('.sql')).sort();
-  assert.equal(migrationNames.length, 4, 'Expected exactly migrations 001–004');
-  for (const name of migrationNames) await admin.query(await readFile(new URL(name, migrationDir), 'utf8'));
+  assert.ok(migrationNames.some(name=>name.endsWith('_integrity.sql')), 'Integrity migration required');
+  report.applied_migrations=migrationNames;
+  report.migration_sha256={};
+  for (const name of migrationNames) {
+    const source=await readFile(new URL(name,migrationDir),'utf8');
+    await admin.query(source);
+    report.migration_sha256[name]=createHash('sha256').update(source).digest('hex');
+  }
   report.migration_004_sha256 = createHash('sha256').update(await readFile(new URL(migrationNames[3], migrationDir))).digest('hex');
   await admin.query(await readFile(new URL('../supabase/admin/initialize-fixed-accounts.sql', import.meta.url), 'utf8'));
   const me = await connect('authenticated', users[0]);
@@ -136,6 +146,9 @@ try {
     assert.equal(state.current_user, 'authenticated'); assert.equal(state.uid, users[0]);
     assert.equal(state.rls, 'on'); assert.equal(state.elevated, false);
     await assert.rejects(me.query('select public.claim_generation_job()'), /permission denied/);
+    await assert.rejects(me.query("select public.begin_photo_upload(auth.uid(),gen_random_uuid(),repeat('a',64),1,1,100,null,false)"), /permission denied/);
+    await assert.rejects(me.query('select public.complete_photo_upload(gen_random_uuid(),auth.uid(),gen_random_uuid())'), /permission denied/);
+    await assert.rejects(me.query('select public.lock_health_owner(auth.uid(),gen_random_uuid())'), /permission denied/);
     await assert.rejects(me.query("insert into public.generation_jobs(space_id,user_id,target_date,kind,scheduled_for,input_version) values(gen_random_uuid(),auth.uid(),current_date,'manual',now(),'x')"), /permission denied/);
     assert.equal((await partner.query('select * from public.health_rules')).rows.length, 0);
     return { evidence: 'client role non-elevated; service-only RPC and direct write rejected' };
@@ -144,8 +157,8 @@ try {
   await run('DUPLICATE_QUEUE_AND_CLAIM', async () => {
     await rpc(me, 'save_health_rules', [JSON.stringify({ ...rules(), confirmed: true, meal_template: templateMeals }), false, null],
       ['::jsonb', '::boolean', '::timestamptz']);
-    const [one, two] = await Promise.all([rpc(me, 'request_plan_generation', [date(1)], ['::date']),
-      rpc(me2, 'request_plan_generation', [date(1)], ['::date'])]);
+    const [one, two] = await Promise.all([rpc(me, 'request_plan_generation', [date(1), 'rules'], ['::date', '::text']),
+      rpc(me2, 'request_plan_generation', [date(1), 'rules'], ['::date', '::text'])]);
     assert.equal(one.id, two.id);
     assert.equal((await admin.query('select count(*)::int as n from public.generation_jobs where user_id=$1 and target_date=$2', [users[0], date(1)])).rows[0].n, 1);
     await serviceA.query('begin');
@@ -164,8 +177,28 @@ try {
     return { evidence: 'same-date queue idempotent; SKIP LOCKED single claim; one plan persisted' };
   });
 
+  await run('GENERATION_REPLAY_PROVIDER_BINDING',async()=>{
+    const before=(await admin.query('select * from public.generation_jobs where user_id=$1 and target_date=$2',[users[0],date(1)])).rows[0];
+    const replay=await rpc(me,'request_plan_generation',[date(1),'openai'],['::date','::text']);
+    assert.equal(replay.id,before.id);assert.equal(replay.status,'succeeded');assert.equal(replay.provider,'rules');assert.equal(replay.attempts,before.attempts);
+    assert.equal(await rpc(serviceA,'claim_generation_job',[replay.id],['::uuid']),null);
+    const plan=(await me.query('select *,updated_at::text as updated_at from daily_plans where id=$1',[replay.plan_id])).rows[0];
+    const beforeHash=replay.input_version;
+    const locked=await rpc(me,'set_plan_lock',[plan.id,true,plan.updated_at],['::uuid','::boolean','::timestamptz']);
+    assert.notEqual(await rpc(serviceA,'health_input_version',[users[0],date(1)],['::uuid','::date']),beforeHash);
+    await rpc(me,'set_plan_lock',[plan.id,false,locked.updated_at],['::uuid','::boolean','::timestamptz']);
+    assert.notEqual(await rpc(serviceA,'health_input_version',[users[0],date(1)],['::uuid','::date']),beforeHash);
+    const queued=await rpc(me,'request_plan_generation',[date(20),'openai'],['::date','::text']);
+    await admin.query("insert into public.ai_plan_preferences(user_id,space_id,plan_provider) values($1,$2,'rules') on conflict(user_id) do update set plan_provider='rules'",[users[0],queued.space_id]);
+    const claim=await rpc(serviceA,'claim_generation_job',[queued.id],['::uuid']);assert.equal(claim.provider,'openai');
+    await rpc(serviceA,'finish_generation_job',[queued.id,claim.claim_token,null,null,'ai','SYNTHETIC_FAILURE'],['::uuid','::uuid','::jsonb','::text','::text','::text']);
+    const retry=await rpc(me,'retry_generation_job',[queued.id],['::uuid']);assert.equal(retry.provider,'openai');
+    await admin.query('delete from public.generation_jobs where id=$1',[queued.id]);
+    return {evidence:'same input replay is succeeded and unclaimable; provider remains bound through preference changes and retry'};
+  });
+
   await run('LEASE_FENCING', async () => {
-    const job = await rpc(me, 'request_plan_generation', [date(2)], ['::date']);
+    const job = await rpc(me, 'request_plan_generation', [date(2), 'rules'], ['::date', '::text']);
     const old = await rpc(serviceA, 'claim_generation_job', [job.id], ['::uuid']);
     await admin.query("update public.generation_jobs set lease_until=now()-interval '1 second' where id=$1", [job.id]);
     const fresh = await rpc(serviceB, 'claim_generation_job', [job.id], ['::uuid']);
@@ -181,7 +214,7 @@ try {
   });
 
   await run('FINITE_RETRY', async () => {
-    const job = await rpc(me, 'request_plan_generation', [date(3)], ['::date']);
+    const job = await rpc(me, 'request_plan_generation', [date(3), 'rules'], ['::date', '::text']);
     for (let attempt = 1; attempt <= 3; attempt++) {
       const claimed = await rpc(serviceA, 'claim_generation_job', [job.id], ['::uuid']);
       assert.equal(claimed.attempts, attempt);
@@ -198,7 +231,7 @@ try {
   await run('INPUT_UPDATE_VS_PUBLISH', async () => {
     const initial = (await me.query('select updated_at::text as updated_at from public.health_rules where user_id=auth.uid()')).rows[0];
     assert.ok(initial);
-    const job = await rpc(me, 'request_plan_generation', [date(4)], ['::date']);
+    const job = await rpc(me, 'request_plan_generation', [date(4), 'rules'], ['::date', '::text']);
     const claimed = await rpc(serviceA, 'claim_generation_job', [job.id], ['::uuid']);
     await me.query('begin');
     let held = true;
@@ -223,7 +256,7 @@ try {
 
   await run('MANUAL_SAVE_DURING_RUNNING', async () => {
     const targetDate = date(7);
-    const job = await rpc(me, 'request_plan_generation', [targetDate], ['::date']);
+    const job = await rpc(me, 'request_plan_generation', [targetDate, 'rules'], ['::date', '::text']);
     const claim = await rpc(serviceA, 'claim_generation_job', [job.id], ['::uuid']);
     const manual = await rpc(me, 'save_daily_plan', [targetDate, JSON.stringify(content), null, false, null],
       ['::date', '::jsonb', '::integer', '::boolean', '::uuid']);
@@ -242,10 +275,10 @@ try {
 
   await run('MANUAL_SCHEDULED_PUBLISH_RACE', async () => {
     const targetDate = date(8);
-    const manual = await rpc(me, 'request_plan_generation', [targetDate], ['::date']);
+    const manual = await rpc(me, 'request_plan_generation', [targetDate, 'rules'], ['::date', '::text']);
     const scheduled = (await admin.query(`insert into public.generation_jobs
-      (space_id,user_id,target_date,kind,scheduled_for,input_version)
-      values($1,$2,$3,'scheduled',now(),$4) returning id`,
+      (space_id,user_id,target_date,kind,scheduled_for,input_version,provider)
+      values($1,$2,$3,'scheduled',now(),$4,'rules') returning id`,
     [manual.space_id, users[0], targetDate, manual.input_version])).rows[0];
     const first = await rpc(serviceA, 'claim_generation_job', [manual.id], ['::uuid']);
     const second = await rpc(serviceB, 'claim_generation_job', [scheduled.id], ['::uuid']);
@@ -311,6 +344,67 @@ try {
     }
   });
 
+  const reservePhoto=async(sha)=>{
+    const space=(await admin.query('select space_id from public.members where user_id=$1',[users[0]])).rows[0].space_id;
+    return rpc(serviceA,'begin_photo_upload',[users[0],space,sha.repeat(64),1,1,100,null,true],['::uuid','::uuid','::text','::integer','::integer','::integer','::uuid','::boolean']);
+  };
+  await run('PHOTO_STORAGE_DELETE_RECOVERY',async()=>{
+    const photo=await reservePhoto('b');assert.equal(photo.uploading,true);
+    await serviceA.query("insert into storage.objects(bucket_id,name) values('health-photos',$1)",[photo.storage_path]);
+    await rpc(serviceA,'complete_photo_upload',[photo.id,users[0],photo.space_id],['::uuid','::uuid','::uuid']);
+    await rpc(serviceA,'begin_photo_delete',[photo.id,users[0],photo.space_id],['::uuid','::uuid','::uuid']);
+    // Simulate Storage remove failure: no unlink runs, so retry remains discoverable.
+    assert.equal((await me.query('select deleting from photo_assets where id=$1',[photo.id])).rows[0].deleting,true);
+    assert.equal((await partner.query('select id from photo_assets where id=$1',[photo.id])).rows.length,0);
+    assert.equal((await me.query('select id from photo_assets where id=$1 and not deleting and not uploading',[photo.id])).rows.length,0);
+    assert.equal(await rpc(serviceA,'begin_photo_delete',[photo.id,users[0],photo.space_id],['::uuid','::uuid','::uuid']),photo.storage_path);
+    await serviceA.query('delete from storage.objects where name=$1',[photo.storage_path]);
+    await assert.rejects(serviceB.query("insert into storage.objects(bucket_id,name) values('health-photos',$1)",[photo.storage_path]),/reservation unavailable/);
+    await rpc(serviceA,'unlink_photo_asset',[photo.id],['::uuid']);
+    await assert.rejects(serviceB.query("insert into storage.objects(bucket_id,name) values('health-photos',$1)",[photo.storage_path]),/reservation required/);
+    await assert.rejects(rpc(serviceA,'complete_photo_upload',[photo.id,users[0],photo.space_id],['::uuid','::uuid','::uuid']),/Photo unavailable/);
+    return {evidence:'failed remove retains owner cleanup row; partner/download denied; retry cleans; late Storage insert rejected'};
+  });
+  await run('UPLOAD_CLEAR_LEAVE_LOCK_ORDER',async()=>{
+    for(const action of ['erase_own_health_data','leave_space']){
+      await serviceA.query('begin');let held=true;
+      try{
+        const photo=await reservePhoto(action==='leave_space'?'c':'d');
+        const waiterPid=await pid(me2),holderPid=await pid(serviceA);
+        const pending=rpc(me2,action).then(value=>({value}),error=>({error}));
+        await Promise.race([blockedBy(admin,waiterPid,holderPid,'upload lifecycle'),pending.then(x=>{throw x.error??new Error('Unexpected erasure success')})]);
+        await serviceA.query('commit');held=false;
+        assert.match((await pending).error?.message??'',/Delete private photos first/);
+        await rpc(serviceA,'begin_photo_delete',[photo.id,users[0],photo.space_id],['::uuid','::uuid','::uuid']);
+        await rpc(serviceA,'unlink_photo_asset',[photo.id],['::uuid']);
+      }finally{if(held)await serviceA.query('rollback');}
+    }
+    return {evidence:'clear and leave wait behind reserved upload then refuse erasure; interrupted upload cleanup succeeds'};
+  });
+
+  await run('SCHEDULED_PROVIDER_LOCK_ORDER',async()=>{
+    const photo=await reservePhoto('e');
+    await admin.query("update ai_plan_preferences set plan_provider='openai' where user_id=$1",[users[0]]);
+    const stamp=(await admin.query('select now()::text stamp')).rows[0].stamp;
+    const holderPid=await pid(serviceA),waiterPid=await pid(me2);
+    await serviceA.query('begin');let held=true;
+    try{
+      assert.equal(await rpc(serviceA,'enqueue_scheduled_plans',[stamp],['::timestamptz']),2);
+      const leaving=rpc(me2,'leave_space').then(value=>({value}),error=>({error}));
+      await blockedBy(admin,waiterPid,holderPid,'scheduled enqueue / leave');
+      await serviceA.query('commit');held=false;
+      assert.match((await leaving).error?.message??'',/Delete private photos first/);
+      await admin.query("update ai_plan_preferences set plan_provider='rules' where user_id=$1",[users[0]]);
+      const jobs=(await admin.query("select user_id,provider from generation_jobs where kind='scheduled' and scheduled_for=$1",[stamp])).rows;
+      assert.equal(jobs.find(x=>x.user_id===users[0]).provider,'openai');
+      assert.equal(jobs.find(x=>x.user_id===users[1]).provider,'rules');
+      await admin.query("delete from generation_jobs where kind='scheduled' and scheduled_for=$1",[stamp]);
+      await rpc(serviceA,'begin_photo_delete',[photo.id,users[0],photo.space_id],['::uuid','::uuid','::uuid']);
+      await rpc(serviceA,'unlink_photo_asset',[photo.id],['::uuid']);
+    }finally{if(held)await serviceA.query('rollback');}
+    return {evidence:'scheduled provider captured for each owner; enqueue and leave share space-first order'};
+  });
+
   await run('SHARE_REVOKE_AND_LEAVE', async () => {
     const saved = await rpc(me, 'save_meal', [JSON.stringify({ data: mealData(), status: 'draft', is_shared: true }), null],
       ['::jsonb', '::uuid']);
@@ -353,15 +447,16 @@ try {
   });
 
   await run('MONTHLY_BUDGET_RACE', async () => {
-    await rpc(partner, 'set_ai_consent', ['text', true, 2, 'SYNTHETIC_POLICY'],
-      ['::text', '::boolean', '::integer', '::text']);
+    await rpc(partner, 'set_ai_provider_consent', ['openai','estimate_meal_text', true, 2, '2026-10-13-openai-health-v1'],
+      ['::text','::text', '::boolean', '::integer', '::text']);
+    await admin.query("insert into public.ai_provider_budgets(period,provider,limit_cents) values(date_trunc('month',now() at time zone 'Asia/Shanghai')::date,'openai',2)");
     await admin.query("insert into public.ai_monthly_budgets(period,limit_cents) values(date_trunc('month',now() at time zone 'Asia/Shanghai')::date,2)");
     await serviceA.query('begin'); let held = true;
     try {
-      const first = await rpc(serviceA, 'reserve_ai_usage', [users[1], 'text', 2], ['::uuid', '::text', '::integer']);
+      const first = await rpc(serviceA, 'reserve_ai_provider_usage', [users[1], 'openai','estimate_meal_text', 2], ['::uuid', '::text','::text', '::integer']);
       const holderPid = await pid(serviceA);
       const waiterPid = await pid(serviceB);
-      const pending = rpc(serviceB, 'reserve_ai_usage', [users[1], 'text', 2], ['::uuid', '::text', '::integer'])
+      const pending = rpc(serviceB, 'reserve_ai_provider_usage', [users[1], 'openai','estimate_meal_text', 2], ['::uuid', '::text','::text', '::integer'])
         .then(value => ({ value }), error => ({ error }));
       await blockedBy(admin, waiterPid, holderPid);
       await serviceA.query('commit'); held = false;
@@ -369,7 +464,7 @@ try {
       assert.match(second.error?.message ?? '', /Global AI budget exceeded/);
       assert.equal((await admin.query("select count(*)::int as n from public.ai_usage where status='reserved'")).rows[0].n, 1);
       await rpc(serviceA, 'settle_ai_usage', [first, 1], ['::uuid', '::integer']);
-      assert.ok(await rpc(serviceB, 'reserve_ai_usage', [users[1], 'text', 1], ['::uuid', '::text', '::integer']));
+      assert.ok(await rpc(serviceB, 'reserve_ai_provider_usage', [users[1], 'openai','estimate_meal_text', 1], ['::uuid', '::text','::text', '::integer']));
       return { evidence: 'second connection blocked on budget row; over-limit rejected; released capacity reusable' };
     } finally { if (held) await serviceA.query('rollback'); }
   });
@@ -377,7 +472,7 @@ try {
   await run('FINISH_VS_LEAVE', async () => {
     await rpc(partner, 'save_health_rules', [JSON.stringify({ ...rules(), confirmed: true, meal_template: templateMeals }), false, null],
       ['::jsonb', '::boolean', '::timestamptz']);
-    const job = await rpc(partner, 'request_plan_generation', [date(5)], ['::date']);
+    const job = await rpc(partner, 'request_plan_generation', [date(5), 'rules'], ['::date', '::text']);
     const claim = await rpc(serviceA, 'claim_generation_job', [job.id], ['::uuid']);
     await serviceA.query('begin'); let held = true;
     try {
@@ -397,7 +492,7 @@ try {
     await admin.query(await readFile(new URL('../supabase/admin/initialize-fixed-accounts.sql', import.meta.url), 'utf8'));
     await rpc(me, 'save_health_rules', [JSON.stringify({ ...rules(), confirmed: true, meal_template: templateMeals }), false, null],
       ['::jsonb', '::boolean', '::timestamptz']);
-    const secondJob = await rpc(me, 'request_plan_generation', [date(6)], ['::date']);
+    const secondJob = await rpc(me, 'request_plan_generation', [date(6), 'rules'], ['::date', '::text']);
     const secondClaim = await rpc(serviceA, 'claim_generation_job', [secondJob.id], ['::uuid']);
     await me.query('begin'); held = true;
     try {
@@ -423,7 +518,10 @@ try {
   if (server) await server.stop().catch(() => { report.teardown_error = true; process.exitCode = 1; });
   report.generated_at = new Date().toISOString();
   report.script_sha256 = createHash('sha256').update(await readFile(new URL('./verify-health-concurrency.mjs', import.meta.url))).digest('hex');
-  await writeFile('test-results/health-concurrency-results.json', JSON.stringify(report, null, 2) + '\n');
+  await writeFile('test-results/integrity-health-concurrency-results.json', JSON.stringify(report, null, 2) + '\n');
   console.log(`health concurrency: ${report.passed} passed, ${report.failed} failed, ${report.not_run} not run`);
-  if (report.failed || report.not_run || report.teardown_error) process.exitCode = 1;
+  if (report.failed || report.not_run || report.setup_error || report.teardown_error) process.exitCode = 1;
 }
+
+// embedded-postgres installs beforeExit hooks; preserve a failed gate after cleanup.
+process.exit(process.exitCode || 0);

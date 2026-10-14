@@ -1,13 +1,17 @@
 {
-  "generated_at": "2026-10-13T15:58:02.557Z",
+  "generated_at": "2026-10-14T04:44:08.492Z",
   "scope": "two-fixed-accounts-synthetic-ui",
-  "passed": 18,
+  "passed": 22,
   "failed": 0,
   "blocked": 0,
   "notrun": 0,
   "cases": [
     {
       "id": "UI_FIXED_LOGIN",
+      "status": "passed"
+    },
+    {
+      "id": "UI_PRIMARY_PHOTO",
       "status": "passed"
     },
     {
@@ -31,7 +35,19 @@
       "status": "passed"
     },
     {
+      "id": "UI_LOCAL_DEMO",
+      "status": "passed"
+    },
+    {
       "id": "UI_MEAL",
+      "status": "passed"
+    },
+    {
+      "id": "UI_NUTRITION",
+      "status": "passed"
+    },
+    {
+      "id": "UI_ADJUSTMENT",
       "status": "passed"
     },
     {

@@ -4,7 +4,11 @@ const root = new URL('../../test-results/', import.meta.url)
 
 export async function report(name, scope, cases, privateDetails = []) {
   const counts = { passed: 0, failed: 0, blocked: 0, notrun: 0 }
-  for (const item of cases) counts[item.status]++
+  if (!cases.length) throw new Error('Verification did not run any cases')
+  for (const item of cases) {
+    if (!Object.hasOwn(counts,item.status)) throw new Error('Unknown verification status')
+    counts[item.status]++
+  }
   await mkdir(root, { recursive: true })
   // Public reports contain stable case IDs and statuses only.
   await writeFile(new URL(`${name}-results.json`, root), JSON.stringify({ generated_at: new Date().toISOString(), scope, ...counts, cases }, null, 2) + '\n')

@@ -1,0 +1,7 @@
+{
+  "run_date": "2026-10-14",
+  "scope": "Public Edge rejection checks; no account, health data, photo or AI call",
+  "first_attempt": {"passed": 0, "failed": 14, "not_run": 0, "cause": "Sandbox network DNS ENOTFOUND"},
+  "network_authorized_attempt": {"passed": 14, "failed": 0, "not_run": 0, "report": "edge-public-results.json"},
+  "business_acceptance": false
+}

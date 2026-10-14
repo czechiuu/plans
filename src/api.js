@@ -43,11 +43,9 @@ async function edgeResult(promise) {
 
 const verifiedUser = expectedSlot => verifyFixedUser(ready(), expectedSlot)
 const healthTables = ['health_rules', 'daily_plans', 'generation_jobs', 'training_sessions', 'meals', 'photo_assets', 'ai_consents']
-// DeepSeek remains visible as a candidate, but health-data calls are disabled this release.
-const aiProviders = ['openai']
-const aiPurposes = ['parse_schedule', 'estimate_meal_text', 'estimate_meal_photo', 'generate_plan']
+const aiProviders = ['openai', 'deepseek']
+const aiPurposes = ['parse_schedule', 'estimate_meal_text', 'estimate_meal_photo', 'generate_plan', 'adjust_plan']
 function provider(value, allowRules = false) {
-  if (value === 'deepseek') throw Object.assign(new Error('DeepSeek 健康资料处理尚未开放'), { code: 'AI_PROVIDER_UNAVAILABLE' })
   if (!aiProviders.includes(value) && !(allowRules && value === 'rules')) throw Object.assign(new Error('请选择 AI 供应商'), { code: 'AI_PROVIDER_REQUIRED' })
   return value
 }
@@ -101,7 +99,7 @@ export const api = {
     const { user, account } = await verifiedUser()
     const member = await result(ready().from('members').select('space_id').eq('user_id', user.id).maybeSingle())
     const today = shanghaiDate()
-    if (!member) return { user, account, space: null, members: [], profile: null, profiles: [], schedules: [], weights: [], audit: [], healthAvailable: false, providerAiAvailable: false, range: { from: today, to: today } }
+    if (!member) return { user, account, space: null, members: [], profile: null, profiles: [], schedules: [], weights: [], audit: [], healthAvailable: false, providerAiAvailable: false, activityAvailable: false, range: { from: today, to: today } }
     const spaceId = member.space_id
     const schema = await ready().rpc('health_schema_version')
     if (schema.error && schema.error.code !== 'PGRST202') throw schema.error
@@ -111,6 +109,14 @@ export const api = {
     if (providerSchema.error && providerSchema.error.code !== 'PGRST202') throw providerSchema.error
     const providerAiAvailable = !providerSchema.error && providerSchema.data === 5
     if (!providerSchema.error && !providerAiAvailable) throw new Error('AI 授权版本不匹配')
+    const dailyFlow = providerAiAvailable ? await ready().rpc('health_daily_flow_version') : { error: { code: 'PGRST202' } }
+    if (dailyFlow.error && dailyFlow.error.code !== 'PGRST202') throw dailyFlow.error
+    const dailyFlowAvailable = !dailyFlow.error && dailyFlow.data === 7
+    if (!dailyFlow.error && !dailyFlowAvailable) throw new Error('餐后调整版本不匹配')
+    const activitySchema = healthAvailable ? await ready().rpc('health_activity_schema_version') : { error: { code: 'PGRST202' } }
+    if (activitySchema.error && activitySchema.error.code !== 'PGRST202') throw activitySchema.error
+    const activityAvailable = !activitySchema.error && activitySchema.data === 8
+    if (!activitySchema.error && !activityAvailable) throw new Error('运动记录版本不匹配')
     const [space, members, profiles, schedules, weights, audit, ...healthRows] = await Promise.all([
       result(ready().from('spaces').select('id,name').eq('id', spaceId).single()),
       result(ready().from('members').select(healthAvailable ? 'space_id,user_id,display_name,share_profile,share_schedule,share_weight,share_plan,share_training,share_meal,share_photo,allow_partner_edit' : 'space_id,user_id,display_name,share_profile,share_schedule,share_weight,allow_partner_edit').eq('space_id', spaceId)),
@@ -121,9 +127,10 @@ export const api = {
       ...(healthAvailable ? healthTables.map(table => allPages(table, 'space_id', spaceId)) : [])
     ])
     const health = Object.fromEntries(healthTables.map((table, index) => [table, healthRows[index] ?? []]))
+    health.meal_adjustments = dailyFlowAvailable ? await allPages('meal_adjustments', 'space_id', spaceId) : []
     const dates = [...schedules, ...weights].map(row => row.record_date).sort()
     const range = { from: dates[0] ?? today, to: dates.at(-1) ?? today }
-    return { user, account, space, members, profile: profiles.find(row => row.user_id === user.id) ?? null, profiles, schedules, weights, audit, healthAvailable, providerAiAvailable, ...health, range }
+    return { user, account, space, members, profile: profiles.find(row => row.user_id === user.id) ?? null, profiles, schedules, weights, audit, healthAvailable, providerAiAvailable, dailyFlowAvailable, activityAvailable, ...health, range }
   },
   async saveSettings(settings) { await result(bound().rpc('save_settings', { p_settings: settings })) },
   async saveProfile(payload) { return result(bound().rpc('save_profile', { p_payload: payload }).single()) },
@@ -137,10 +144,11 @@ export const api = {
   async saveHealthSharing(settings) { await result(bound().rpc('save_health_sharing', { p_settings: settings })) },
   async saveDailyPlan(targetDate, content, expectedVersion = null, isShared = false) { return result(bound().rpc('save_daily_plan', { p_target_date: targetDate, p_content: content, p_expected_version: expectedVersion, p_is_shared: isShared }).single()) },
   async setPlanLock(id, locked, expectedUpdatedAt) { return result(bound().rpc('set_plan_lock', { p_id: id, p_locked: locked, p_expected_updated_at: expectedUpdatedAt }).single()) },
-  async requestPlanGeneration(targetDate) { return result(bound().rpc('request_plan_generation', { p_target_date: targetDate }).single()) },
+  async requestPlanGeneration(targetDate, selectedProvider) { return result(bound().rpc('request_plan_generation', { p_target_date: targetDate, p_provider: provider(selectedProvider, true) }).single()) },
   async retryGenerationJob(id) { return result(bound().rpc('retry_generation_job', { p_id: id }).single()) },
   async generatePlan(jobId, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'generate-plan', job_id: jobId, provider: provider(selectedProvider, true) } })) },
   async saveTrainingSession(payload, id = null) { return result(bound().rpc('save_training_session', { p_payload: payload, p_id: id }).single()) },
+  async deleteTrainingSession(id) { await result(bound().rpc('delete_training_session', { p_id: id })) },
   async saveMeal(payload, id = null) { return result(bound().rpc('save_meal', { p_payload: payload, p_id: id }).single()) },
   async deleteMeal(id) { await result(bound().rpc('delete_meal', { p_id: id })) },
   async setAiProviderConsent(selectedProvider, purpose, enabled, monthlyLimitCents, policyVersion) {
@@ -150,9 +158,12 @@ export const api = {
   async setAiPlanProvider(selectedProvider) { return result(bound().rpc('set_ai_plan_provider', { p_provider: provider(selectedProvider, true) })) },
   async parseSchedule(rawText, submittedAt, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'parse-schedule', raw_text: rawText, submitted_at: submittedAt, provider: provider(selectedProvider) } })) },
   async estimateMeal(mealId, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'estimate-meal', meal_id: mealId, provider: provider(selectedProvider) } })) },
+  async requestMealAdjustment(recordDate, selectedProvider) { return edgeResult(bound().functions.invoke('health-ai', { body: { action: 'adjust-plan', record_date: recordDate, provider: provider(selectedProvider) } })) },
+  async applyMealAdjustment(id, expectedUpdatedAt) { return result(bound().rpc('apply_meal_adjustment', { p_id: id, p_expected_updated_at: expectedUpdatedAt }).single()) },
+  async undoMealAdjustment(id, expectedUpdatedAt) { return result(bound().rpc('undo_meal_adjustment', { p_id: id, p_expected_updated_at: expectedUpdatedAt }).single()) },
   async aiStatus() {
     const status = await edgeResult(bound().functions.invoke('health-ai', { body: { action: 'status' } }))
-    if (status?.schema_version !== 5 || !status.providers || !status.plan_provider) throw Object.assign(new Error('AI 服务版本不匹配'), { code: 'AI_SERVICE_VERSION_MISMATCH' })
+    if (![5,7].includes(status?.schema_version) || !status.providers || !status.plan_provider) throw Object.assign(new Error('AI 服务版本不匹配'), { code: 'AI_SERVICE_VERSION_MISMATCH' })
     return status
   },
   async uploadPhoto(file, mealId = null, isShared = false) {
@@ -175,7 +186,11 @@ export const api = {
       allPages('health_profiles', 'user_id', user.id), allPages('schedules', 'user_id', user.id), allPages('weights', 'user_id', user.id),
       ...(hasHealth ? healthTables.map(table => allPages(table, 'user_id', user.id)) : [])
     ])
-    return { exported_at: new Date().toISOString(), profile: profiles[0] ?? null, schedules, weights, settings: member, ...Object.fromEntries(healthTables.map((table,index) => [table,healthRows[index] ?? []])) }
+    const flowSchema = hasHealth ? await ready().rpc('health_daily_flow_version') : { error: { code: 'PGRST202' } }
+    if (flowSchema.error && flowSchema.error.code !== 'PGRST202') throw flowSchema.error
+    if (!flowSchema.error && flowSchema.data !== 7) throw new Error('餐后调整版本不匹配')
+    const mealAdjustments = !flowSchema.error ? await allPages('meal_adjustments', 'user_id', user.id) : []
+    return { exported_at: new Date().toISOString(), profile: profiles[0] ?? null, schedules, weights, settings: member, ...Object.fromEntries(healthTables.map((table,index) => [table,healthRows[index] ?? []])), meal_adjustments: mealAdjustments }
   },
   async eraseOwnHealthData() { await result(bound().rpc('erase_own_health_data')) },
   async leaveSpace() { await result(bound().rpc('leave_space')) }
