@@ -112,6 +112,9 @@ if(process.argv.includes('--self-check')){
     const assertDate=()=>assert.equal(shanghaiDate(),today,'Shanghai date changed; stop synthetic run')
     let browser,pages=[],safe=false,baseline,allowedPlans=[],beforeUsage=[],unexpectedPaid=false,writeUncertain=false
     const errors=[]
+    const gifUrls=new Set(exercises.filter(item=>item.demo.mediaType==='external_gif').map(item=>item.demo.gifUrl))
+    const gifRequests=new Map()
+    const gifFailures=[]
     // Capture only the exact mutation initiated by this UI test, never enumerate bodies.
     const uiWrite=async(page,rpcName,action,kind)=>{
       try{
@@ -137,6 +140,12 @@ if(process.argv.includes('--self-check')){
     const syntheticScreen=async(page,name,fullPage=false)=>{
       await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
       await page.screenshot({path:fileURLToPath(new URL(`../test-results/private/cloud-ui-${name}-synthetic.png`,import.meta.url)),fullPage})
+    }
+    const gifDiagnostic=async(exercise,stage)=>{
+      gifFailures.push({exercise_id:exercise.id,gif_url:exercise.demo.gifUrl,stage,
+        network:gifRequests.get(exercise.demo.gifUrl)||null})
+      await writeFile(new URL('../test-results/private/cloud-health-ui-gif-diagnostic.json',import.meta.url),
+        JSON.stringify({failures:gifFailures},null,2)+'\n')
     }
     try{
       await check('UI_CLOUD_PREFLIGHT',async()=>{
@@ -170,9 +179,19 @@ if(process.argv.includes('--self-check')){
           const page=await context.newPage();page.setDefaultTimeout(20000);pages.push(page)
           page.on('pageerror',()=>errors.push('pageerror'))
           page.on('request',request=>{
+            if(gifUrls.has(request.url()))gifRequests.set(request.url(),{request_seen:true})
             if(new URL(request.url()).pathname==='/functions/v1/health-ai'&&request.method()==='POST'){
               try{if(request.postDataJSON()?.action!=='status')unexpectedPaid=true}catch{unexpectedPaid=true}
             }
+          })
+          page.on('response',response=>{
+            if(gifUrls.has(response.url()))gifRequests.set(response.url(),{
+              ...gifRequests.get(response.url()),status:response.status()})
+          })
+          page.on('requestfailed',request=>{
+            if(gifUrls.has(request.url()))gifRequests.set(request.url(),{
+              ...gifRequests.get(request.url()),errorText:/^[\w:.-]{1,120}$/.test(request.failure()?.errorText||'')
+                ?request.failure().errorText:'unclassified_failure'})
           })
           await page.goto(site.href);await login(page,i?'w':'me',setup.passwords[i])
         }
@@ -273,7 +292,7 @@ if(process.argv.includes('--self-check')){
         stage='VERIFY_PARTNER_ISOLATION'
         await nav(partner,'趋势');assert.equal(await partner.getByText(marker,{exact:true}).count(),0)
         stage='SWITCH_SECOND_CONTEXT'
-        await nav(partner,'设置');await partner.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
+        await partner.locator('.header-settings').click();await partner.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
         await partner.getByRole('heading',{name:'欢迎回来'}).waitFor();await login(partner,'me',setup.passwords[0])
         stage='VERIFY_SECOND_CONTEXT'
         await nav(partner,'趋势');await partner.getByText('71.0 kg',{exact:true}).waitFor()
@@ -289,17 +308,27 @@ if(process.argv.includes('--self-check')){
       }).catch(()=>{})
       await check('UI_CLOUD_MEDIA',async()=>{
         await nav(me,'训练')
+        const others=me.locator('details.other-exercises')
+        if(await others.count())await me.locator('details.other-exercises > summary').click()
+        assert.equal(await me.locator('[data-demo-slot]').count(),exercises.length)
         for(const exercise of exercises.filter(item=>item.demo.mediaType==='external_gif')){
           const slot=me.locator(`[data-demo-slot="${exercise.id}"]`)
           assert.equal(await slot.locator('img').count(),0)
           await slot.getByRole('button',{name:'查看动作示范',exact:true}).click()
-          await me.waitForFunction(id=>{
-            const slot=document.querySelector(`[data-demo-slot="${id}"]`)
-            return slot?.querySelector('img.exercise-gif')?.naturalWidth>0 || slot?.textContent?.includes('动作示范加载失败')
-          },exercise.id)
+          try{
+            await me.waitForFunction(id=>{
+              const slot=document.querySelector(`[data-demo-slot="${id}"]`)
+              return slot?.querySelector('img.exercise-gif')?.naturalWidth>0 || slot?.textContent?.includes('动作示范加载失败')
+            },exercise.id)
+          }catch{
+            await gifDiagnostic(exercise,'wait_timeout')
+            continue
+          }
           const image=slot.locator('img.exercise-gif')
-          if(!await image.count() || !await image.evaluate(node=>node.complete&&node.naturalWidth>0))
-            throw Object.assign(new Error('GIF image failed to load'),{code:`GIF_${exercise.id.toUpperCase()}_LOAD_FAILED`})
+          if(!await image.count() || !await image.evaluate(node=>node.complete&&node.naturalWidth>0)){
+            await gifDiagnostic(exercise,'image_error')
+            continue
+          }
           assert.equal(await image.getAttribute('src'),exercise.demo.gifUrl)
           assert.equal(await slot.getByRole('button',{name:'暂停',exact:true}).count(),0)
           assert.equal(await me.locator(`[data-demo-slot="${exercise.id}"]`).locator('..').getByRole('link',{name:'原视频备用入口'}).getAttribute('href'),exercise.demo.url)
@@ -313,6 +342,8 @@ if(process.argv.includes('--self-check')){
           assert.equal(await slot.getByRole('link',{name:'查看原视频示范'}).getAttribute('href'),exercise.demo.url)
           assert.equal(await slot.locator('img,object').count(),0)
         }
+        if(gifFailures.length)throw Object.assign(new Error(`GIF image failed to load: ${gifFailures.map(item=>item.exercise_id).join(', ')}`),
+          {code:`GIF_${gifFailures[0].exercise_id.toUpperCase()}_LOAD_FAILED`})
       }).catch(()=>{})
       await check('UI_CLOUD_TRAINING',async()=>{
         if(writeUncertain)throw dependencyBlocked('UI_WRITE_UNCERTAIN')

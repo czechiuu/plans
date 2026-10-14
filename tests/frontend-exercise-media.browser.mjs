@@ -4,7 +4,7 @@ import { exercises } from '../shared/exercises.js'
 import { browserOrigin, launchBrowser } from '../scripts/test-helpers/browser.mjs'
 import { report, runCase } from '../scripts/test-helpers/report.mjs'
 
-const ids=['MEDIA_LAZY','MEDIA_FAILURE','MEDIA_GIFS','MEDIA_VIDEOS','MEDIA_TRAINING']
+const ids=['MEDIA_LAZY','MEDIA_FAILURE','MEDIA_GIFS','MEDIA_VIDEOS','MEDIA_CATALOG_WITH_PLAN','MEDIA_TRAINING']
 const cases=[],details=[],check=(id,fn)=>runCase(cases,details,id,fn)
 const gif=Buffer.from('R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=','base64')
 let browser
@@ -65,7 +65,18 @@ try{
   })
   await check(ids[4],async()=>{
     await page.evaluate(()=>window.__synthetic.seedTodayPlan())
+    const before=requests
     await page.getByRole('button',{name:'刷新数据'}).click()
+    const others=page.locator('details.other-exercises')
+    assert.equal(await others.count(),1)
+    assert.equal(await others.evaluate(node=>node.open),false)
+    await page.locator('details.other-exercises > summary').click()
+    assert.equal(await page.locator('[data-demo-slot]').count(),exercises.length)
+    for(const exercise of exercises)assert.equal(await page.locator(`[data-demo-slot="${exercise.id}"]`).count(),1)
+    assert.equal(requests,before)
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
+  })
+  await check(ids[5],async()=>{
     await page.getByRole('button',{name:'开始本次训练'}).click()
     await page.getByText('训练已开始；请记录实际完成的每一组',{exact:true}).waitFor()
   })

@@ -17,3 +17,4 @@
 .demo-slot:has(.demo-status){min-height:0;aspect-ratio:auto;padding:12px;gap:8px;background:#f4f0fc}
 .exercise-gif{display:block;width:180px;height:180px;max-width:100%;object-fit:contain;border-radius:12px}
 .demo-status{margin:0;text-align:center}
+.other-exercises{margin-top:18px}.other-exercises>summary{cursor:pointer;color:#62519b;font-weight:700}.other-exercises>.hint,.other-exercises>.exercise-grid{margin-top:14px}
