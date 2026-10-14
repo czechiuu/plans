@@ -1,6 +1,8 @@
 # 数据结构与权限
 
-截至 2026-10-14，生产已应用 001–005；006–008 为未部署候选。表与接口的源码存在不代表云端验收通过。旧字段细节见 [HEALTH-API](HEALTH-API.md)，新增契约见 [DAILY-FLOW-CHANGES](DAILY-FLOW-CHANGES.md)，有差异时以迁移源为准。
+截至 2026-10-14，生产已应用 001–008；006–008 的迁移摘要及能力回读见[发布记录](../test-results/daily-flow-release.json)。结构部署不等于真人业务验收。旧字段细节见 [HEALTH-API](HEALTH-API.md)，新增契约见 [DAILY-FLOW-CHANGES](DAILY-FLOW-CHANGES.md)，有差异时以迁移源为准。
+
+009 输入快照已在生产应用并回读 MD5 一致：`generation_input_snapshots` 只允许本人读取，按生成任务与输入版本保存来源快照；历史任务不回填，无快照须明确视为不可追溯。前端本人 JSON 导出已接入该表并要求 `health_input_snapshot_schema_version()=9`，版本不符时明确拒绝完整导出，不生成缺项文件。生产能力探针为9；真实生成及导出仍待安全登录验收。
 
 | 实体 | 内容与边界 |
 |---|---|

@@ -5,20 +5,33 @@
   "migration_md5": {
     "202610140006": "387cc96e9854379726dec49837109f69",
     "202610140007": "a5d069d7931d57a8c9c103d68de54b85",
-    "202610140008": "51fba87f159fb01a44d55920fc7d0891"
+    "202610140008": "51fba87f159fb01a44d55920fc7d0891",
+    "202610140009": "dc32be5c3b0d7dd7539ee636001d7e74"
   },
-  "capabilities": {"daily_flow": 7, "activities": 8, "storage_upload_guard_count": 1},
+  "capabilities": {"daily_flow": 7, "activities": 8, "input_snapshots": 9, "storage_upload_guard_count": 1},
   "function_sha256": {
-    "health-ai": "155e3ecc6e6f7702ab3e9026ee5c5e1439e44ce3c8a654f8a2160b8a6e1d4bff",
+    "health-ai": "f74f3d888ba1b18429ff54503112b70fdd0607b2b0987952b555903ee77324dc",
     "health-photo": "5c3bbd09fd54ad322d326963d14fb47d424b64b503dbaab2c439326c7adce984",
-    "health-cron": "21160f6175b1c7eb0ca9a6593c0404ec537479f20153e230d32012d07088f469"
+    "health-cron": "69097fecab2020dc5da14b1e993315515505d5f2688e2180afe59f6a328105c0"
   },
   "all_function_downloads_match_local_bundles": true,
   "deepseek_health_enabled": true,
   "provider_limits_cents": {"openai": 200, "deepseek": 10},
   "personal_consents_at_enable": 0,
   "fixed_accounts": 2,
-  "pages_release": "pending",
+  "frontend_source_commit": "6c08c128c8ea00042b34e35b6ab974196094666c",
+  "backend_source_commit": null,
+  "backend_source_commit_pending": true,
+  "pages_release": "success",
+  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38516977520",
+  "pages_finished_at": "2026-10-14T05:31:27Z",
+  "pages_assets_match_local_build": true,
+  "pages_asset_sha256": {
+    "js": "bf55c46990ffaeacf8bf56d698a388da70cd23a80bc2f22a9c4bfa687d6d7ac7",
+    "css": "745446d964c886aa02edddb15188a026cc5bdff589ec4082809e794e5896b854"
+  },
+  "anonymous_public_checks": {"passed": 8, "failed": 0, "notrun": 0},
+  "anonymous_edge_checks": {"passed": 14, "failed": 0, "notrun": 0},
   "real_business_acceptance": "not_run_pending_secure_sign_in",
   "notes": ["No credentials or health contents recorded", "User authorized only synthetic calls up to 5 additional cents", "No budget increase or personal consent created", "Historical failures retained"]
 }

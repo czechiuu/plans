@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-10-14T04:35:04.080Z",
-  "generated_at": "2026-10-14T04:35:13.503Z",
+  "started_at": "2026-10-14T05:59:15.372Z",
+  "generated_at": "2026-10-14T05:59:24.962Z",
   "scope": "Isolated local PostgreSQL; synthetic fixed accounts only; no production connection",
   "cases": {
     "CLIENT_RLS_SERVICE_BOUNDARY": {
@@ -75,7 +75,9 @@
     "202610130004_health_daily.sql",
     "202610130005_ai_providers.sql",
     "202610140006_integrity.sql",
-    "202610140007_daily_flow.sql"
+    "202610140007_daily_flow.sql",
+    "202610140008_activities.sql",
+    "202610140009_input_snapshots.sql"
   ],
   "migration_sha256": {
     "202610130001_initial.sql": "2c35065b6aa8e8cc5fe35a78278430b9b57d16f7876b55150fefeb1904b34e8d",
@@ -84,8 +86,10 @@
     "202610130004_health_daily.sql": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
     "202610130005_ai_providers.sql": "585202ae6fb06fcda937e587078f313b8ff096f3a65ff4d53d1ceafe39749841",
     "202610140006_integrity.sql": "23e5a1dbb01ec2a93b5ea88d3e931730ec0efb5bbe88f795f8bc4235c08a714f",
-    "202610140007_daily_flow.sql": "4ca0cd66c0cf07efeaf8b69dfd06b7854b605320d49c1062521f81891da2fb46"
+    "202610140007_daily_flow.sql": "32c091a8e1e7b48a6f90f67ba1eab6d6e3cfacedc765e7c4e0436c30f4b5bac4",
+    "202610140008_activities.sql": "348a5ad616fe94005c9e543455572bba077c37fc5c1649315408ee4d88e8d879",
+    "202610140009_input_snapshots.sql": "ca9c664f14d2e09d4259d1d3c01502b12eee5d4e67425d633bc8a2aeff75c879"
   },
   "migration_004_sha256": "abc6511e871f3aab17d89d5640de235e96ddddb4486178d827430947dc319585",
-  "script_sha256": "304a7563bbef92610b0206ca67f8726f94519f71625c8d0289b983b466809748"
+  "script_sha256": "df711137d0a1515c89a53c306fc6f74aa6f612e735aa3d6aa6ffaf67291d01a1"
 }

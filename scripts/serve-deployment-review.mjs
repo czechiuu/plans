@@ -5,7 +5,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const artifacts = [
-  ['006 / 007 / 008 数据库执行包', 'supabase/admin/apply-daily-flow-006-008.sql'],
+  ['009 私有输入快照执行包', 'supabase/admin/apply-input-snapshots-009.sql'],
   ['health-ai', 'supabase/bundles/health-ai.js'],
   ['health-photo', 'supabase/bundles/health-photo.js'],
   ['health-cron', 'supabase/bundles/health-cron.js'],

@@ -1,6 +1,6 @@
-# 健康功能后端接口（004，本地实现契约）
+# 健康功能后端接口（004 基线契约）
 
-此契约供前端对接；004、005 与三份 Edge Function 已由管理员部署生产，005 AI 供应商扩展见 [DEEPSEEK.md](DEEPSEEK.md)。本月预算已设置；首次固定合成探针 3/4 通过，随后日程单项复测 1/1 通过，本月合计保守结算 5 美分。20:00 定时任务已能领取两人的 job，但因餐食模板尚未确认，两项均在首次尝试后报 `MEAL_TEMPLATE_UNCONFIRMED`，计划发布仍未验收。所有日期为上海日 `YYYY-MM-DD`。仅两位固定账号可用。前端只持 Supabase publishable key 与本人 JWT，不接触 service_role 或 AI 密钥。所有新表客户端可按 RLS `select`，**不可直接 insert/update/delete**；写入走 RPC 或 Edge Function。未配置服务端 AI/Cron/照片时明确返回错误，不提供假结果。
+本文保留 004 基线接口及其历史运行结果；当前生产已部署 006–008 和本轮函数，新增或变更的接口须按 [日常链路契约](DAILY-FLOW-CHANGES.md)、[数据模型](DATA-MODEL.md)及迁移源码核对，不能以本页旧签名调用。历史首次固定合成探针 3/4 通过，随后日程单项复测 1/1 通过，保守结算 5 美分；旧两条定时任务因当时餐食模板未确认而失败，不能推断新版发布结果。所有日期为上海日 `YYYY-MM-DD`。仅两位固定账号可用。前端只持 Supabase publishable key 与本人 JWT，不接触 service_role 或 AI 密钥；健康表的写入走 RPC 或 Edge Function。
 
 ## 权限与通用字段
 

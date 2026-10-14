@@ -349,7 +349,7 @@ export async function generate(ctx,jobId,expectedProvider=null){
   }catch(error){
     const code=/^[A-Z0-9_]{1,80}$/.test(error?.message??'')?error.message:'GENERATION_FAILED'
     await ctx.admin.rpc('finish_generation_job',{p_id:jobId,p_claim_token:job.claim_token,
-      p_content:null,p_input_version:null,p_source:source,p_error_code:code})
+      p_content:null,p_input_version:null,p_source:source,p_error_code:code}).single()
     throw error
   }
 }
@@ -376,11 +376,11 @@ export async function adjustPlan(ctx,provider,date){
         remaining_meal_indices:remaining.data,unknown_meals_are_not_zero:true})})
     if(content.meal_changes.some(change=>!change.meal.foods.length||change.meal.foods.some(food=>
       !food.name.trim()||!food.portion.trim()||!food.unit.trim()))) throw new Error('INVALID_GENERATED_PLAN')
-    const finished=await ctx.admin.rpc('finish_meal_adjustment',{p_id:adjustment.id,p_content:content})
+    const finished=await ctx.admin.rpc('finish_meal_adjustment',{p_id:adjustment.id,p_content:content}).single()
     if(finished.error) throw new Error('INVALID_GENERATED_PLAN')
     return {adjustment:finished.data,needs_confirmation:finished.data.status==='draft',ai_request_id:ctx.aiRequestId??null}
   }catch(error){
-    await ctx.admin.rpc('finish_meal_adjustment',{p_id:adjustment.id,p_content:null})
+    await ctx.admin.rpc('finish_meal_adjustment',{p_id:adjustment.id,p_content:null}).single()
     throw error
   }
 }

@@ -1,0 +1,25 @@
+{
+  "source_commit": "6c08c128c8ea00042b34e35b6ab974196094666c",
+  "push_run": "https://github.com/czechiuu/plans/actions/runs/38516484426",
+  "unit": {
+    "passed": 82,
+    "failed": 0,
+    "not_run": 0
+  },
+  "health_concurrency": {
+    "passed": 15,
+    "failed": 0,
+    "not_run": 0
+  },
+  "provider_concurrency": {
+    "passed": 7,
+    "failed": 0,
+    "not_run": 0
+  },
+  "activity_concurrency": {
+    "passed": 3,
+    "failed": 0,
+    "not_run": 0
+  },
+  "source": "Retrieved actual GitHub test-build job logs 115696335203; not inferred from green status"
+}

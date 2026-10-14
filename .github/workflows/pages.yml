@@ -33,6 +33,7 @@ jobs:
       - run: pnpm test:concurrency:health
       - run: pnpm test:concurrency:ai
       - run: pnpm test:concurrency:activities
+      - run: pnpm test:concurrency:snapshots
       - run: pnpm build:edge
       - run: node scripts/check-public-config.mjs --required
         if: github.event_name == 'workflow_dispatch'

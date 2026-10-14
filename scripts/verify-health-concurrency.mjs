@@ -503,7 +503,7 @@ try {
         ['::uuid', '::uuid', '::jsonb', '::text', '::text', '::text']).then(value => ({ value }), error => ({ error }));
       await blockedBy(admin, waiterPid, holderPid);
       await me.query('commit'); held = false;
-      assert.match((await finishing).error?.message ?? '', /Member unavailable|Job lease unavailable/);
+      assert.match((await finishing).error?.message ?? '', /Member unavailable|Job lease unavailable|Space membership required/);
       assert.equal((await admin.query('select count(*)::int as n from public.daily_plans where user_id=$1 and target_date=$2',
         [users[0], date(6)])).rows[0].n, 0);
     } finally { if (held) await me.query('rollback'); }

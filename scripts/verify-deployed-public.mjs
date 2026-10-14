@@ -5,8 +5,10 @@ import { fileURLToPath } from 'node:url'
 import { launchBrowser } from './test-helpers/browser.mjs'
 
 const site = 'https://czechiuu.github.io/plans/'
-const sourceShaSupplied = 'b55346a6001ff21ff91f70d4e6e76dd607b2625a'
-const deploymentRunSupplied = 'https://github.com/czechiuu/plans/actions/runs/38430307904'
+const sourceShaSupplied = process.env.DEPLOYED_SOURCE_SHA
+const deploymentRunSupplied = process.env.DEPLOYED_RUN_URL
+assert.match(sourceShaSupplied ?? '', /^[0-9a-f]{40}$/i, 'DEPLOYED_SOURCE_SHA must be a full 40-character commit SHA')
+assert.match(deploymentRunSupplied ?? '', /^https:\/\/github\.com\/czechiuu\/plans\/actions\/runs\/[1-9][0-9]*$/, 'DEPLOYED_RUN_URL must identify a czechiuu/plans GitHub Actions run')
 const ids = ['PUBLIC_HTTP_REDIRECT','PUBLIC_HTTPS_HTML','PUBLIC_SUBPATH_ASSETS','PUBLIC_MOBILE_LOGIN','PUBLIC_DESKTOP_LOGIN','PUBLIC_REFRESH','PUBLIC_AUTH_CALLBACK_URL','PUBLIC_RUNTIME_ERRORS']
 const cases = [], diagnostics = { page_errors: 0, console_errors: 0, request_failures: 0, asset_http_errors: 0 }
 const hashes = {}

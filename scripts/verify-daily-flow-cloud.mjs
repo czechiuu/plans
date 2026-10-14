@@ -18,6 +18,42 @@ globalThis.fetch=(input,init={})=>networkFetch(input,{...init,
   signal:init.signal?AbortSignal.any([init.signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)})
 const tomorrow=new Date(Date.parse(today+'T00:00:00Z')+86400000).toISOString().slice(0,10)
 const check=(id,fn)=>runCase(cases,details,id,fn)
+const paid=process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'
+const paidPurposes=['parse_schedule','generate_plan','estimate_meal_photo','adjust_plan']
+// Deployed DeepSeek hard caps: <=30000 input tokens, <=8192 output tokens,
+// at $0.30/$1.20 per million. ceil((30000*.3+8192*1.2)/10000) = 2 cents.
+const paidCallUpperCents=2
+function requirePaidReady(status,purposes=paidPurposes){
+  const provider=status.providers?.deepseek
+  assert.ok(status.global_budget_configured&&provider?.health_enabled&&provider.configured&&provider.budget_configured,
+    'DeepSeek business service and budgets must already be configured')
+  assert.equal(provider.model,'deepseek-flash')
+  for(const purpose of purposes){
+    const consent=provider.consents[purpose],usage=provider.usage[purpose]
+    assert.ok(consent?.enabled,`Existing personal DeepSeek consent required: ${purpose}`)
+    assert.ok(Number.isSafeInteger(consent.monthly_limit_cents)&&
+      Number.isSafeInteger(usage?.charged_cents)&&usage.charged_cents>=0&&
+      Number.isSafeInteger(usage?.reserved_cents)&&usage.reserved_cents>=0&&
+      consent.monthly_limit_cents-usage.charged_cents-usage.reserved_cents>=paidCallUpperCents,
+      `Existing personal DeepSeek purpose budget must have at least 2 cents available: ${purpose}`)
+  }
+}
+function spending(status){
+  let total=0
+  for(const purpose of [...paidPurposes,'estimate_meal_text']){
+    const usage=status.providers?.deepseek?.usage?.[purpose]
+    for(const field of ['charged_cents','reserved_cents']){
+      assert.ok(Number.isSafeInteger(usage?.[field])&&usage[field]>=0,'Invalid DeepSeek usage accounting')
+      total+=usage[field]
+    }
+  }
+  return total
+}
+function requireRunBudget(status,initialSpent,currentMonth){
+  if(currentMonth!==today.slice(0,7)||spending(status)<initialSpent||spending(status)-initialSpent+paidCallUpperCents>5)
+    throw Object.assign(new Error('Run budget exhausted or accounting period changed'),{code:'RUN_BUDGET_EXCEEDED'})
+}
+let initialSpent=null
 let setup,api=[],users=[],safe=false
 try{setup=cloudSetup()}catch{setup={blocked:true}}
 if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
@@ -25,7 +61,11 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
 }else{
   try{
     api=[client(setup.url,setup.key),client(setup.url,setup.key)]
-    const rpc=(i,name,args={})=>ok(api[i].rpc(name,args))
+    const rowRpcs=new Set(['save_confirmed_schedule','save_meal','save_training_session','request_plan_generation','apply_meal_adjustment','undo_meal_adjustment'])
+    const rpc=(i,name,args={})=>{
+      const request=api[i].rpc(name,args)
+      return ok(rowRpcs.has(name)?request.single():request)
+    }
     const edge=(i,body)=>ok(api[i].functions.invoke('health-ai',{body}))
     await check('DAILY_FLOW_PREFLIGHT',async()=>{
       if(baselineIds.size!==0&&(baselineIds.size!==2||[...baselineIds].some(id=>!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))))
@@ -36,6 +76,7 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
         assert.equal(await rpc(i,'current_account'),i===0?'me':'w')
         assert.equal(await rpc(i,'health_daily_flow_version'),7)
         assert.equal(await rpc(i,'health_activity_schema_version'),8)
+        assert.equal(await rpc(i,'health_input_snapshot_schema_version'),9)
         // Count only; do not download any existing personal content. Abort before writes
         // if generation could use existing real data, even on another date.
         for(const table of ['health_profiles','health_rules','weights','schedules','meals','training_sessions','daily_plans','photo_assets']){
@@ -51,12 +92,30 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
         baselineJobs.push(...oldJobs)
       }
       if(baselineJobs.length!==0&&baselineJobs.length!==2) throw Object.assign(new Error('Incomplete baseline job pair'),{code:'EXISTING_JOB_DATA'})
+      if(paid){
+        const initial=await edge(0,{action:'status'})
+        requirePaidReady(initial)
+        initialSpent=spending(initial)
+        assert.ok(Object.values(initial.providers.deepseek.usage).every(x=>x.reserved_cents===0),
+          'Existing in-flight DeepSeek requests block a bounded synthetic run')
+        requireRunBudget(initial,initialSpent,today.slice(0,7))
+      }
       safe=true
     })
     await check('RULES_BOTH_USERS',async()=>{
-      const before=[],jobs=[]
+      const before=[],jobs=[],schedules=[]
       for(let i=0;i<2;i++){
         before.push(await edge(i,{action:'status'}))
+        const slot=i===0?'me':'w'
+        const schedule=await rpc(i,'save_confirmed_schedule',{p_payload:{
+          user_id:users[i],record_date:tomorrow,raw_text:`${marker} ${slot} 明日不训练，三餐在食堂吃；手动确认合成日程。`,
+          start_time:null,end_time:null,exercise_intent:'no',fixed_arrangements:'',meal_conditions:'食堂',constraints:'',is_shared:false,
+          submitted_at:new Date().toISOString(),parse_version:'manual-schedule-v1',confirmed_data:{
+            user_slot:slot,record_date:tomorrow,exercise:{intent:'no',type:null,duration_minutes:null,
+              location:null,equipment:null,explicit_start_time:null,explicit_end_time:null},
+            meal:{conditions:'食堂',arrangements:null},constraints:[],fatigue:'unknown',pain:null,sleep:'unknown',ambiguous_fields:[]}}})
+        created.schedules.push({id:schedule.id,user_id:users[i]});schedules.push(schedule)
+        assert.equal(schedule.user_id,users[i]);assert.equal(schedule.record_date,tomorrow)
         const job=await rpc(i,'request_plan_generation',{p_target_date:tomorrow,p_provider:'rules'})
         created.jobs.push({id:job.id,user_id:users[i]})
         assert.equal(job.provider,'rules');assert.equal(job.status,'queued');jobs.push(job)
@@ -70,7 +129,7 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
             if(results[i])continue
             const remaining=deadline-Date.now()
             if(remaining<=0)throw Object.assign(new Error('Background worker deadline reached'),{code:'BACKGROUND_WORKER_TIMEOUT'})
-            const row=await ok(api[i].from('generation_jobs').select('id,status,plan_id,provider,attempts')
+            const row=await ok(api[i].from('generation_jobs').select('id,status,plan_id,provider,attempts,target_date,input_version')
               .eq('id',jobs[i].id).single().abortSignal(AbortSignal.timeout(remaining)))
             assert.equal(row.provider,'rules')
             if(row.status==='exhausted')throw Object.assign(new Error('Background worker exhausted job'),{code:'BACKGROUND_WORKER_FAILED'})
@@ -84,8 +143,23 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
       }finally{clearInterval(progress)}
       for(let i=0;i<2;i++){
         const result=results[i]
-        const plans=await ok(api[i].from('daily_plans').select('id,content,source').eq('id',result.plan_id))
+        const plans=await ok(api[i].from('daily_plans').select('id,content,source,target_date,input_version').eq('id',result.plan_id))
         assert.equal(plans[0].source,'rules');assert.equal(plans[0].content.meals.length,3)
+        // Check source evidence without printing any schedule content.
+        const schedule=await ok(api[i].from('schedules').select('id,user_id,record_date,updated_at,parse_version')
+          .eq('id',schedules[i].id).single())
+        assert.deepEqual(schedule,{id:schedules[i].id,user_id:users[i],record_date:tomorrow,
+          updated_at:schedules[i].updated_at,parse_version:'manual-schedule-v1'})
+        assert.equal(result.target_date,tomorrow);assert.equal(plans[0].target_date,tomorrow)
+        assert.equal(result.input_version,jobs[i].input_version)
+        assert.equal(plans[0].input_version,result.input_version)
+        const evidence=await ok(api[i].from('generation_input_snapshots')
+          .select('job_id,input_version,plan_id,source_snapshot').eq('job_id',result.id).eq('input_version',result.input_version).single())
+        assert.equal(evidence.plan_id,result.plan_id)
+        assert.equal(evidence.source_snapshot.schedule.id,schedules[i].id)
+        assert.equal(evidence.source_snapshot.schedule.user_id,users[i])
+        assert.equal(evidence.source_snapshot.schedule.record_date,tomorrow)
+        assert.equal((await ok(api[1-i].from('generation_input_snapshots').select('job_id').eq('job_id',result.id))).length,0)
         assert.equal((await ok(api[1-i].from('daily_plans').select('id').eq('id',result.plan_id))).length,0)
         assert.deepEqual((await edge(i,{action:'status'})).providers,before[i].providers)
       }
@@ -103,14 +177,18 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
       assert.equal((await ok(api[1].from('photo_assets').select('id').eq('id',photo.photo_id))).length,0)
       assert.equal((await ok(api[1].from('meals').select('id').eq('id',meal.id))).length,0)
     })
-    const paid=process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'
     if(!paid){cases.push(...blocked(ids.slice(3,8)))}else{
-      const initial=await edge(0,{action:'status'}),provider=initial.providers.deepseek
-      assert.ok(provider.health_enabled&&provider.configured&&provider.budget_configured)
-      for(const purpose of ['parse_schedule','generate_plan','estimate_meal_photo','adjust_plan']) assert.ok(provider.consents[purpose]?.enabled)
-      const spending=status=>Object.values(status.providers.deepseek.usage).reduce((n,x)=>n+x.charged_cents+x.reserved_cents,0)
-      const initialSpent=spending(initial)
-      const call=async(body,worst)=>{
+      let paidCalls=0,firstPaidCompletedAt=null
+      const call=async(body,prepare=null)=>{
+        // The server permits at most three requests per user in one minute.
+        // Wait before reading consent/inputs/budget again, never retry a paid call.
+        if(paidCalls===3){
+          const wait=Math.max(0,firstPaidCompletedAt+61_000-Date.now())
+          if(wait){
+            process.stdout.write('等待本人每分钟三次调用限制，随后重新核对同意和本轮费用。\n')
+            await new Promise(resolve=>setTimeout(resolve,wait))
+          }
+        }
         for(const table of ['health_profiles','health_rules','weights','training_sessions']){
           const result=await api[0].from(table).select('*',{head:true,count:'exact'}).eq('user_id',users[0])
           if(result.error) throw result.error
@@ -124,14 +202,23 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
         // Enforce an additional 5-cent run ceiling; the server atomically enforces
         // unchanged site/provider/purpose budgets including concurrent callers.
         const before=await edge(0,{action:'status'})
-        if(spending(before)-initialSpent+worst>5) throw Object.assign(new Error('Run budget exhausted'),{code:'RUN_BUDGET_EXCEEDED'})
+        const purpose={'parse-schedule':'parse_schedule','generate-plan':'generate_plan',
+          'estimate-meal':'estimate_meal_photo','adjust-plan':'adjust_plan'}[body.action]
+        assert.ok(purpose,'Unknown synthetic paid action')
+        requirePaidReady(before,[purpose])
+        const currentMonth=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).slice(0,7)
+        requireRunBudget(before,initialSpent,currentMonth)
+        // Queueing can dispatch through cron, so it also belongs after the ceiling check.
+        if(prepare) body=await prepare(body)
         const result=await edge(0,{...body,provider:'deepseek'})
+        paidCalls++
+        firstPaidCompletedAt??=Date.now()
         if(result.ai_request_id) created.ai_requests.push({id:result.ai_request_id,user_id:users[0]})
         return result
       }
       await check('DEEPSEEK_SCHEDULE',async()=>{
         const submitted=new Date().toISOString(),raw=`${marker}，我是我（me），${today} 今天不训练，三餐在食堂吃。`
-        const parsed=await call({action:'parse-schedule',raw_text:raw,submitted_at:submitted},1)
+        const parsed=await call({action:'parse-schedule',raw_text:raw,submitted_at:submitted})
         assert.equal(parsed.draft.user_slot,'me');assert.equal(parsed.draft.record_date,today);assert.equal(parsed.draft.exercise.intent,'no')
         const schedule=await rpc(0,'save_confirmed_schedule',{p_payload:{user_id:users[0],record_date:today,
           raw_text:raw,start_time:null,end_time:null,exercise_intent:'no',fixed_arrangements:'',meal_conditions:'食堂',constraints:'',is_shared:false,
@@ -139,22 +226,43 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
         created.schedules.push({id:schedule.id,user_id:users[0]})
       })
       await check('DEEPSEEK_PLAN',async()=>{
-        const job=await rpc(0,'request_plan_generation',{p_target_date:today,p_provider:'deepseek'})
-        created.jobs.push({id:job.id,user_id:users[0]})
-        const result=await call({action:'generate-plan',job_id:job.id},2)
+        const result=await call({action:'generate-plan'},async body=>{
+          const job=await rpc(0,'request_plan_generation',{p_target_date:today,p_provider:'deepseek'})
+          created.jobs.push({id:job.id,user_id:users[0]})
+          return {...body,job_id:job.id}
+        })
         assert.equal(result.status,'succeeded');created.plans.push({id:result.plan_id,user_id:users[0]})
       })
       await check('DEEPSEEK_PHOTO',async()=>{
-        const result=await call({action:'estimate-meal',meal_id:meal.id},1)
+        const result=await call({action:'estimate-meal',meal_id:meal.id})
         assert.ok(result.needs_confirmation);assert.ok(result.draft.uncertainty)
         const current=(await ok(api[0].from('meals').select('*').eq('id',meal.id)))[0]
         const draft=result.draft
+        assert.ok(draft.items.length>0,'Synthetic fixture must return food items to exercise manual portion confirmation')
+        const confirmedData={...current.data,
+          items:draft.items.map(({name,portion,unit})=>({name,portion,unit})),
+          cooking:draft.cooking,oil:draft.oil,leftover:draft.leftover,
+          photo_ids:created.photos.map(photo=>photo.id),estimate:draft}
         meal=await rpc(0,'save_meal',{p_id:meal.id,p_payload:{status:'confirmed',is_shared:false,expected_updated_at:current.updated_at,
-          data:{...current.data,estimate:{energy_min_kcal:draft.energy_min_kcal,energy_max_kcal:draft.energy_max_kcal,uncertainty:draft.uncertainty,assumptions:draft.assumptions}}}})
+          data:confirmedData}})
+        const confirmed=await ok(api[0].from('meals').select('*').eq('id',meal.id).single())
+        assert.equal(confirmed.status,'confirmed');assert.deepEqual(confirmed.data,confirmedData)
+        // Simulate explicit edits to this synthetic meal, retaining the old estimate
+        // in the request so the server must invalidate it rather than imply a recalculation.
+        const correctedData={...confirmed.data,
+          items:confirmed.data.items.map((item,index)=>index===0?{...item,portion:'本人确认的合成半份'}:item),
+          eaten_fraction:0.5,leftover:'本人确认剩余一半（合成）'}
+        meal=await rpc(0,'save_meal',{p_id:meal.id,p_payload:{status:'confirmed',is_shared:false,
+          expected_updated_at:confirmed.updated_at,data:correctedData}})
+        const corrected=await ok(api[0].from('meals').select('*').eq('id',meal.id).single())
+        assert.equal(corrected.status,'confirmed')
+        assert.deepEqual(corrected.data,{...correctedData,estimate:null})
+        assert.equal((await ok(api[1].from('meals').select('id').eq('id',meal.id))).length,0)
+        meal=corrected
       })
       let adjustment
       await check('DEEPSEEK_ADJUST',async()=>{
-        const result=await call({action:'adjust-plan',record_date:today},2)
+        const result=await call({action:'adjust-plan',record_date:today})
         adjustment=result.adjustment;assert.equal(adjustment.status,'draft')
         created.adjustments.push({id:adjustment.id,user_id:users[0]})
         assert.ok(adjustment.source_input_hash&&adjustment.content.reason)
@@ -199,7 +307,7 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
       }
       for(const photo of created.photos) await ok(api[0].functions.invoke(`health-photo?action=delete&photo_id=${photo.id}`,{method:'DELETE'}))
       for(const m of created.meals) await ok(api[0].rpc('delete_meal',{p_id:m.id}))
-      for(const s of created.schedules) await ok(api[0].rpc('delete_schedule',{p_id:s.id}))
+      for(const s of created.schedules) await ok(api[users.indexOf(s.user_id)].rpc('delete_schedule',{p_id:s.id}))
       for(const t of created.training) await ok(api[0].rpc('delete_training_session',{p_id:t.id}))
       // No bulk cleanup RPC exists for plans/jobs; never clear the user's health data.
     }).catch(()=>{})

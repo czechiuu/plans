@@ -121,7 +121,8 @@ try {
     await admin.query('update supabase_migrations.schema_migrations set statements=array[$1] where version=$2',
       [source005, '202610130005']);
   });
-  const dailyWrapper=await readFile(new URL('../supabase/admin/apply-daily-flow-006-008.sql',import.meta.url),'utf8');
+  const dailyWrapper=await readFile(new URL('../supabase/admin/apply-daily-flow-006-008.sql',import.meta.url),'utf8')+'\n'+
+    await readFile(new URL('../supabase/admin/apply-input-snapshots-009.sql',import.meta.url),'utf8');
   report.daily_wrapper_sha256=sha(dailyWrapper);
   const legacy=(await admin.query("insert into public.generation_jobs(space_id,user_id,target_date,kind,scheduled_for,input_version) select space_id,user_id,current_date,'manual',now(),'synthetic-legacy' from public.fixed_accounts limit 1 returning id")).rows[0];
   await run('DAILY_WRAPPER_APPLY_REPLAY',async()=>{

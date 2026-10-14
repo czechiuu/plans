@@ -50,10 +50,12 @@ function provider(value, allowRules = false) {
   return value
 }
 
-async function allPages(table, column, value) {
+async function allPages(table, column, value, orderColumns = ['created_at', 'id']) {
   const rows = []
   for (let offset = 0;; offset += 500) {
-    const page = await result(ready().from(table).select('*').eq(column, value).order('created_at', { ascending: true }).order('id').range(offset, offset + 499))
+    let query = ready().from(table).select('*').eq(column, value)
+    for (const name of orderColumns) query = query.order(name, { ascending: true })
+    const page = await result(query.range(offset, offset + 499))
     rows.push(...page)
     if (page.length < 500) return rows
   }
@@ -190,7 +192,12 @@ export const api = {
     if (flowSchema.error && flowSchema.error.code !== 'PGRST202') throw flowSchema.error
     if (!flowSchema.error && flowSchema.data !== 7) throw new Error('餐后调整版本不匹配')
     const mealAdjustments = !flowSchema.error ? await allPages('meal_adjustments', 'user_id', user.id) : []
-    return { exported_at: new Date().toISOString(), profile: profiles[0] ?? null, schedules, weights, settings: member, ...Object.fromEntries(healthTables.map((table,index) => [table,healthRows[index] ?? []])), meal_adjustments: mealAdjustments }
+    const snapshotSchema = await ready().rpc('health_input_snapshot_schema_version')
+    if (snapshotSchema.error?.code === 'PGRST202') throw new Error('完整导出需要输入快照版本 9，请在后台更新后重试')
+    if (snapshotSchema.error) throw snapshotSchema.error
+    if (snapshotSchema.data !== 9) throw new Error('输入快照版本不匹配')
+    const snapshots = await allPages('generation_input_snapshots', 'user_id', user.id, ['captured_at', 'job_id', 'input_version'])
+    return { exported_at: new Date().toISOString(), profile: profiles[0] ?? null, schedules, weights, settings: member, ...Object.fromEntries(healthTables.map((table,index) => [table,healthRows[index] ?? []])), meal_adjustments: mealAdjustments, generation_input_snapshots: snapshots }
   },
   async eraseOwnHealthData() { await result(bound().rpc('erase_own_health_data')) },
   async leaveSpace() { await result(bound().rpc('leave_space')) }

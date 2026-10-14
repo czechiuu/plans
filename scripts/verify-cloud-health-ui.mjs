@@ -1,0 +1,248 @@
+import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
+import { buildRulePlan, validatePlan } from '../shared/health.js'
+import { validateSanitizedPng } from '../shared/png.js'
+import { addDays, shanghaiDate } from '../src/domain.js'
+import { cloudSetup, client, ok } from './test-helpers/cloud.mjs'
+import { launchBrowser } from './test-helpers/browser.mjs'
+import { login } from './test-helpers/browser-login.mjs'
+import { report, blocked, runCase } from './test-helpers/report.mjs'
+
+// No AI requests, consent changes, sharing changes, mocks, or existing private inputs.
+const ids=['UI_CLOUD_PREFLIGHT','UI_CLOUD_PHOTO_CONFIRM','UI_CLOUD_WEIGHT_REFRESH',
+  'UI_CLOUD_MEDIA','UI_CLOUD_TRAINING','UI_CLOUD_FREE','UI_CLOUD_CLEANUP']
+const today=shanghaiDate(), marker=`SYNTHETIC-UI-${randomUUID()}`
+const fixture=new URL('../tests/fixtures/food-example-compact.png',import.meta.url)
+const manifestUrl=new URL('../test-results/private/daily-flow-ui-cleanup.json',import.meta.url)
+const networkFetch=globalThis.fetch
+globalThis.fetch=(input,init={})=>networkFetch(input,{...init,
+  signal:init.signal?AbortSignal.any([init.signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)})
+const rules={confirmed:true,equipment:'machines_only',ankle_status:'no_issue',free_weekdays:[],
+  exercise_minutes:10,max_session_minutes:10,max_gym_visits:2,weekly_strength_limit:2,
+  training_history_complete:true,free_day_training_forbidden:false,free_day_meal_unrestricted:false,
+  limitations:marker+'：仅界面测试合成条件，不是本人健康声明',meal_notes:marker}
+const makePlan=()=>{
+  const content=buildRulePlan({date:today,rules,slot:'me',historyComplete:true,
+    trainingHistoryConfirmedAt:new Date().toISOString()}).content
+  content.summary=marker+'：仅界面测试，不代表本人实际训练安排'
+  assert.equal(content.training.mode,'workout');assert.ok(validatePlan(content))
+  return content
+}
+
+if(process.argv.includes('--self-check')){
+  assert.ok(makePlan().training.items.length>=2)
+  assert.equal((await validateSanitizedPng(await readFile(fixture))).mime,'image/png')
+  process.stdout.write('无需凭据的确定性检查：2 通过、0 失败。\n')
+}else{
+  let setup
+  try{setup=cloudSetup(['E2E_BASE_URL'])}catch{setup={blocked:true}}
+  if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
+    await report('cloud-health-ui','not-run-without-explicit-synthetic-approval',blocked(ids))
+  }else{
+    const cases=[],details=[],api=[client(setup.url,setup.key),client(setup.url,setup.key)],users=[]
+    const created={meals:[],photos:[],weights:[],training:[],rules:[],plans:[],create_receipts:[]},deleted=[]
+    const check=(id,fn)=>runCase(cases,details,id,fn)
+    const rpc=(name,args)=>ok(api[0].rpc(name,args))
+    const status=i=>ok(api[i].functions.invoke('health-ai',{body:{action:'status'}}))
+    const own=async(i,table,columns='id')=>ok(api[i].from(table).select(columns).eq('user_id',users[i]))
+    const one=async(table,id)=>ok(api[0].from(table).select('*').eq('id',id).single())
+    const manifest=async()=>{
+      await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
+      await writeFile(manifestUrl,JSON.stringify({generated_at:new Date().toISOString(),marker,created,deleted,
+        existing_synthetic_plan_ids_affected:allowedPlans.filter(p=>p.user_id===users[0]).map(p=>p.id),
+        needs_administrator_exact_id_cleanup:['rules','plans','create_receipts'],
+        uncertain_network_results_require_manual_audit:true},null,2)+'\n')
+    }
+    const remember=async(kind,row)=>{
+      assert.ok(row?.id)
+      if(!created[kind].some(x=>x.id===row.id))created[kind].push({id:row.id,user_id:users[0]})
+      await manifest();return row
+    }
+    const assertDate=()=>assert.equal(shanghaiDate(),today,'Shanghai date changed; stop synthetic run')
+    let browser,pages=[],safe=false,baseline,allowedPlans=[],beforeUsage=[],unexpectedPaid=false
+    const errors=[]
+    // Capture only the exact mutation initiated by this UI test, never enumerate bodies.
+    const uiWrite=async(page,rpcName,action,kind)=>{
+      const response=page.waitForResponse(r=>new URL(r.url()).pathname===`/rest/v1/rpc/${rpcName}`&&r.request().method()==='POST')
+      await action()
+      const received=await response
+      const request=received.request().postDataJSON(),receipt=request?.p_payload?.client_request_id
+      if(receipt&&!created.create_receipts.some(x=>x.id===receipt)){
+        created.create_receipts.push({id:receipt,user_id:users[0]});await manifest()
+      }
+      assert.ok(received.ok())
+      const data=await received.json(),row=Array.isArray(data)?data[0]:data
+      return kind?remember(kind,row):row
+    }
+    const nav=async(page,name)=>page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name,exact:true}).click()
+    const refreshed=async(page,name)=>{
+      await page.reload();await page.getByRole('navigation',{name:'主导航'}).waitFor();await nav(page,name)
+    }
+    try{
+      await check('UI_CLOUD_PREFLIGHT',async()=>{
+        const site=new URL(process.env.E2E_BASE_URL)
+        assert.equal(site.origin,'https://czechiuu.github.io');assert.equal(site.pathname,'/plans/')
+        assert.equal(site.search,'');assert.equal(site.hash,'')
+        const source=new URL('../test-results/private/daily-flow-cleanup.json',import.meta.url)
+        assert.equal(shanghaiDate((await stat(source)).mtime),today,'Prior run manifest must be from today')
+        baseline=JSON.parse(await readFile(source,'utf8'))
+        assert.match(baseline.marker,/^SYNTHETIC-DAILY-/);assert.ok(Array.isArray(baseline.created?.plans))
+        for(let i=0;i<2;i++){
+          const auth=await ok(api[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]}));users.push(auth.user.id)
+          assert.equal(await ok(api[i].rpc('current_account')),i?'w':'me')
+          assert.equal(await ok(api[i].rpc('health_activity_schema_version')),8)
+          for(const table of ['health_profiles','health_rules','schedules','weights','meals','training_sessions','photo_assets']){
+            const result=await api[i].from(table).select('*',{head:true,count:'exact'}).eq('user_id',users[i])
+            if(result.error)throw result.error
+            assert.equal(result.count,0,`Existing data blocks synthetic UI: ${table}`)
+          }
+          const plans=await own(i,'daily_plans','id,user_id,target_date,version,is_current,is_locked')
+          assert.ok(plans.every(p=>baseline.created.plans.some(x=>x.id===p.id&&x.user_id===p.user_id)))
+          allowedPlans.push(...plans)
+          const current=await status(i);assert.equal(current.schema_version,7)
+          assert.equal(current.plan_provider,'rules','Synthetic inputs require zero-AI scheduled provider')
+          beforeUsage.push(current.providers)
+        }
+        safe=true;await manifest()
+        browser=await launchBrowser()
+        for(let i=0;i<2;i++){
+          const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,
+            timezoneId:'Asia/Shanghai',reducedMotion:'no-preference'})
+          const page=await context.newPage();page.setDefaultTimeout(20000);pages.push(page)
+          page.on('pageerror',()=>errors.push('pageerror'))
+          page.on('request',request=>{
+            if(new URL(request.url()).pathname==='/functions/v1/health-ai'&&request.method()==='POST'){
+              try{if(request.postDataJSON()?.action!=='status')unexpectedPaid=true}catch{unexpectedPaid=true}
+            }
+          })
+          await page.goto(site.href);await login(page,i?'w':'me',setup.passwords[i])
+        }
+      })
+      const [me,partner]=pages
+      await check('UI_CLOUD_PHOTO_CONFIRM',async()=>{
+        assertDate();await nav(me,'饮食')
+        let form=me.locator('[data-form="meal"]')
+        await form.locator('[data-meal-item] [name="name"]').fill(marker+' 合成水果')
+        await form.locator('[data-meal-item] [name="portion"]').fill('1份（合成）')
+        await form.locator('[data-meal-item] [name="unit"]').fill('份')
+        await form.locator('[name="status"]').selectOption('draft')
+        assert.equal(await form.locator('[name="is_shared"]').isChecked(),false)
+        if(await form.locator('[name="adjust_provider"]').count())await form.locator('[name="adjust_provider"]').selectOption('')
+        const meal=await uiWrite(me,'save_meal',()=>form.getByRole('button',{name:'保存餐食',exact:true}).click(),'meals')
+        await me.getByText('餐食已保存',{exact:true}).waitFor()
+        const photoForm=me.locator('[data-form="photo"]')
+        await photoForm.locator('[name="meal_id"]').selectOption(meal.id)
+        await photoForm.locator('[name="photo"]').setInputFiles(fileURLToPath(fixture))
+        const uploaded=me.waitForResponse(r=>new URL(r.url()).pathname==='/functions/v1/health-photo'&&new URL(r.url()).searchParams.get('action')==='upload')
+        await photoForm.getByRole('button',{name:'上传私有照片'}).click()
+        const reply=await uploaded;assert.ok(reply.ok());await remember('photos',{id:(await reply.json()).photo_id})
+        await me.getByText('照片已上传',{exact:true}).waitFor()
+        await me.locator(`[data-action="edit-meal"][data-id="${meal.id}"]`).click()
+        form=me.locator('[data-form="meal"]');await form.locator('[name="status"]').selectOption('confirmed')
+        await uiWrite(me,'save_meal',()=>form.getByRole('button',{name:'保存这餐修改'}).click())
+        await me.getByText('餐食已保存',{exact:true}).waitFor()
+        await me.locator(`[data-action="edit-meal"][data-id="${meal.id}"]`).click()
+        form=me.locator('[data-form="meal"]')
+        await form.locator('[data-meal-item] [name="portion"]').fill('本人确认半份（合成）')
+        await form.locator('[name="eaten_fraction"]').fill('0.5')
+        await form.locator('[name="leftover"]').fill(marker+' 剩余一半')
+        await uiWrite(me,'save_meal',()=>form.getByRole('button',{name:'保存这餐修改'}).click())
+        await me.getByText('餐食已保存',{exact:true}).waitFor();await refreshed(me,'饮食')
+        const saved=await one('meals',meal.id)
+        assert.equal(saved.status,'confirmed');assert.equal(saved.data.eaten_fraction,0.5)
+        assert.equal(saved.data.items[0].portion,'本人确认半份（合成）');assert.equal(saved.data.estimate,null)
+        assert.deepEqual(saved.data.photo_ids,[created.photos[0].id])
+        await me.locator(`[data-action="view-photo"][data-id="${created.photos[0].id}"]`).click()
+        await me.waitForFunction(()=>document.querySelector('.photo-preview img')?.naturalWidth>0)
+        await nav(partner,'饮食');assert.equal(await partner.getByText(marker,{exact:false}).count(),0)
+      })
+      await check('UI_CLOUD_WEIGHT_REFRESH',async()=>{
+        await nav(me,'趋势')
+        for(const [offset,value] of [[-2,'70'],[-1,'72']]){
+          const form=me.locator('[data-form="weight"]')
+          await form.locator('[name="record_date"]').fill(addDays(today,offset))
+          await form.locator('[name="weight_kg"]').fill(value);await form.locator('[name="notes"]').fill(marker)
+          assert.equal(await form.locator('[name="is_shared"]').isChecked(),false)
+          await uiWrite(me,'save_weight',()=>form.getByRole('button',{name:'保存体重',exact:true}).click(),'weights')
+          await me.getByText('体重已保存',{exact:true}).waitFor()
+        }
+        await refreshed(me,'趋势');await me.getByText('71.0 kg',{exact:true}).waitFor()
+        await me.getByText('2 条真实记录',{exact:true}).waitFor()
+        await nav(partner,'趋势');assert.equal(await partner.getByText(marker,{exact:true}).count(),0)
+        await nav(partner,'设置');await partner.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
+        await partner.getByRole('heading',{name:'欢迎回来'}).waitFor();await login(partner,'me',setup.passwords[0])
+        await nav(partner,'趋势');await partner.getByText('71.0 kg',{exact:true}).waitFor()
+        await partner.getByText('2 条真实记录',{exact:true}).waitFor()
+      })
+      await check('UI_CLOUD_MEDIA',async()=>{
+        await nav(me,'训练');await me.getByRole('button',{name:'播放本地动作示意'}).first().click()
+        const object=me.locator('.demo-slot object').first()
+        await me.waitForFunction(()=>document.querySelector('.demo-slot object')?.contentDocument?.querySelector('.a')?.getAnimations().length>0)
+        const time=()=>object.evaluate(x=>x.contentDocument.querySelector('.a').getAnimations()[0].currentTime)
+        const initial=await time();await me.waitForTimeout(150);assert.ok(await time()>initial)
+        const slot=me.locator('[data-demo-slot]').first()
+        await slot.getByRole('button',{name:'暂停',exact:true}).click();await me.waitForTimeout(100)
+        const paused=await time();await me.waitForTimeout(150);assert.equal(await time(),paused)
+        await slot.getByRole('button',{name:'播放',exact:true}).click();await me.waitForTimeout(150);assert.ok(await time()>paused)
+      })
+      await check('UI_CLOUD_TRAINING',async()=>{
+        assertDate()
+        // Only an empty rule slot can receive these explicitly synthetic conditions.
+        assert.equal((await own(0,'health_rules')).length,0)
+        const savedRules=await ok(api[0].rpc('save_health_rules',{p_rules:rules,p_is_shared:false,p_expected_updated_at:null}).single())
+        await remember('rules',savedRules)
+        const current=allowedPlans.find(p=>p.user_id===users[0]&&p.target_date===today&&p.is_current)
+        assert.ok(!current?.is_locked)
+        const content=makePlan()
+        const plan=await ok(api[0].rpc('save_daily_plan',{p_target_date:today,p_content:content,p_expected_version:current?.version??null,p_is_shared:false}).single())
+        await remember('plans',plan);await refreshed(me,'训练')
+        const session=await uiWrite(me,'save_training_session',()=>me.getByRole('button',{name:'开始本次训练'}).click(),'training')
+        await me.getByText('训练已开始；请记录实际完成的每一组',{exact:true}).waitFor()
+        const initial=await me.locator('#training-elapsed').textContent()
+        await me.waitForFunction(text=>document.querySelector('#training-elapsed')?.textContent!==text,initial)
+        const form=me.locator('[data-form="training-set"]')
+        await form.locator('[name="exercise_id"]').selectOption(content.training.items[0].exercise_id)
+        await form.locator('[name="reps"]').fill('8')
+        await uiWrite(me,'save_training_session',()=>form.getByRole('button',{name:'保存这一组'}).click())
+        await me.getByText('实际训练组已保存',{exact:true}).waitFor()
+        await uiWrite(me,'save_training_session',()=>me.getByRole('button',{name:'暂停训练'}).click())
+        await me.getByRole('button',{name:'继续训练'}).waitFor()
+        const paused=await one('training_sessions',session.id);assert.equal(paused.status,'paused');assert.equal(paused.data.sets.length,1)
+        await refreshed(me,'训练');await me.getByRole('button',{name:'继续训练'}).waitFor()
+        const pausedText=await me.locator('#training-elapsed').textContent();await me.waitForTimeout(1100)
+        assert.equal(await me.locator('#training-elapsed').textContent(),pausedText)
+        await uiWrite(me,'save_training_session',()=>me.getByRole('button',{name:'继续训练'}).click())
+        await me.getByRole('button',{name:'暂停训练'}).waitFor()
+        await uiWrite(me,'save_training_session',()=>me.getByRole('button',{name:'完成训练'}).click())
+        await me.getByText('本次训练已按实际记录完成',{exact:true}).waitFor()
+        const stopped=await one('training_sessions',session.id)
+        assert.equal(stopped.status,'completed');assert.equal(stopped.data.sets[0].reps,8)
+        assert.ok(stopped.data.elapsed_seconds>=paused.data.elapsed_seconds);assert.ok(stopped.data.ended_at)
+        await refreshed(partner,'训练');await partner.getByText('部分完成',{exact:false}).waitFor()
+        await partner.getByText('1 组实际记录',{exact:false}).waitFor()
+      })
+      await check('UI_CLOUD_FREE',async()=>{
+        assert.equal(unexpectedPaid,false);assert.deepEqual(errors,[])
+        for(let i=0;i<2;i++)assert.deepEqual((await status(i)).providers,beforeUsage[i])
+      })
+    }catch(error){
+      if(!cases.some(x=>x.status==='failed')){cases.push({id:'UI_CLOUD_SETUP',status:'failed'});details.push({id:'UI_CLOUD_SETUP',error})}
+    }finally{
+      await browser?.close()
+      if(safe)await check('UI_CLOUD_CLEANUP',async()=>{
+        for(const p of created.photos){await ok(api[0].functions.invoke(`health-photo?action=delete&photo_id=${p.id}`,{method:'DELETE'}));deleted.push({table:'photo_assets',id:p.id});await manifest()}
+        for(const [kind,table,fn] of [['training','training_sessions','delete_training_session'],['meals','meals','delete_meal'],['weights','weights','delete_weight']]){
+          for(const row of created[kind]){await rpc(fn,{p_id:row.id});deleted.push({table,id:row.id});await manifest()}
+        }
+        for(const row of deleted)assert.equal((await ok(api[0].from(row.table).select('id').eq('id',row.id))).length,0)
+        // Rules, immutable plans and receipts have no safe owner-delete RPC.
+        await manifest()
+      }).catch(()=>{})
+      for(const c of api)await c.auth.signOut({scope:'local'}).catch(()=>{})
+      for(const id of ids)if(!cases.some(x=>x.id===id))cases.push({id,status:'blocked'})
+      await report('cloud-health-ui','real-deployed-ui-two-isolated-browser-contexts-not-physical-devices',cases,details)
+    }
+  }
+}

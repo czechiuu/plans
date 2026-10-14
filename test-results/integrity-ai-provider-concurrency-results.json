@@ -1,6 +1,6 @@
 {
-  "started_at": "2026-10-14T05:03:19.068Z",
-  "generated_at": "2026-10-14T05:03:28.380Z",
+  "started_at": "2026-10-14T05:59:14.859Z",
+  "generated_at": "2026-10-14T05:59:22.888Z",
   "scope": "Isolated local PostgreSQL with synthetic fixed accounts; no cloud or paid AI calls",
   "cases": {
     "PROVIDER_AND_PURPOSE_BOUNDARY": {
@@ -32,7 +32,7 @@
   "migration_005_sha256": "585202ae6fb06fcda937e587078f313b8ff096f3a65ff4d53d1ceafe39749841",
   "migration_005_md5": "2c57e2948216f3e08e2170754e1fd883",
   "wrapper_005_sha256": "f3c6f085b4e6b99e14f9ae2b8ff63c5445d64b887cc3fa3be58ea3ad805df093",
-  "daily_wrapper_sha256": "678cd7a0d5436cb93f6042556e145927daa789b081ddc114c10dc95b612dabd6",
+  "daily_wrapper_sha256": "dec9796925c16fb232c7b8f0ff35b379d3cf83a6484a345c2455dfb105078f21",
   "applied_migrations": [
     "202610130001_initial.sql",
     "202610130002_space_lock_order.sql",
@@ -41,7 +41,8 @@
     "202610130005_ai_providers.sql",
     "202610140006_integrity.sql",
     "202610140007_daily_flow.sql",
-    "202610140008_activities.sql"
+    "202610140008_activities.sql",
+    "202610140009_input_snapshots.sql"
   ],
-  "script_sha256": "180e21635957ee2df8bb385230df1421a2b0517428ce6dba07d18468ae9e7953"
+  "script_sha256": "5fd3af271181053e3f8370b52d04044ddc15a8450bb8002360dd4c298ccd18f2"
 }
