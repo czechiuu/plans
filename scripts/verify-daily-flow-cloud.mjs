@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
 import { cloudSetup, client, ok } from './test-helpers/cloud.mjs'
 import { report, blocked, runCase } from './test-helpers/report.mjs'
 
@@ -14,46 +15,67 @@ const baselineColumns='id,user_id,status,plan_id,kind,target_date,error_code,att
 const baselineIds=new Set((process.env.TEST_DAILY_FLOW_BASELINE_JOB_IDS??'').split(',').filter(Boolean))
 const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())
 const networkFetch=globalThis.fetch
-globalThis.fetch=(input,init={})=>networkFetch(input,{...init,
-  signal:init.signal?AbortSignal.any([init.signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)})
 const tomorrow=new Date(Date.parse(today+'T00:00:00Z')+86400000).toISOString().slice(0,10)
-const check=(id,fn)=>runCase(cases,details,id,fn)
+const check=async(id,fn)=>{
+  try{return await runCase(cases,details,id,fn)}catch(error){
+    const row=cases.findLast(x=>x.id===id)
+    if(error?.verificationStatus==='blocked')row.status='blocked'
+    if(error?.checkCode)row.code=error.checkCode
+    throw error
+  }
+}
 const paid=process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'
 const paidPurposes=['parse_schedule','generate_plan','estimate_meal_photo','adjust_plan']
 // Deployed DeepSeek hard caps: <=30000 input tokens, <=8192 output tokens,
 // at $0.30/$1.20 per million. ceil((30000*.3+8192*1.2)/10000) = 2 cents.
 const paidCallUpperCents=2
-function requirePaidReady(status,purposes=paidPurposes){
+export function preflightCheck(condition,code,verificationStatus='blocked'){
+  if(!condition)throw Object.assign(new Error(code),{code,checkCode:code,verificationStatus})
+}
+export function requirePaidReady(status,purposes=paidPurposes){
+  preflightCheck(status?.schema_version===7,'PREFLIGHT_STATUS_SCHEMA','failed')
   const provider=status.providers?.deepseek
-  assert.ok(status.global_budget_configured&&provider?.health_enabled&&provider.configured&&provider.budget_configured,
-    'DeepSeek business service and budgets must already be configured')
-  assert.equal(provider.model,'deepseek-flash')
+  preflightCheck(!!provider,'PREFLIGHT_DEEPSEEK_STATUS_MISSING','failed')
+  preflightCheck(status.global_budget_configured===true,'PREFLIGHT_GLOBAL_BUDGET_MISSING')
+  preflightCheck(provider.health_enabled===true,'PREFLIGHT_DEEPSEEK_DISABLED')
+  preflightCheck(provider.configured===true,'PREFLIGHT_DEEPSEEK_NOT_CONFIGURED')
+  preflightCheck(provider.budget_configured===true,'PREFLIGHT_DEEPSEEK_BUDGET_MISSING')
+  preflightCheck(provider.model==='deepseek-flash','PREFLIGHT_DEEPSEEK_MODEL','failed')
   for(const purpose of purposes){
-    const consent=provider.consents[purpose],usage=provider.usage[purpose]
-    assert.ok(consent?.enabled,`Existing personal DeepSeek consent required: ${purpose}`)
-    assert.ok(Number.isSafeInteger(consent.monthly_limit_cents)&&
+    const consent=provider.consents?.[purpose],usage=provider.usage?.[purpose],key=purpose.toUpperCase()
+    preflightCheck(consent?.enabled===true,`PREFLIGHT_CONSENT_${key}`)
+    preflightCheck(Number.isSafeInteger(consent.monthly_limit_cents)&&consent.monthly_limit_cents>=0&&
       Number.isSafeInteger(usage?.charged_cents)&&usage.charged_cents>=0&&
-      Number.isSafeInteger(usage?.reserved_cents)&&usage.reserved_cents>=0&&
-      consent.monthly_limit_cents-usage.charged_cents-usage.reserved_cents>=paidCallUpperCents,
-      `Existing personal DeepSeek purpose budget must have at least 2 cents available: ${purpose}`)
+      Number.isSafeInteger(usage?.reserved_cents)&&usage.reserved_cents>=0,
+      `PREFLIGHT_ACCOUNTING_${key}`,'failed')
+    preflightCheck(consent.monthly_limit_cents-usage.charged_cents-usage.reserved_cents>=paidCallUpperCents,
+      `PREFLIGHT_PURPOSE_BUDGET_${key}`)
   }
 }
-function spending(status){
+export function spending(status){
   let total=0
   for(const purpose of [...paidPurposes,'estimate_meal_text']){
     const usage=status.providers?.deepseek?.usage?.[purpose]
     for(const field of ['charged_cents','reserved_cents']){
-      assert.ok(Number.isSafeInteger(usage?.[field])&&usage[field]>=0,'Invalid DeepSeek usage accounting')
+      preflightCheck(Number.isSafeInteger(usage?.[field])&&usage[field]>=0,
+        `PREFLIGHT_ACCOUNTING_${purpose.toUpperCase()}_${field.toUpperCase()}`,'failed')
       total+=usage[field]
     }
   }
   return total
 }
-function requireRunBudget(status,initialSpent,currentMonth){
-  if(currentMonth!==today.slice(0,7)||spending(status)<initialSpent||spending(status)-initialSpent+paidCallUpperCents>5)
-    throw Object.assign(new Error('Run budget exhausted or accounting period changed'),{code:'RUN_BUDGET_EXCEEDED'})
+export function requireRunBudget(status,currentMonth){
+  // This approval began in October 2026 with zero formal business usage. Probe
+  // usage lives in a separate ledger. Never refresh this baseline on a retry.
+  preflightCheck(currentMonth==='2026-10','PREFLIGHT_APPROVAL_PERIOD_CHANGED')
+  preflightCheck(spending(status)+paidCallUpperCents<=5,'RUN_BUDGET_EXCEEDED')
 }
-let initialSpent=null
+export function requirePreflightRpc(result,expected,code,verificationStatus='blocked'){
+  preflightCheck(!result.error&&result.data===expected,code,verificationStatus)
+}
+export async function main(){
+globalThis.fetch=(input,init={})=>networkFetch(input,{...init,
+  signal:init.signal?AbortSignal.any([init.signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)})
 let setup,api=[],users=[],safe=false
 try{setup=cloudSetup()}catch{setup={blocked:true}}
 if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
@@ -71,18 +93,20 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
       if(baselineIds.size!==0&&(baselineIds.size!==2||[...baselineIds].some(id=>!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id))))
         throw Object.assign(new Error('Two reviewed baseline job IDs required'),{code:'BASELINE_JOB_IDS_INVALID'})
       for(let i=0;i<2;i++){
-        const auth=await ok(api[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]}))
-        users.push(auth.user.id)
-        assert.equal(await rpc(i,'current_account'),i===0?'me':'w')
-        assert.equal(await rpc(i,'health_daily_flow_version'),7)
-        assert.equal(await rpc(i,'health_activity_schema_version'),8)
-        assert.equal(await rpc(i,'health_input_snapshot_schema_version'),9)
+        const auth=await api[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]})
+        preflightCheck(!auth.error&&!!auth.data?.user?.id,`PREFLIGHT_AUTH_${i}`)
+        users.push(auth.data.user.id)
+        requirePreflightRpc(await api[i].rpc('current_account'),i===0?'me':'w',`PREFLIGHT_ACCOUNT_${i}`,'failed')
+        requirePreflightRpc(await api[i].rpc('health_daily_flow_version'),7,`PREFLIGHT_DAILY_SCHEMA_${i}`)
+        requirePreflightRpc(await api[i].rpc('health_activity_schema_version'),8,`PREFLIGHT_ACTIVITY_SCHEMA_${i}`)
+        requirePreflightRpc(await api[i].rpc('health_input_snapshot_schema_version'),9,`PREFLIGHT_SNAPSHOT_SCHEMA_${i}`)
         // Count only; do not download any existing personal content. Abort before writes
         // if generation could use existing real data, even on another date.
         for(const table of ['health_profiles','health_rules','weights','schedules','meals','training_sessions','daily_plans','photo_assets']){
           const result=await api[i].from(table).select('*',{head:true,count:'exact'}).eq('user_id',users[i])
           if(result.error) throw result.error
-          if(result.count!==0) throw Object.assign(new Error('Existing health data blocks synthetic-only run'),{code:'EXISTING_HEALTH_DATA'})
+          preflightCheck(Number.isSafeInteger(result.count),`PREFLIGHT_COUNT_${i}_${table.toUpperCase()}`,'failed')
+          preflightCheck(result.count===0,`PREFLIGHT_EXISTING_${i}_${table.toUpperCase()}`)
         }
         const oldJobs=await ok(api[i].from('generation_jobs').select(baselineColumns).eq('user_id',users[i]))
         if(oldJobs.length>1||oldJobs.some(job=>!baselineIds.has(job.id)||job.status!=='exhausted'||job.plan_id!==null||
@@ -95,10 +119,8 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
       if(paid){
         const initial=await edge(0,{action:'status'})
         requirePaidReady(initial)
-        initialSpent=spending(initial)
-        assert.ok(Object.values(initial.providers.deepseek.usage).every(x=>x.reserved_cents===0),
-          'Existing in-flight DeepSeek requests block a bounded synthetic run')
-        requireRunBudget(initial,initialSpent,today.slice(0,7))
+        preflightCheck(Object.values(initial.providers.deepseek.usage).every(x=>x.reserved_cents===0),'PREFLIGHT_ACTIVE_RESERVATION')
+        requireRunBudget(initial,today.slice(0,7))
       }
       safe=true
     })
@@ -199,15 +221,15 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
           if(rows.some(row=>!created[list].some(x=>x.id===row.id)&&!(table==='generation_jobs'&&baselineJobs.some(x=>x.id===row.id))))
             throw Object.assign(new Error('Synthetic inputs changed'),{code:'EXISTING_HEALTH_DATA'})
         }
-        // Enforce an additional 5-cent run ceiling; the server atomically enforces
-        // unchanged site/provider/purpose budgets including concurrent callers.
+        // This approval caps all October business usage at 5 cents, across restarts.
+        // The server also enforces unchanged site/provider/purpose budgets.
         const before=await edge(0,{action:'status'})
         const purpose={'parse-schedule':'parse_schedule','generate-plan':'generate_plan',
           'estimate-meal':'estimate_meal_photo','adjust-plan':'adjust_plan'}[body.action]
         assert.ok(purpose,'Unknown synthetic paid action')
         requirePaidReady(before,[purpose])
         const currentMonth=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).slice(0,7)
-        requireRunBudget(before,initialSpent,currentMonth)
+        requireRunBudget(before,currentMonth)
         // Queueing can dispatch through cron, so it also belongs after the ceiling check.
         if(prepare) body=await prepare(body)
         const result=await edge(0,{...body,provider:'deepseek'})
@@ -291,7 +313,7 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
         const row=await ok(independent.from('training_sessions').select('id,record_date,data').eq('id',activity.id).single())
         assert.equal(row.record_date,today);assert.deepEqual(row.data,payload.data)
         assert.equal((await ok(api[1].from('training_sessions').select('id').eq('id',activity.id))).length,0)
-      }finally{await independent.auth.signOut().catch(()=>{})}
+      }finally{await independent.auth.signOut({scope:'local'}).catch(()=>{})}
     })
   }catch(error){
     details.push({id:'DAILY_FLOW_RUN',error})
@@ -312,7 +334,9 @@ if(setup.blocked||process.env.TEST_DAILY_FLOW_APPROVED!=='YES'){
       // No bulk cleanup RPC exists for plans/jobs; never clear the user's health data.
     }).catch(()=>{})
     else if(!cases.some(x=>x.id==='SYNTHETIC_CLEANUP')) cases.push({id:'SYNTHETIC_CLEANUP',status:'blocked'})
-    for(const c of api) await c.auth.signOut().catch(()=>{})
+    for(const c of api) await c.auth.signOut({scope:'local'}).catch(()=>{})
     await report('daily-flow-cloud','real-two-account-synthetic-business-flow',cases,details)
   }
 }
+}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)await main()

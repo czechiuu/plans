@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-10-14T06:29:07.242Z",
+  "scope": "real-two-account-synthetic-business-flow",
+  "passed": 0,
+  "failed": 1,
+  "blocked": 9,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "DAILY_FLOW_PREFLIGHT",
+      "status": "failed"
+    },
+    {
+      "id": "RULES_BOTH_USERS",
+      "status": "blocked"
+    },
+    {
+      "id": "MEAL_PHOTO_PRIVATE",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_SCHEDULE",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_PLAN",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_PHOTO",
+      "status": "blocked"
+    },
+    {
+      "id": "DEEPSEEK_ADJUST",
+      "status": "blocked"
+    },
+    {
+      "id": "ADJUST_APPLY_UNDO",
+      "status": "blocked"
+    },
+    {
+      "id": "ACTIVITY_REFRESH",
+      "status": "blocked"
+    },
+    {
+      "id": "SYNTHETIC_CLEANUP",
+      "status": "blocked"
+    }
+  ]
+}

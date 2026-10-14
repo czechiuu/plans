@@ -19,6 +19,20 @@ const manifestUrl=new URL('../test-results/private/daily-flow-ui-cleanup.json',i
 const networkFetch=globalThis.fetch
 globalThis.fetch=(input,init={})=>networkFetch(input,{...init,
   signal:init.signal?AbortSignal.any([init.signal,AbortSignal.timeout(60000)]):AbortSignal.timeout(60000)})
+const dependencyBlocked=code=>Object.assign(new Error(code),{code,verificationStatus:'blocked'})
+const checkCase=async(cases,details,id,fn)=>{
+  try{return await runCase(cases,details,id,fn)}
+  catch(error){if(error?.verificationStatus==='blocked')cases.at(-1).status='blocked';throw error}
+}
+const requireFreshManifest=(info,day)=>{
+  if(shanghaiDate(info.mtime)!==day)throw dependencyBlocked('PREFLIGHT_DAILY_MANIFEST_STALE')
+}
+const readPriorManifest=async(source,day)=>{
+  try{
+    requireFreshManifest(await stat(source),day)
+    return JSON.parse(await readFile(source,'utf8'))
+  }catch(error){if(error?.code==='ENOENT')throw dependencyBlocked('PREFLIGHT_DAILY_MANIFEST_MISSING');throw error}
+}
 const rules={confirmed:true,equipment:'machines_only',ankle_status:'no_issue',free_weekdays:[],
   exercise_minutes:10,max_session_minutes:10,max_gym_visits:2,weekly_strength_limit:2,
   training_history_complete:true,free_day_training_forbidden:false,free_day_meal_unrestricted:false,
@@ -34,7 +48,14 @@ const makePlan=()=>{
 if(process.argv.includes('--self-check')){
   assert.ok(makePlan().training.items.length>=2)
   assert.equal((await validateSanitizedPng(await readFile(fixture))).mime,'image/png')
-  process.stdout.write('无需凭据的确定性检查：2 通过、0 失败。\n')
+  const cases=[],details=[]
+  await checkCase(cases,details,'missing',()=>readPriorManifest(new URL(`../test-results/private/${randomUUID()}.json`,import.meta.url),today)).catch(()=>{})
+  assert.equal(cases[0]?.status,'blocked');assert.equal(details[0]?.error?.code,'PREFLIGHT_DAILY_MANIFEST_MISSING')
+  await checkCase(cases,details,'stale',()=>requireFreshManifest({mtime:new Date('2020-01-01')},today)).catch(()=>{})
+  assert.equal(cases[1]?.status,'blocked');assert.equal(details[1]?.error?.code,'PREFLIGHT_DAILY_MANIFEST_STALE')
+  await checkCase(cases,details,'assertion',()=>assert.fail('expected self-check failure')).catch(()=>{})
+  assert.equal(cases[2]?.status,'failed')
+  process.stdout.write('无需凭据的确定性检查：5 通过、0 失败。\n')
 }else{
   let setup
   try{setup=cloudSetup(['E2E_BASE_URL'])}catch{setup={blocked:true}}
@@ -43,13 +64,28 @@ if(process.argv.includes('--self-check')){
   }else{
     const cases=[],details=[],api=[client(setup.url,setup.key),client(setup.url,setup.key)],users=[]
     const created={meals:[],photos:[],weights:[],training:[],rules:[],plans:[],create_receipts:[]},deleted=[]
-    const check=(id,fn)=>runCase(cases,details,id,fn)
+    const check=(id,fn)=>checkCase(cases,details,id,fn)
     const rpc=(name,args)=>ok(api[0].rpc(name,args))
     const status=i=>ok(api[i].functions.invoke('health-ai',{body:{action:'status'}}))
     const own=async(i,table,columns='id')=>ok(api[i].from(table).select(columns).eq('user_id',users[i]))
     const one=async(table,id)=>ok(api[0].from(table).select('*').eq('id',id).single())
+    let manifestReady=false
     const manifest=async()=>{
       await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
+      if(!manifestReady){
+        let previous
+        try{previous=await readFile(manifestUrl,'utf8')}catch(error){if(error?.code!=='ENOENT')throw error}
+        if(previous){
+          const old=JSON.parse(previous), match=/^SYNTHETIC-UI-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/iu.exec(old.marker)
+          if(!match)throw new Error('Previous UI cleanup marker invalid; manifest preserved')
+          if(old.marker!==marker){
+            const archive=new URL(`../test-results/private/daily-flow-ui-cleanup-${match[1]}.json`,import.meta.url)
+            try{await writeFile(archive,previous,{flag:'wx'})}
+            catch(error){if(error?.code!=='EEXIST'||await readFile(archive,'utf8')!==previous)throw error}
+          }
+        }
+        manifestReady=true
+      }
       await writeFile(manifestUrl,JSON.stringify({generated_at:new Date().toISOString(),marker,created,deleted,
         existing_synthetic_plan_ids_affected:allowedPlans.filter(p=>p.user_id===users[0]).map(p=>p.id),
         needs_administrator_exact_id_cleanup:['rules','plans','create_receipts'],
@@ -80,14 +116,17 @@ if(process.argv.includes('--self-check')){
     const refreshed=async(page,name)=>{
       await page.reload();await page.getByRole('navigation',{name:'主导航'}).waitFor();await nav(page,name)
     }
+    const syntheticScreen=async(page,name,fullPage=false)=>{
+      await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
+      await page.screenshot({path:fileURLToPath(new URL(`../test-results/private/cloud-ui-${name}-synthetic.png`,import.meta.url)),fullPage})
+    }
     try{
       await check('UI_CLOUD_PREFLIGHT',async()=>{
         const site=new URL(process.env.E2E_BASE_URL)
         assert.equal(site.origin,'https://czechiuu.github.io');assert.equal(site.pathname,'/plans/')
         assert.equal(site.search,'');assert.equal(site.hash,'')
         const source=new URL('../test-results/private/daily-flow-cleanup.json',import.meta.url)
-        assert.equal(shanghaiDate((await stat(source)).mtime),today,'Prior run manifest must be from today')
-        baseline=JSON.parse(await readFile(source,'utf8'))
+        baseline=await readPriorManifest(source,today)
         assert.match(baseline.marker,/^SYNTHETIC-DAILY-/);assert.ok(Array.isArray(baseline.created?.plans))
         for(let i=0;i<2;i++){
           const auth=await ok(api[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]}));users.push(auth.user.id)
@@ -122,6 +161,8 @@ if(process.argv.includes('--self-check')){
       })
       const [me,partner]=pages
       await check('UI_CLOUD_PHOTO_CONFIRM',async()=>{
+        let stage='OPEN_FOOD'
+        try {
         assertDate();await nav(me,'饮食')
         let form=me.locator('[data-form="meal"]')
         await form.locator('[data-meal-item] [name="name"]').fill(marker+' 合成水果')
@@ -130,33 +171,66 @@ if(process.argv.includes('--self-check')){
         await form.locator('[name="status"]').selectOption('draft')
         assert.equal(await form.locator('[name="is_shared"]').isChecked(),false)
         if(await form.locator('[name="adjust_provider"]').count())await form.locator('[name="adjust_provider"]').selectOption('')
+        stage='CREATE_MEAL'
         const meal=await uiWrite(me,'save_meal',()=>form.getByRole('button',{name:'保存餐食',exact:true}).click(),'meals')
+        stage='MEAL_SAVED_NOTICE'
         await me.getByText('餐食已保存',{exact:true}).waitFor()
+        stage='SELECT_PHOTO'
         const photoForm=me.locator('[data-form="photo"]')
         await photoForm.locator('[name="meal_id"]').selectOption(meal.id)
         await photoForm.locator('[name="photo"]').setInputFiles(fileURLToPath(fixture))
+        stage='UPLOAD_PHOTO'
         const uploaded=me.waitForResponse(r=>new URL(r.url()).pathname==='/functions/v1/health-photo'&&new URL(r.url()).searchParams.get('action')==='upload')
         await photoForm.getByRole('button',{name:'上传私有照片'}).click()
         const reply=await uploaded;assert.ok(reply.ok());await remember('photos',{id:(await reply.json()).photo_id})
+        stage='PHOTO_SAVED_NOTICE'
         await me.getByText('照片已上传',{exact:true}).waitFor()
+        stage='OPEN_CONFIRM_EDIT'
         await me.locator(`[data-action="edit-meal"][data-id="${meal.id}"]`).click()
         form=me.locator('[data-form="meal"]');await form.locator('[name="status"]').selectOption('confirmed')
+        stage='SAVE_CONFIRMED'
         await uiWrite(me,'save_meal',()=>form.getByRole('button',{name:'保存这餐修改'}).click())
+        stage='CONFIRMED_NOTICE'
         await me.getByText('餐食已保存',{exact:true}).waitFor()
+        stage='OPEN_CORRECTION_EDIT'
         await me.locator(`[data-action="edit-meal"][data-id="${meal.id}"]`).click()
         form=me.locator('[data-form="meal"]')
         await form.locator('[data-meal-item] [name="portion"]').fill('本人确认半份（合成）')
         await form.locator('[name="eaten_fraction"]').fill('0.5')
         await form.locator('[name="leftover"]').fill(marker+' 剩余一半')
+        stage='SAVE_CORRECTION'
         await uiWrite(me,'save_meal',()=>form.getByRole('button',{name:'保存这餐修改'}).click())
+        stage='CORRECTION_NOTICE_REFRESH'
         await me.getByText('餐食已保存',{exact:true}).waitFor();await refreshed(me,'饮食')
+        stage='VERIFY_CORRECTION'
         const saved=await one('meals',meal.id)
         assert.equal(saved.status,'confirmed');assert.equal(saved.data.eaten_fraction,0.5)
         assert.equal(saved.data.items[0].portion,'本人确认半份（合成）');assert.equal(saved.data.estimate,null)
         assert.deepEqual(saved.data.photo_ids,[created.photos[0].id])
-        await me.locator(`[data-action="view-photo"][data-id="${created.photos[0].id}"]`).click()
+        stage='VIEW_PHOTO'
+        await me.locator(`article.list-item [data-action="view-photo"][data-id="${created.photos[0].id}"]`).click()
+        stage='WAIT_IMAGE'
         await me.waitForFunction(()=>document.querySelector('.photo-preview img')?.naturalWidth>0)
+        await syntheticScreen(me,'photo-confirm',true)
+        stage='VERIFY_PRIVATE'
         await nav(partner,'饮食');assert.equal(await partner.getByText(marker,{exact:false}).count(),0)
+        } catch(error) {
+          error.code=`UI_PHOTO_${stage}`
+          try {
+            await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
+            const frame=/verify-cloud-health-ui\.mjs:(\d+):(\d+)/u.exec(String(error.stack || ''))
+            const photoId=created.photos[0]?.id
+            const buttonCount=stage==='VIEW_PHOTO'&&photoId ? await me.locator(`article.list-item [data-action="view-photo"][data-id="${photoId}"]`).count().catch(()=>null) : null
+            const assetResult=stage==='VIEW_PHOTO'&&photoId ? await api[0].from('photo_assets').select('id,meal_id,deleting,uploading').eq('id',photoId).maybeSingle() : null
+            const reason=/strict mode violation/u.test(String(error.message))?'strict':/Timeout.*exceeded/u.test(String(error.message))?'timeout':/not visible|intercepts|outside viewport|disabled/u.test(String(error.message))?'actionability':'other'
+            await writeFile(new URL('../test-results/private/cloud-health-ui-photo-diagnostic.json',import.meta.url),
+              JSON.stringify({code:error.code,script_line:frame?Number(frame[1]):null,kind:error.name || 'Error',reason,
+                ...(stage==='VIEW_PHOTO'?{button_count:buttonCount,photo_asset:assetResult?.error?null:assetResult?.data}: {})},null,2)+'\n')
+            if(stage==='VIEW_PHOTO')await me.locator('article.list-item').first().scrollIntoViewIfNeeded().catch(()=>{})
+            await me.screenshot({path:fileURLToPath(new URL('../test-results/private/cloud-health-ui-photo-failure.png',import.meta.url))})
+          } catch { /* An unavailable page must not hide the original failure stage. */ }
+          throw error
+        }
       })
       await check('UI_CLOUD_WEIGHT_REFRESH',async()=>{
         await nav(me,'趋势')
@@ -170,6 +244,8 @@ if(process.argv.includes('--self-check')){
         }
         await refreshed(me,'趋势');await me.getByText('71.0 kg',{exact:true}).waitFor()
         await me.getByText('2 条真实记录',{exact:true}).waitFor()
+        await me.getByText('71.0 kg',{exact:true}).scrollIntoViewIfNeeded()
+        await syntheticScreen(me,'trends')
         await nav(partner,'趋势');assert.equal(await partner.getByText(marker,{exact:true}).count(),0)
         await nav(partner,'设置');await partner.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
         await partner.getByRole('heading',{name:'欢迎回来'}).waitFor();await login(partner,'me',setup.passwords[0])
@@ -180,6 +256,8 @@ if(process.argv.includes('--self-check')){
         await nav(me,'训练');await me.getByRole('button',{name:'播放本地动作示意'}).first().click()
         const object=me.locator('.demo-slot object').first()
         await me.waitForFunction(()=>document.querySelector('.demo-slot object')?.contentDocument?.querySelector('.a')?.getAnimations().length>0)
+        await object.scrollIntoViewIfNeeded()
+        await syntheticScreen(me,'action-playing')
         const time=()=>object.evaluate(x=>x.contentDocument.querySelector('.a').getAnimations()[0].currentTime)
         const initial=await time();await me.waitForTimeout(150);assert.ok(await time()>initial)
         const slot=me.locator('[data-demo-slot]').first()
@@ -217,6 +295,8 @@ if(process.argv.includes('--self-check')){
         await me.getByRole('button',{name:'暂停训练'}).waitFor()
         await uiWrite(me,'save_training_session',()=>me.getByRole('button',{name:'完成训练'}).click())
         await me.getByText('本次训练已按实际记录完成',{exact:true}).waitFor()
+        await me.getByText('本次训练已按实际记录完成',{exact:true}).scrollIntoViewIfNeeded()
+        await syntheticScreen(me,'training-complete')
         const stopped=await one('training_sessions',session.id)
         assert.equal(stopped.status,'completed');assert.equal(stopped.data.sets[0].reps,8)
         assert.ok(stopped.data.elapsed_seconds>=paused.data.elapsed_seconds);assert.ok(stopped.data.ended_at)

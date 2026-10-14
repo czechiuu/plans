@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-10-14T06:53:20.368Z",
+  "scope": "synthetic-deepseek-consent",
+  "passed": 2,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "DEEPSEEK_FOUR_CONSENTS",
+      "status": "passed"
+    },
+    {
+      "id": "UNSAVED_CONSENT_DRAFT",
+      "status": "passed"
+    }
+  ]
+}

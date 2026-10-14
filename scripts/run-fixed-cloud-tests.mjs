@@ -72,13 +72,13 @@ async function reportStatus(name, startedAt, exitCode) {
 async function main() {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error('Interactive TTY required')
   const mode=process.argv[2] || 'all'
-  if (process.argv.length>3 || !['all','--browser-only','--health-only','--daily-flow'].includes(mode))
-    throw new Error('仅支持 --browser-only、--health-only 或 --daily-flow 参数')
-  if(mode==='--daily-flow'&&process.env.TEST_DAILY_FLOW_APPROVED!=='YES')
+  if (process.argv.length>3 || !['all','--browser-only','--health-only','--daily-flow','--daily-flow-ui-only'].includes(mode))
+    throw new Error('仅支持 --browser-only、--health-only、--daily-flow 或 --daily-flow-ui-only 参数')
+  if(['--daily-flow','--daily-flow-ui-only'].includes(mode)&&process.env.TEST_DAILY_FLOW_APPROVED!=='YES')
     throw new Error('日常链路验收需要显式 TEST_DAILY_FLOW_APPROVED=YES；可能保留本轮计划和任务待管理员按精确 ID 清理')
   const config=await publicConfig()
-  const intro=mode==='--daily-flow'?`依次运行日常链路合成验收和免费的真实网页关键流程。${process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'?'已明确允许 DeepSeek 合成业务，本轮费用不超过 5 美分；本人分用途同意仍须已存在。':'付费 AI 不运行。'}`:mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
-  const safety=mode==='--daily-flow'
+  const intro=mode==='--daily-flow'?`依次运行日常链路合成验收和免费的真实网页关键流程。${process.env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED==='YES'?'已明确允许 DeepSeek 合成业务，本轮费用不超过 5 美分；本人分用途同意仍须已存在。':'付费 AI 不运行。'}`:mode==='--daily-flow-ui-only'?'只运行免费的真实网页健康流程验收，不运行已通过的付费日常接口验收。':mode==='--browser-only'?'仅运行浏览器云验收。':mode==='--health-only'?'仅运行健康功能云验收。':'依次运行接口、健康功能和浏览器云验收。'
+  const safety=['--daily-flow','--daily-flow-ui-only'].includes(mode)
     ? '只写本轮合成记录，按精确 ID 清理；部分规则、计划和任务须管理员按本轮记录清理。网页流程会独立检查数据前置，不满足就阻塞。'
     : mode==='--health-only'
     ? '只写本轮标记的合成健康记录，按本轮 ID 清理；无法安全验证的项目会阻塞。'
@@ -110,9 +110,10 @@ async function main() {
       ['daily-flow-cloud','scripts/verify-daily-flow-cloud.mjs',false],
       ['cloud-health-ui','scripts/verify-cloud-health-ui.mjs',true],
       ['cloud-browser','scripts/verify-cloud-browser.mjs',true]
-    ].filter(([name])=>mode==='--daily-flow'?['daily-flow-cloud','cloud-health-ui'].includes(name):!['daily-flow-cloud','cloud-health-ui'].includes(name)&&(mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health')))) {
+    ].filter(([name])=>mode==='--daily-flow'?['daily-flow-cloud','cloud-health-ui'].includes(name):mode==='--daily-flow-ui-only'?name==='cloud-health-ui':!['daily-flow-cloud','cloud-health-ui'].includes(name)&&(mode==='all' || (mode==='--browser-only' ? name==='cloud-browser' : name==='cloud-health')))) {
       process.stdout.write(name==='cloud-api'?'开始云端接口验收。\n':name==='cloud-health'?'开始健康功能云验收。\n':name==='daily-flow-cloud'?'开始合成日常链路验收，规则计划等待现有后台调度。\n':name==='cloud-health-ui'?'开始免费的真实网页健康流程验收，先独立核对本轮合成数据。\n':'开始浏览器云验收。\n')
       let env=childEnvironment(config,mePassword,wPassword,browser)
+      if(mode==='--daily-flow-ui-only')delete env.TEST_DAILY_FLOW_DEEPSEEK_APPROVED
       const startedAt=Date.now()
       let exitCode
       try { exitCode=await runChild(script,env) }

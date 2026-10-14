@@ -8,7 +8,12 @@
     "202610140008": "51fba87f159fb01a44d55920fc7d0891",
     "202610140009": "dc32be5c3b0d7dd7539ee636001d7e74"
   },
-  "capabilities": {"daily_flow": 7, "activities": 8, "input_snapshots": 9, "storage_upload_guard_count": 1},
+  "capabilities": {
+    "daily_flow": 7,
+    "activities": 8,
+    "input_snapshots": 9,
+    "storage_upload_guard_count": 1
+  },
   "function_sha256": {
     "health-ai": "f74f3d888ba1b18429ff54503112b70fdd0607b2b0987952b555903ee77324dc",
     "health-photo": "5c3bbd09fd54ad322d326963d14fb47d424b64b503dbaab2c439326c7adce984",
@@ -16,22 +21,67 @@
   },
   "all_function_downloads_match_local_bundles": true,
   "deepseek_health_enabled": true,
-  "provider_limits_cents": {"openai": 200, "deepseek": 10},
+  "provider_limits_cents": {
+    "openai": 200,
+    "deepseek": 10
+  },
   "personal_consents_at_enable": 0,
   "fixed_accounts": 2,
-  "frontend_source_commit": "6c08c128c8ea00042b34e35b6ab974196094666c",
-  "backend_source_commit": null,
-  "backend_source_commit_pending": true,
+  "frontend_source_commit": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
+  "backend_source_commit": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
+  "backend_source_commit_pending": false,
   "pages_release": "success",
-  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38516977520",
-  "pages_finished_at": "2026-10-14T05:31:27Z",
+  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38522121912",
+  "pages_finished_at": "2026-10-14T06:26:26Z",
   "pages_assets_match_local_build": true,
   "pages_asset_sha256": {
-    "js": "bf55c46990ffaeacf8bf56d698a388da70cd23a80bc2f22a9c4bfa687d6d7ac7",
+    "js": "ef98bfcfc5d50f19adfc3e4d51ab1573f5f8e515c90b76a3abccf2197626caa5",
     "css": "745446d964c886aa02edddb15188a026cc5bdff589ec4082809e794e5896b854"
   },
-  "anonymous_public_checks": {"passed": 8, "failed": 0, "notrun": 0},
-  "anonymous_edge_checks": {"passed": 14, "failed": 0, "notrun": 0},
-  "real_business_acceptance": "not_run_pending_secure_sign_in",
-  "notes": ["No credentials or health contents recorded", "User authorized only synthetic calls up to 5 additional cents", "No budget increase or personal consent created", "Historical failures retained"]
+  "anonymous_public_checks": {
+    "passed": 8,
+    "failed": 0,
+    "notrun": 0
+  },
+  "anonymous_edge_checks": {
+    "passed": 14,
+    "failed": 0,
+    "notrun": 0
+  },
+  "real_business_acceptance": "api_passed_ui_retest_pending",
+  "notes": [
+    "No credentials or health contents recorded",
+    "User authorized only synthetic calls up to 5 additional cents",
+    "No budget increase or personal consent created",
+    "Historical failures retained"
+  ],
+  "anonymous_edge_checked_at": "2026-10-14T06:27:33.119Z",
+  "real_business_preflight": {
+    "at": "2026-10-14T06:29:07.242Z",
+    "passed": 0,
+    "failed": 1,
+    "blocked": 9,
+    "paid_calls": 0,
+    "synthetic_writes": 0
+  },
+  "real_business_api": {
+    "generated_at": "2026-10-14T07:02:05.864Z",
+    "passed": 10,
+    "failed": 0,
+    "blocked": 0,
+    "notrun": 0,
+    "synthetic_only": true,
+    "deepseek_formal_calls": 4,
+    "charged_cents": 4
+  },
+  "real_business_ui": {
+    "generated_at": "2026-10-14T07:26:53.022Z",
+    "passed": 2,
+    "failed": 1,
+    "blocked": 4,
+    "notrun": 0,
+    "cause": "duplicate_photo_view_locator_in_test",
+    "retest_pending": true
+  },
+  "new_frontend_fix_pending_publication": true
 }

@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-10-14T07:34:33.965Z",
+  "scope": "synthetic-linked-photo-and-provider-label",
+  "passed": 3,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "LINKED_PHOTO_TWO_LOCATIONS",
+      "status": "passed"
+    },
+    {
+      "id": "DEEPSEEK_PHOTO_CONSENT_LABEL",
+      "status": "passed"
+    },
+    {
+      "id": "CLOUD_NEXT_TRAINING_SELECTORS",
+      "status": "passed"
+    }
+  ]
+}

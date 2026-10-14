@@ -1,0 +1,38 @@
+{
+  "generated_at": "2026-10-14T07:03:51.191Z",
+  "scope": "real-deployed-ui-two-isolated-browser-contexts-not-physical-devices",
+  "passed": 2,
+  "failed": 1,
+  "blocked": 4,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "UI_CLOUD_PREFLIGHT",
+      "status": "passed"
+    },
+    {
+      "id": "UI_CLOUD_PHOTO_CONFIRM",
+      "status": "failed"
+    },
+    {
+      "id": "UI_CLOUD_CLEANUP",
+      "status": "passed"
+    },
+    {
+      "id": "UI_CLOUD_WEIGHT_REFRESH",
+      "status": "blocked"
+    },
+    {
+      "id": "UI_CLOUD_MEDIA",
+      "status": "blocked"
+    },
+    {
+      "id": "UI_CLOUD_TRAINING",
+      "status": "blocked"
+    },
+    {
+      "id": "UI_CLOUD_FREE",
+      "status": "blocked"
+    }
+  ]
+}

@@ -1,12 +1,12 @@
-# 健康功能部署与后续验收：006–008
+# 健康功能部署与后续验收：006–009
 
-截至 2026-10-14，生产已执行 001–008；三函数下载源码与本轮 bundle 匹配，Pages 已发布 main `6c08c128c8ea00042b34e35b6ab974196094666c`。摘要和能力回读见[发布记录](../test-results/daily-flow-release.json)，线上匿名页面检查见[8 项报告](../test-results/deployed-public-results.json)。以下 1–5 为已执行部署步骤的核对记录，勿重跑迁移、重置数据或清除两条旧 exhausted 任务。
+截至 2026-10-14，生产已执行 001–009；009 输入快照另行部署并回读，旧任务不回填。三函数下载源码与本轮 bundle 匹配，Pages 已发布 main `eea81bb3e82d3b1083285620c1400cbde00a4d43`。摘要和能力回读见[发布记录](../test-results/daily-flow-release.json)，线上匿名页面检查见[8 项报告](../test-results/deployed-public-results.json)。以下 1–5 为已执行部署步骤的核对记录，勿重跑迁移、重置数据或清除两条旧 exhausted 任务。
 
 1. 核对备份及现有迁移历史。运行 `node scripts/prepare-daily-flow-migrations.mjs` 后审核 [006–008 执行包](../supabase/admin/apply-daily-flow-006-008.sql)。包按序执行新迁移并登记，前置历史或源摘要不符时停止；不能把粘贴成功当成验收。执行后回读迁移内容、版本 RPC、权限和默认开关，保留失败报告。
 2. 运行 `pnpm build:edge`，将三份新 bundle 分别部署为 `health-ai`、`health-photo`、`health-cron`。继续使用原项目 `wnzbtitlvteptkvwhavw`。三函数网关 `verify_jwt=false`；AI/照片函数内验证真实用户令牌及固定身份，cron 验证服务端密钥。不得以关闭网关为由跳过函数内鉴权。
 3. 沿用精确来源 `HEALTH_ALLOWED_ORIGINS=https://czechiuu.github.io`；本地调试只加入实际需要的确切 origin。Secrets/Vault 仅在安全界面配置，不输出到日志、SQL 文件或前端。继续核对 Vault 与 Edge 调度密钥一致；不需要为此更换已有密钥。
 4. 原每五分钟调度按最近上海 20:00 锚点入队，延迟跨午夜仍保留原目标日。006 固定任务 provider，两人独立完成、有限重试；手动锁、更新输入及实际记录不能被旧任务覆盖。HTTP 成功不证明计划发布，须回读各人任务与计划。
-5. 本轮前端已通过[手动发布工作流](https://github.com/czechiuu/plans/actions/runs/38516977520)发布，两个任务成功，并核对最终提交和公开资源。普通 push 的 CI 构建本身不等于 Pages 发布；真人账号业务仍需单独验收。
+5. 新版前端已通过[手动发布工作流](https://github.com/czechiuu/plans/actions/runs/38522121912)发布，测试构建与部署两个任务成功，来源为 `eea81bb`，并核对公开资源。普通 push 的 CI 构建本身不等于 Pages 发布；真人健康业务仍需单独验收。
 
 ## 已执行的管理员开通与待做的本人授权
 

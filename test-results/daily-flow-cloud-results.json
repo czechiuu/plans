@@ -1,46 +1,50 @@
 {
-  "generated_at": "2026-10-14T04:25:15.529Z",
-  "scope": "not-run-without-explicit-synthetic-approval",
-  "passed": 0,
+  "generated_at": "2026-10-14T07:02:05.864Z",
+  "scope": "real-two-account-synthetic-business-flow",
+  "passed": 10,
   "failed": 0,
-  "blocked": 9,
+  "blocked": 0,
   "notrun": 0,
   "cases": [
     {
       "id": "DAILY_FLOW_PREFLIGHT",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "RULES_BOTH_USERS",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "MEAL_PHOTO_PRIVATE",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "DEEPSEEK_SCHEDULE",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "DEEPSEEK_PLAN",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "DEEPSEEK_PHOTO",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "DEEPSEEK_ADJUST",
-      "status": "blocked"
+      "status": "passed"
     },
     {
       "id": "ADJUST_APPLY_UNDO",
-      "status": "blocked"
+      "status": "passed"
+    },
+    {
+      "id": "ACTIVITY_REFRESH",
+      "status": "passed"
     },
     {
       "id": "SYNTHETIC_CLEANUP",
-      "status": "blocked"
+      "status": "passed"
     }
   ]
 }
