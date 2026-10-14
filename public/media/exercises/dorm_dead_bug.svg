@@ -1,1 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc"><title id="title">死虫动作循环示意</title><desc id="desc">从对侧手脚抬起到慢慢伸远，再换边，循环演示。请以文字要领和现场器械为准。</desc><style>svg{background:#f4f0fc}.machine{fill:none;stroke:#b7accf;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}.person{fill:none;stroke:#63539c;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}.a{animation:poseA 3.2s infinite}.b{animation:poseB 3.2s infinite}@keyframes poseA{0%,40%{opacity:1}50%,90%{opacity:0}100%{opacity:1}}@keyframes poseB{0%,40%{opacity:0}50%,90%{opacity:1}100%{opacity:0}}@media(prefers-reduced-motion:reduce){.a,.b{animation:none}.b{opacity:0}}.caption{fill:#4b426c;font:12px system-ui,sans-serif}</style><g class="machine"><path d="M52 171h225"/></g><g class="person a"><circle cx="159" cy="118" r="13"/><path d="M147 128l-52 24 M173 128l54 24 M132 132l-10-57 M188 132l10-57 M122 75l-8-18 M198 75l8-18"/></g><g class="person b"><circle cx="159" cy="118" r="13"/><path d="M147 128l-78 29 M173 128l38 42 M132 132l-55-56 M188 132l66-47 M76 75l-12-9 M254 85l14-7"/></g><text class="caption" x="16" y="189">对侧手脚抬起 → 慢慢伸远，再换边</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-labelledby="title desc">
+  <title id="title">死虫：对侧手脚交替伸展</title>
+  <desc id="desc">仰卧，髋膝约九十度、双臂抬起。右臂与左腿伸远后回位，再由左臂与右腿伸远后回位；腰背贴地、颈部保持自然。</desc>
+  <style>
+    svg{background:#f4f0fc}.mat{stroke:#b7accf;stroke-width:7;stroke-linecap:round}.body,.limbs{fill:none;stroke:#63539c;stroke-width:8;stroke-linecap:round;stroke-linejoin:round}.active{stroke:#6b50c4}.caption{fill:#4b426c;font:11px system-ui,sans-serif}.a{animation:home 6s infinite}.b{opacity:0}.b.right{animation:right 6s infinite}.b.left{animation:left 6s infinite}
+    @keyframes home{0%,18%,40%,48%,70%,100%{opacity:1}20%,38%,50%,68%{opacity:0}}
+    @keyframes right{0%,18%,40%,100%{opacity:0}20%,38%{opacity:1}}
+    @keyframes left{0%,48%,70%,100%{opacity:0}50%,68%{opacity:1}}
+    @media(prefers-reduced-motion:reduce){.a,.b{animation:none}.a{opacity:1}.b{opacity:0}}
+  </style>
+  <path class="mat" d="M34 154h252"/>
+  <g class="body"><circle cx="63" cy="140" r="11"/><path d="M77 145l11 3h84"/></g>
+  <g class="a start">
+    <g class="limbs"><path d="M99 145V82 M118 145V82 M176 148V94h54 M195 148V94h60"/></g>
+    <text class="caption" x="13" y="187">起点：髋膝约90°，双臂抬起，腰背贴地</text>
+  </g>
+  <g class="b right">
+    <g class="limbs"><path d="M118 145V82 M176 148V94h54"/></g>
+    <g class="limbs active"><path d="M99 145L67 104 35 110 M195 148l33-11 44 8"/></g>
+    <text class="caption" x="13" y="187">右臂＋左腿伸远；另一侧保持约90°</text>
+  </g>
+  <g class="b left">
+    <g class="limbs"><path d="M99 145V82 M195 148V94h60"/></g>
+    <g class="limbs active"><path d="M118 145L77 104 40 110 M176 148l49-11 47 8"/></g>
+    <text class="caption" x="13" y="187">左臂＋右腿伸远；另一侧保持约90°</text>
+  </g>
+</svg>

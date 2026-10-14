@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-10-14T08:54:57.173Z",
+  "scope": "local-original-svg-browser-check",
+  "passed": 3,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "SVG_RENDER",
+      "status": "passed"
+    },
+    {
+      "id": "THREE_POSE_SEQUENCE",
+      "status": "passed"
+    },
+    {
+      "id": "PAUSE_RESUME",
+      "status": "passed"
+    }
+  ]
+}

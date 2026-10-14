@@ -82,6 +82,17 @@ if(process.argv.includes('--self-check')){
             const archive=new URL(`../test-results/private/daily-flow-ui-cleanup-${match[1]}.json`,import.meta.url)
             try{await writeFile(archive,previous,{flag:'wx'})}
             catch(error){if(error?.code!=='EEXIST'||await readFile(archive,'utf8')!==previous)throw error}
+            for(const [source,target] of [
+              ['../test-results/cloud-health-ui-results.json',`../test-results/private/cloud-health-ui-results-${match[1]}.json`],
+              ['../test-results/private/cloud-health-ui-details.json',`../test-results/private/cloud-health-ui-details-${match[1]}.json`]
+            ]){
+              let contents
+              try{contents=await readFile(new URL(source,import.meta.url),'utf8')}
+              catch(error){if(error?.code==='ENOENT')continue;throw error}
+              const targetUrl=new URL(target,import.meta.url)
+              try{await writeFile(targetUrl,contents,{flag:'wx'})}
+              catch(error){if(error?.code!=='EEXIST'||await readFile(targetUrl,'utf8')!==contents)throw error}
+            }
           }
         }
         manifestReady=true
@@ -97,20 +108,25 @@ if(process.argv.includes('--self-check')){
       await manifest();return row
     }
     const assertDate=()=>assert.equal(shanghaiDate(),today,'Shanghai date changed; stop synthetic run')
-    let browser,pages=[],safe=false,baseline,allowedPlans=[],beforeUsage=[],unexpectedPaid=false
+    let browser,pages=[],safe=false,baseline,allowedPlans=[],beforeUsage=[],unexpectedPaid=false,writeUncertain=false
     const errors=[]
     // Capture only the exact mutation initiated by this UI test, never enumerate bodies.
     const uiWrite=async(page,rpcName,action,kind)=>{
-      const response=page.waitForResponse(r=>new URL(r.url()).pathname===`/rest/v1/rpc/${rpcName}`&&r.request().method()==='POST')
-      await action()
-      const received=await response
-      const request=received.request().postDataJSON(),receipt=request?.p_payload?.client_request_id
-      if(receipt&&!created.create_receipts.some(x=>x.id===receipt)){
-        created.create_receipts.push({id:receipt,user_id:users[0]});await manifest()
+      try{
+        const response=page.waitForResponse(r=>new URL(r.url()).pathname===`/rest/v1/rpc/${rpcName}`&&r.request().method()==='POST')
+        await action()
+        const received=await response
+        const request=received.request().postDataJSON(),receipt=request?.p_payload?.client_request_id
+        if(receipt&&!created.create_receipts.some(x=>x.id===receipt)){
+          created.create_receipts.push({id:receipt,user_id:users[0]});await manifest()
+        }
+        assert.ok(received.ok())
+        const data=await received.json(),row=Array.isArray(data)?data[0]:data
+        return kind?remember(kind,row):row
+      }catch(error){
+        writeUncertain=true
+        throw error
       }
-      assert.ok(received.ok())
-      const data=await received.json(),row=Array.isArray(data)?data[0]:data
-      return kind?remember(kind,row):row
     }
     const nav=async(page,name)=>page.getByRole('navigation',{name:'主导航'}).getByRole('button',{name,exact:true}).click()
     const refreshed=async(page,name)=>{
@@ -215,6 +231,7 @@ if(process.argv.includes('--self-check')){
         stage='VERIFY_PRIVATE'
         await nav(partner,'饮食');assert.equal(await partner.getByText(marker,{exact:false}).count(),0)
         } catch(error) {
+          if(stage==='UPLOAD_PHOTO')writeUncertain=true
           error.code=`UI_PHOTO_${stage}`
           try {
             await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
@@ -231,10 +248,14 @@ if(process.argv.includes('--self-check')){
           } catch { /* An unavailable page must not hide the original failure stage. */ }
           throw error
         }
-      })
+      }).catch(()=>{})
       await check('UI_CLOUD_WEIGHT_REFRESH',async()=>{
+        let stage='OPEN_TRENDS'
+        try{
+        if(writeUncertain)throw dependencyBlocked('UI_WRITE_UNCERTAIN')
         await nav(me,'趋势')
         for(const [offset,value] of [[-2,'70'],[-1,'72']]){
+          stage='SAVE_WEIGHT'
           const form=me.locator('[data-form="weight"]')
           await form.locator('[name="record_date"]').fill(addDays(today,offset))
           await form.locator('[name="weight_kg"]').fill(value);await form.locator('[name="notes"]').fill(marker)
@@ -242,16 +263,28 @@ if(process.argv.includes('--self-check')){
           await uiWrite(me,'save_weight',()=>form.getByRole('button',{name:'保存体重',exact:true}).click(),'weights')
           await me.getByText('体重已保存',{exact:true}).waitFor()
         }
+        stage='VERIFY_OWN_TRENDS'
         await refreshed(me,'趋势');await me.getByText('71.0 kg',{exact:true}).waitFor()
         await me.getByText('2 条真实记录',{exact:true}).waitFor()
         await me.getByText('71.0 kg',{exact:true}).scrollIntoViewIfNeeded()
         await syntheticScreen(me,'trends')
+        stage='VERIFY_PARTNER_ISOLATION'
         await nav(partner,'趋势');assert.equal(await partner.getByText(marker,{exact:true}).count(),0)
+        stage='SWITCH_SECOND_CONTEXT'
         await nav(partner,'设置');await partner.getByRole('button',{name:'退出此设备／切换账号',exact:true}).click()
         await partner.getByRole('heading',{name:'欢迎回来'}).waitFor();await login(partner,'me',setup.passwords[0])
+        stage='VERIFY_SECOND_CONTEXT'
         await nav(partner,'趋势');await partner.getByText('71.0 kg',{exact:true}).waitFor()
         await partner.getByText('2 条真实记录',{exact:true}).waitFor()
-      })
+        }catch(error){
+          if(error?.verificationStatus!=='blocked')error.code=`UI_WEIGHT_${stage}`
+          try{
+            if(await partner.getByRole('navigation',{name:'主导航'}).count() && !await partner.locator('[data-form="signin"]').count())
+              await partner.screenshot({path:fileURLToPath(new URL('../test-results/private/cloud-health-ui-weight-failure.png',import.meta.url))})
+          }catch{/* The screenshot must not hide the original failure. */}
+          throw error
+        }
+      }).catch(()=>{})
       await check('UI_CLOUD_MEDIA',async()=>{
         await nav(me,'训练');await me.getByRole('button',{name:'播放本地动作示意'}).first().click()
         const object=me.locator('.demo-slot object').first()
@@ -264,8 +297,9 @@ if(process.argv.includes('--self-check')){
         await slot.getByRole('button',{name:'暂停',exact:true}).click();await me.waitForTimeout(100)
         const paused=await time();await me.waitForTimeout(150);assert.equal(await time(),paused)
         await slot.getByRole('button',{name:'播放',exact:true}).click();await me.waitForTimeout(150);assert.ok(await time()>paused)
-      })
+      }).catch(()=>{})
       await check('UI_CLOUD_TRAINING',async()=>{
+        if(writeUncertain)throw dependencyBlocked('UI_WRITE_UNCERTAIN')
         assertDate()
         // Only an empty rule slot can receive these explicitly synthetic conditions.
         assert.equal((await own(0,'health_rules')).length,0)
@@ -300,13 +334,14 @@ if(process.argv.includes('--self-check')){
         const stopped=await one('training_sessions',session.id)
         assert.equal(stopped.status,'completed');assert.equal(stopped.data.sets[0].reps,8)
         assert.ok(stopped.data.elapsed_seconds>=paused.data.elapsed_seconds);assert.ok(stopped.data.ended_at)
-        await refreshed(partner,'训练');await partner.getByText('部分完成',{exact:false}).waitFor()
-        await partner.getByText('1 组实际记录',{exact:false}).waitFor()
-      })
+        const second=cases.some(c=>c.id==='UI_CLOUD_WEIGHT_REFRESH'&&c.status==='passed')?partner:me
+        await refreshed(second,'训练');await second.getByText('部分完成',{exact:false}).waitFor()
+        await second.getByText('1 组实际记录',{exact:false}).waitFor()
+      }).catch(()=>{})
       await check('UI_CLOUD_FREE',async()=>{
         assert.equal(unexpectedPaid,false);assert.deepEqual(errors,[])
         for(let i=0;i<2;i++)assert.deepEqual((await status(i)).providers,beforeUsage[i])
-      })
+      }).catch(()=>{})
     }catch(error){
       if(!cases.some(x=>x.status==='failed')){cases.push({id:'UI_CLOUD_SETUP',status:'failed'});details.push({id:'UI_CLOUD_SETUP',error})}
     }finally{
