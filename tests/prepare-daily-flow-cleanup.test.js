@@ -22,7 +22,13 @@ test('generates exact cleanup without inventing missing API timestamps or deleti
  assert.match(sql,/review_only boolean/)
  assert.match(sql,/not coalesce\(t\.review_only,false\)/)
  assert.match(sql,/CLEANUP_PLAN_PROVENANCE_UNCONFIRMED/)
- assert.match(sql,/t\.scope='daily' and not t\.review_only/)
+ const adjustmentGuard=sql.match(/elsif v_target\.kind='adjustments' and \([\s\S]*?CLEANUP_ADJUSTMENT_SOURCE_UNCONFIRMED/)?.[0]
+ assert.ok(adjustmentGuard)
+ assert.match(adjustmentGuard,/md5\(\(v_row->'source_snapshot'\)::text\)/)
+ assert.match(adjustmentGuard,/join public\.generation_input_snapshots s/)
+ assert.match(adjustmentGuard,/v_row->'source_snapshot'->'plan'->'content'=b\.content/)
+ assert.doesNotMatch(adjustmentGuard,/position\(v_target\.marker/)
+ assert.match(sql,/v_target\.scope='daily' and not v_target\.review_only/)
  assert.match(sql,/CLEANUP_UI_PLAN_MARKER_MISMATCH/)
  assert.match(sql,/CLEANUP_UNKNOWN_CASCADE_OR_SET_NULL/)
  assert.match(sql,/CLEANUP_BASELINE_CHANGED/)
@@ -48,7 +54,7 @@ test('requires exact, separately confirmed evidence before including an older UI
  assert.throws(()=>buildCleanupSql(manifests(),[{...row,evidence:'same-day-orphan'}]),/CLEANUP_EXTRA_RECEIPT_UNCONFIRMED/)
  const sql=buildCleanupSql(manifests(),[row])
  assert.match(sql,/CLEANUP_EXTRA_RECEIPT_MAPPING_MISMATCH/)
- assert.match(sql,/exists\(select 1 from public\.meals m where m\.id=t\.record_id\)/)
+ assert.match(sql,/exists\(select 1 from public\.meals m where m\.id=v_target\.record_id\)/)
 })
 
 test('deletes only a rule with its exact recorded revision and leaves other data unchanged',async()=>{
@@ -94,4 +100,22 @@ test('rejects an invalid rule revision instead of embedding it in SQL',()=>{
  const input=manifests()
  input[1].data.created.rules[0].expected_updated_at="2026-10-14T08:00:00Z'); drop table public.health_rules; --"
  assert.throws(()=>buildCleanupSql(input),/CLEANUP_RULE_REVISION_INVALID/)
+})
+
+test('PL/pgSQL variables do not shadow cleanup target or rule query aliases',async()=>{
+ const sql=buildCleanupSql(manifests())
+ const declarations=sql.match(/do \$cleanup\$\s*declare ([^\r\n]+)/)?.[1]
+ const ownerGuard=sql.match(/if exists\(select 1 from cleanup_targets t left join public\.fixed_accounts f on f\.user_id=t\.user_id where f\.user_id is null\)\s*then raise exception 'CLEANUP_OWNER_NOT_FIXED_ACCOUNT'; end if;/)?.[0]
+ assert.ok(declarations&&ownerGuard)
+ const db=new PGlite()
+ try{
+  await db.exec(`create temp table cleanup_targets(kind text,id uuid,user_id uuid);
+   create table public.fixed_accounts(user_id uuid primary key);`)
+  const owner=randomUUID()
+  await db.query('insert into public.fixed_accounts values($1)',[owner])
+  await db.query('insert into cleanup_targets values($1,$2,$3)',['rules',randomUUID(),owner])
+  await db.exec(`do $test$ declare ${declarations} begin ${ownerGuard}
+   if exists(select 1 from cleanup_targets r where r.kind='rules') then null; end if;
+   end $test$;`)
+ }finally{await db.close()}
 })

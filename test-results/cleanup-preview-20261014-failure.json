@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-10-14T10:21:46.191Z",
+  "scope": "production-exact-synthetic-cleanup-rollback-preview",
+  "passed": 0,
+  "failed": 1,
+  "committed": false,
+  "error_code": "55000",
+  "error_reason": "PLpgSQL record variable t collided with a SQL table alias",
+  "data_deleted": false,
+  "rollback_sent": true,
+  "subsequent_repair_pending": true
+}

@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-10-14T10:13:55.9226625Z",
+  "scope": "three-public-gifs-real-headless-mobile-chrome-no-account",
+  "passed": 3,
+  "failed": 0,
+  "cases": [
+    {
+      "id": "machine_seated_row",
+      "status": "passed",
+      "http_status": 200,
+      "dimensions_before_complete": true,
+      "final_natural_width": 180,
+      "final_event": "load",
+      "final_complete": true
+    },
+    {
+      "id": "machine_chest_press",
+      "status": "passed",
+      "http_status": 200,
+      "dimensions_before_complete": true,
+      "final_natural_width": 180,
+      "final_event": "load",
+      "final_complete": true
+    },
+    {
+      "id": "machine_seated_leg_curl",
+      "status": "passed",
+      "http_status": 200,
+      "dimensions_before_complete": true,
+      "final_natural_width": 180,
+      "final_event": "load",
+      "final_complete": true
+    }
+  ]
+}

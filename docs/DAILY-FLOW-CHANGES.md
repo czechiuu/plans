@@ -2,7 +2,7 @@
 
 006 负责生成任务绑定服务商、源版本与照片生命周期；007 在该基础上添加完整日常业务和餐后建议。实现复用原 RPC、计划版本、RLS 和现有库。
 
-截至 2026-10-14，006–009 已在原 Supabase 部署、迁移摘要回读一致，三份函数下载源码与后端 `eea81bb` 的 bundle SHA-256 匹配；详见[发布记录](../test-results/daily-flow-release.json)。照片修复网页前端 `78428fa203b2406aa5d7e33af14c5b9932036b80` 已发布，[新版匿名资源](../test-results/deployed-public-results.json) 8/0 且 SHA 匹配。DeepSeek 管理员健康开关已按用户许可开启，原预算未提高；真实双账号合成 API 10 项通过、0 失败，四次正式调用共结算 4 美分。管理员开关不能代替个人同意。
+截至 2026-10-14，006–009 已在原 Supabase 部署、迁移摘要回读一致，三份函数下载源码与后端 `eea81bb` 的 bundle SHA-256 匹配；详见[发布记录](../test-results/daily-flow-release.json)。三个 GIF / 八视频前端 `da20689ebe98e4815fbe0cf5b402f4d401e2fa40` 已发布，[新版匿名资源](../test-results/deployed-public-results.json) 8/0 且线上与 dist 的 SHA 匹配；[实际线上媒体定向核验](../test-results/exercise-gif-iab-results.json) 7/0，最终真实整轮网页6/1原样保留，不再重试。DeepSeek 管理员健康开关已按用户许可开启，原预算未提高；真实双账号合成 API 10 项通过、0 失败，四次正式调用共结算 4 美分。管理员开关不能代替个人同意。
 
 009 输入快照已在生产应用并回读 MD5 一致，能力探针为9，旧两条 exhausted 任务原样保留、未回填历史。其本人导出前端已发布：只有能力探针返回 9 才按本人身份导出 `generation_input_snapshots`，探针缺失或表读取失败会明确停止完整导出；历史无行不回填，也不能声称可追溯。本轮真实生成已验证，私人导出仍待本人验收。
 
@@ -51,12 +51,12 @@
 
 本轮付费脚本对解析、计划、图片估算、餐后调整统一按每次最多 2 美分核对：开始前四个用途的本人余额各须至少可预留 2 美分；每次发送前重新读取状态，要求本轮已结算与预留增量再加 2 美分不超过用户批准的 5 美分。第四次调用先等待本人每分钟三次的限流窗口，再重查授权、资料和预算；不会自动重试已发送的付费请求。四次真实调用最终各结算 1 美分，共 4 美分；服务端仍对并发及全部预算原子核对。
 
-能安全清理的本轮照片/餐食/日程按精确 ID 清理。计划、job、建议、AI 缓存没有客户端精确删除接口，写 `test-results/private/daily-flow-cleanup.json` 供管理员审核，绝不清空健康库；[来源只读核验](../test-results/cleanup-source-verification-results.json)通过 24/0。[08:33 单轮 UI 记录](../test-results/ui-retry-cleanup-results.json)已精确删除规则 1、计划 1、创建回执 2，4 项回读均为真；完整主清理仍待审核执行。餐食删除后创建回执仍在，只有归档文件与数据库精确映射核对过的回执才可纳入清理；首轮 UI 回执来源丢失，必须保留。应在用户暂停编辑时执行真实验收，避免外部并发录入真实资料；本地合成回归无此生产风险。
+能安全清理的本轮照片/餐食/日程按精确 ID 清理。计划、job、建议、AI 缓存没有客户端精确删除接口，曾写 `test-results/private/daily-flow-cleanup.json` 供管理员审核；[来源只读核验](../test-results/cleanup-source-verification-results.json)通过 24/0。[08:33 单轮 UI 记录](../test-results/ui-retry-cleanup-results.json)先精确清理；随后[最终清理报告](../test-results/final-synthetic-cleanup-results.json)记录主清理先回滚预演后提交，独立基线计划经原子守卫提交，两者回读通过：合计精确删除计划6、任务3、建议调整1、AI缓存4、规则1、创建回执4，目标 owner API 记录、照片 Storage 对象及任务输入快照剩0，隔离回归7/0。规则更新时间一致才删除；旧两条任务、计费账本、本人授权和预算设置整行保护核对未变。餐食删除后创建回执仍在，只有归档文件与数据库精确映射核对过的回执才纳入清理；来源丢失的首轮 UI 回执1条保留，不能称所有测试元数据清空。真实验收应在用户暂停编辑时进行，避免外部并发录入真实资料；本地合成回归无此生产风险。
 
 ## 验证证据与限制
 
 - 最终定向 Node + 隔离 PGlite：18 通过、0 失败（含实际 SQL 力量时段成功、偏移/超时段/羽毛球拒绝、周日五份采购冷冻、餐后应用/撤销/历史/隐私/过期/有限重试/预算/撤销/清除/过期估算失效、图片 payload、缓存去重、发送前撤销、rules 固定服务商/重试零网络）。命令：`node --test tests/daily-flow.test.js tests/daily-flow-edge.test.js tests/health-ai-boundary.test.js tests/health-rules.test.js tests/deepseek-probe.test.js`。
 - cron 匿名拒绝与聚合错误脱敏的新版 job/provider 夹具另行 1 通过、0 失败；没有放宽错误码断言。
 - 008 日期活动衔接定向验证 6 通过、0 失败：仅日期活动按该日结束的上海零点上界计算恢复，绝不伪造实际结束时刻；旧无结束时刻训练仍要求核对。AI 最小反馈同步保留本人确认的活动日期。
-- 真实双账号合成 API [10/0](../test-results/daily-flow-cloud-results.json)，四次 DeepSeek 正式调用各结算 1 美分、合计 4 美分；真实授权撤销、个人预算与恢复[3/0](../test-results/cloud-health-policy-results.json)，无新增费用。[新版真实网页报告](../test-results/cloud-health-ui-results.json)为 6/1/0，照片、动作、训练和清理已通过，体重跨账号刷新超时待复验。实际 20:00 和两台物理手机未运行。14:29 前置失败及先前未授权阻塞报告保留为历史，不改写其结果。
+- 真实双账号合成 API [10/0](../test-results/daily-flow-cloud-results.json)，四次 DeepSeek 正式调用各结算 1 美分、合计 4 美分；真实授权撤销、个人预算与恢复[3/0](../test-results/cloud-health-policy-results.json)，无新增费用。[10:12:16 最终真实整轮](../test-results/cloud-health-ui-20261014-1812-results.json) 6/1/0，唯一媒体断言抢在加载完成前；[免登录真实GIF生命周期](../test-results/frontend-gif-lifecycle-results.json)3/0核对最终加载，不改写整轮结果。10:05前置1/1/5、[09:31旧发布版](../test-results/cloud-health-ui-20261014-1731-results.json)5/2/0、[更早](../test-results/cloud-health-ui-20261014-1633-results.json)6/1/0均保留历史。实际 20:00 和两台物理手机未运行。
 - 数据库并发、006/007 部署 wrapper 的证据由 backend_integrity 产物记录；主代理统一执行最终全套、构建与部署检查。

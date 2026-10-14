@@ -1,0 +1,13 @@
+{
+  "generated_at": "2026-10-14T10:32:26.371Z",
+  "scope": "production-exact-synthetic-cleanup-rollback-preview",
+  "passed": 0,
+  "failed": 1,
+  "committed": false,
+  "error_code": "P0001",
+  "error_reason": "CLEANUP_ADJUSTMENT_SOURCE_UNCONFIRMED",
+  "data_deleted": false,
+  "rollback_sent": true,
+  "diagnosis": "Snapshot need not contain raw source marker; exact record-plan-job lineage and hash checks all verified separately",
+  "subsequent_repair_pending": true
+}

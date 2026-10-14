@@ -1,0 +1,21 @@
+{
+  "recorded_at_utc": "2026-10-14T09:54:18Z",
+  "source": "Administrator reported production SQL Editor ROLLBACK dry-run, COMMIT, and read-back; not rerun by this recorder",
+  "scope": "Exact synthetic UI run generated at 2026-10-14T09:31:50.053Z, before same-window retry",
+  "script": "private/cleanup-ui-1731-before-retry.sql",
+  "dry_run_rolled_back": true,
+  "transaction_committed": true,
+  "read_back": {
+    "passed": 4,
+    "failed": 0,
+    "checks": [
+      "ui_plan_removed",
+      "unchanged_rule_removed",
+      "baseline_current",
+      "ui_receipts_removed"
+    ]
+  },
+  "rule_deleted_only_if_expected_updated_at_matched": true,
+  "protected_rows_compared_unchanged_in_transaction": true,
+  "all_synthetic_data_cleanup_complete": false
+}

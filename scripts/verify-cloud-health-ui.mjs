@@ -149,31 +149,45 @@ if(process.argv.includes('--self-check')){
     }
     try{
       await check('UI_CLOUD_PREFLIGHT',async()=>{
+        let stage='SITE_URL',slot=null
+        try{
         const site=new URL(process.env.E2E_BASE_URL)
         assert.equal(site.origin,'https://czechiuu.github.io');assert.equal(site.pathname,'/plans/')
         assert.equal(site.search,'');assert.equal(site.hash,'')
+        stage='BASELINE_MANIFEST'
         const source=new URL('../test-results/private/daily-flow-cleanup.json',import.meta.url)
         baseline=await readPriorManifest(source,today)
         assert.match(baseline.marker,/^SYNTHETIC-DAILY-/);assert.ok(Array.isArray(baseline.created?.plans))
         for(let i=0;i<2;i++){
+          slot=i?'w':'me'
+          stage=`API_AUTH_${slot.toUpperCase()}`
           const auth=await ok(api[i].auth.signInWithPassword({email:setup.emails[i],password:setup.passwords[i]}));users.push(auth.user.id)
+          stage=`API_ACCOUNT_${slot.toUpperCase()}`
           assert.equal(await ok(api[i].rpc('current_account')),i?'w':'me')
+          stage=`API_SCHEMA_${slot.toUpperCase()}`
           assert.equal(await ok(api[i].rpc('health_activity_schema_version')),8)
           for(const table of ['health_profiles','health_rules','schedules','weights','meals','training_sessions','photo_assets']){
+            stage=`API_EMPTY_${table.toUpperCase()}_${slot.toUpperCase()}`
             const result=await api[i].from(table).select('*',{head:true,count:'exact'}).eq('user_id',users[i])
             if(result.error)throw result.error
             assert.equal(result.count,0,`Existing data blocks synthetic UI: ${table}`)
           }
+          stage=`API_PLANS_${slot.toUpperCase()}`
           const plans=await own(i,'daily_plans','id,user_id,target_date,version,is_current,is_locked')
           assert.ok(plans.every(p=>baseline.created.plans.some(x=>x.id===p.id&&x.user_id===p.user_id)))
           allowedPlans.push(...plans)
+          stage=`API_STATUS_${slot.toUpperCase()}`
           const current=await status(i);assert.equal(current.schema_version,7)
           assert.equal(current.plan_provider,'rules','Synthetic inputs require zero-AI scheduled provider')
           beforeUsage.push(current.providers)
         }
+        stage='MANIFEST'
         safe=true;await manifest()
+        stage='BROWSER_LAUNCH'
         browser=await launchBrowser()
         for(let i=0;i<2;i++){
+          slot=i?'w':'me'
+          stage=`BROWSER_CONTEXT_${slot.toUpperCase()}`
           const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,
             timezoneId:'Asia/Shanghai',reducedMotion:'no-preference'})
           const page=await context.newPage();page.setDefaultTimeout(20000);pages.push(page)
@@ -193,7 +207,36 @@ if(process.argv.includes('--self-check')){
               ...gifRequests.get(request.url()),errorText:/^[\w:.-]{1,120}$/.test(request.failure()?.errorText||'')
                 ?request.failure().errorText:'unclassified_failure'})
           })
-          await page.goto(site.href);await login(page,i?'w':'me',setup.passwords[i])
+          stage=`BROWSER_GOTO_${slot.toUpperCase()}`
+          await page.goto(site.href)
+          stage=`LOGIN_FORM_${slot.toUpperCase()}`
+          await page.locator('[data-form="signin"] button:not([disabled])').waitFor()
+          stage=`LOGIN_SLOT_${slot.toUpperCase()}`
+          await page.locator(`[data-form="signin"] [name="slot"][value="${slot}"]`).check()
+          stage=`LOGIN_PASSWORD_${slot.toUpperCase()}`
+          await page.getByLabel('密码',{exact:true}).fill(setup.passwords[i])
+          stage=`LOGIN_CLICK_${slot.toUpperCase()}`
+          await page.getByRole('button',{name:'登录',exact:true}).click()
+          stage=`LOGIN_NAV_${slot.toUpperCase()}`
+          await page.getByRole('navigation',{name:'主导航'}).waitFor()
+        }
+        }catch(error){
+          if(error?.verificationStatus!=='blocked')error.code=`UI_PREFLIGHT_${stage}`
+          const page=pages.at(-1)
+          let ui={available:false}
+          if(page)try{
+            ui=await page.evaluate(()=>({available:true,ready_state:document.readyState,
+              signin_form_present:!!document.querySelector('[data-form="signin"]'),
+              signin_button_enabled:!!document.querySelector('[data-form="signin"] button:not([disabled])'),
+              navigation_present:!!document.querySelector('nav[aria-label="主导航"]'),
+              error_notice_present:!!document.querySelector('.notice.error')}))
+          }catch{/* A closed or navigating page is recorded as unavailable. */}
+          try{
+            await mkdir(new URL('../test-results/private/',import.meta.url),{recursive:true})
+            await writeFile(new URL('../test-results/private/cloud-health-ui-preflight-diagnostic.json',import.meta.url),
+              JSON.stringify({stage,slot,error_kind:error?.name||'Error',ui},null,2)+'\n')
+          }catch{/* Diagnostic output must not hide the original failure. */}
+          throw error
         }
       })
       const [me,partner]=pages
@@ -318,7 +361,8 @@ if(process.argv.includes('--self-check')){
           try{
             await me.waitForFunction(id=>{
               const slot=document.querySelector(`[data-demo-slot="${id}"]`)
-              return slot?.querySelector('img.exercise-gif')?.naturalWidth>0 || slot?.textContent?.includes('动作示范加载失败')
+              const image=slot?.querySelector('img.exercise-gif')
+              return (image?.complete && image.naturalWidth>0) || slot?.textContent?.includes('动作示范加载失败')
             },exercise.id)
           }catch{
             await gifDiagnostic(exercise,'wait_timeout')

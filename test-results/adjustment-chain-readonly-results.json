@@ -1,0 +1,16 @@
+{
+  "recorded_at_utc": "2026-10-14T10:31:12Z",
+  "source": "Administrator production read-only single-JSON query; no health text copied",
+  "scope": "Exact synthetic API adjustment provenance before final cleanup",
+  "source_hash_matches": true,
+  "snapshot_keys_and_base_identity_match": true,
+  "snapshot_base_content_and_version_match": true,
+  "base_and_applied_plans_in_exact_manifest": true,
+  "applied_version_follows_base": true,
+  "base_exact_job_count": 1,
+  "base_valid_job_snapshot_count": 1,
+  "all_exact_job_snapshot_count": 3,
+  "applied_exact_job_count": 0,
+  "raw_daily_marker_present": false,
+  "production_cleanup_committed": false
+}

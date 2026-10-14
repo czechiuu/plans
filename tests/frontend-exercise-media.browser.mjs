@@ -38,15 +38,22 @@ try{
     assert.equal(await row.locator('..').getByRole('link',{name:'原视频备用入口'}).getAttribute('href'),exercises.find(x=>x.id==='machine_seated_row').demo.url)
     fail=false
     await row.getByRole('button',{name:'重试动作示范'}).click()
-    await page.waitForFunction(()=>document.querySelector('[data-demo-slot="machine_seated_row"] img')?.naturalWidth>0)
+    await page.waitForFunction(()=>{
+      const image=document.querySelector('[data-demo-slot="machine_seated_row"] img')
+      return image?.complete && image.naturalWidth>0
+    })
     await row.getByRole('button',{name:'收起动作示范'}).click()
   })
   await check(ids[2],async()=>{
     for(const exercise of exercises.filter(x=>x.demo.mediaType==='external_gif')){
       const current=slot(exercise.id)
       await current.getByRole('button',{name:'查看动作示范'}).click()
-      await page.waitForFunction(id=>document.querySelector(`[data-demo-slot="${id}"] img`)?.naturalWidth>0,exercise.id)
+      await page.waitForFunction(id=>{
+        const image=document.querySelector(`[data-demo-slot="${id}"] img`)
+        return image?.complete && image.naturalWidth>0
+      },exercise.id)
       const image=current.locator('img.exercise-gif')
+      assert.equal(await image.evaluate(node=>node.complete&&node.naturalWidth>0),true)
       assert.equal(await image.getAttribute('src'),exercise.demo.gifUrl)
       assert.deepEqual(await image.evaluate(node=>[getComputedStyle(node).width,getComputedStyle(node).height,getComputedStyle(node).objectFit]),['180px','180px','contain'])
       assert.equal(await current.getByRole('button',{name:'暂停'}).count(),0)

@@ -1,0 +1,36 @@
+{
+  "source_commit": "964aa91374e46959f1b0d33cf7a272e4a42dc1f6",
+  "push_run": "https://github.com/czechiuu/plans/actions/runs/38541801709",
+  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38542034205",
+  "unit": {
+    "passed": 101,
+    "failed": 0,
+    "not_run": 0
+  },
+  "legacy_concurrency": {
+    "passed": 5,
+    "failed": 0,
+    "not_run": 0
+  },
+  "health_concurrency": {
+    "passed": 15,
+    "failed": 0,
+    "not_run": 0
+  },
+  "provider_concurrency": {
+    "passed": 7,
+    "failed": 0,
+    "not_run": 0
+  },
+  "activity_concurrency": {
+    "passed": 3,
+    "failed": 0,
+    "not_run": 0
+  },
+  "input_snapshot_concurrency": {
+    "passed": 5,
+    "failed": 0,
+    "not_run": 0
+  },
+  "source": "Actual GitHub test-build logs 115778105383 and 115778884949; not inferred from status"
+}

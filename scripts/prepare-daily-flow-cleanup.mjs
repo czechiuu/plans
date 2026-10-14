@@ -77,13 +77,13 @@ insert into cleanup_baseline select j.id,to_jsonb(j) from public.generation_jobs
 create temp table cleanup_counts(kind text primary key,deleted integer) on commit drop;
 create temp table cleanup_rule_skips(id uuid primary key,reason text not null) on commit drop;
 do $cleanup$
-declare t record;r jsonb;owner record;table_name text;key_name text;n integer;
+declare v_target record;v_row jsonb;v_owner record;table_name text;key_name text;n integer;
 begin
  if (select count(*) from cleanup_baseline)<>jsonb_array_length('${baselineJson}'::jsonb) then raise exception 'CLEANUP_BASELINE_MISSING'; end if;
  if exists(select 1 from cleanup_targets t left join public.fixed_accounts f on f.user_id=t.user_id where f.user_id is null)
  then raise exception 'CLEANUP_OWNER_NOT_FIXED_ACCOUNT'; end if;
- for owner in select distinct f.space_id,f.user_id from public.fixed_accounts f join cleanup_targets t on t.user_id=f.user_id order by f.space_id,f.user_id loop
-  perform public.lock_health_owner(owner.user_id,owner.space_id);
+ for v_owner in select distinct f.space_id,f.user_id from public.fixed_accounts f join cleanup_targets t on t.user_id=f.user_id order by f.space_id,f.user_id loop
+  perform public.lock_health_owner(v_owner.user_id,v_owner.space_id);
  end loop;
  if to_regclass('storage.objects') is null then raise exception 'CLEANUP_STORAGE_SCHEMA_MISSING'; end if;
  -- Storage must be removed by the Storage API first; this SQL never deletes object metadata.
@@ -92,60 +92,81 @@ begin
    and o.bucket_id='health-photos' and o.name=t.user_id::text||'/'||t.id::text||'.png')
  then raise exception 'CLEANUP_PHOTO_STORAGE_NOT_FINISHED'; end if;
  -- The runners remove these records through their normal owner APIs. Never bypass that cleanup.
- for t in select * from cleanup_targets order by kind,id loop
-  table_name:=case t.kind when 'jobs' then 'generation_jobs' when 'plans' then 'daily_plans'
+ for v_target in select * from cleanup_targets order by kind,id loop
+  table_name:=case v_target.kind when 'jobs' then 'generation_jobs' when 'plans' then 'daily_plans'
    when 'adjustments' then 'meal_adjustments' when 'ai_requests' then 'ai_request_results'
    when 'rules' then 'health_rules' when 'create_receipts' then 'record_create_requests'
-   when 'training' then 'training_sessions' when 'photos' then 'photo_assets' else t.kind end;
-  key_name:=case when t.kind='create_receipts' then 'client_request_id' else 'id' end;
-  if t.kind='create_receipts' then
-   select to_jsonb(x) into r from public.record_create_requests x where x.client_request_id=t.id and x.user_id=t.user_id for update;
+   when 'training' then 'training_sessions' when 'photos' then 'photo_assets' else v_target.kind end;
+  key_name:=case when v_target.kind='create_receipts' then 'client_request_id' else 'id' end;
+  if v_target.kind='create_receipts' then
+   select to_jsonb(x) into v_row from public.record_create_requests x where x.client_request_id=v_target.id and x.user_id=v_target.user_id for update;
   else
-   execute format('select to_jsonb(r) from public.%I r where %I=$1 for update',table_name,key_name) into r using t.id;
+   execute format('select to_jsonb(r) from public.%I r where %I=$1 for update',table_name,key_name) into v_row using v_target.id;
   end if;
-  if r is null then
-   if t.kind='rules' then insert into cleanup_rule_skips values(t.id,'missing_row');continue;end if;
-   if t.kind in ('schedules','meals','training','weights','photos') then continue; end if;
-   raise exception 'CLEANUP_EXPECTED_ROW_MISSING: %',t.kind;
+  if v_row is null then
+   if v_target.kind='rules' then insert into cleanup_rule_skips values(v_target.id,'missing_row');continue;end if;
+   if v_target.kind in ('schedules','meals','training','weights','photos') then continue; end if;
+   raise exception 'CLEANUP_EXPECTED_ROW_MISSING: %',v_target.kind;
   end if;
-  if r->>'user_id' is distinct from t.user_id::text then raise exception 'CLEANUP_OWNER_MISMATCH'; end if;
-  if t.kind='rules' and t.expected_updated_at is null then
-   insert into cleanup_rule_skips values(t.id,'missing_revision');continue;
+  if v_row->>'user_id' is distinct from v_target.user_id::text then raise exception 'CLEANUP_OWNER_MISMATCH'; end if;
+  if v_target.kind='rules' and v_target.expected_updated_at is null then
+   insert into cleanup_rule_skips values(v_target.id,'missing_revision');continue;
   end if;
-  if t.kind='rules' and (r->>'updated_at')::timestamptz is distinct from t.expected_updated_at then
-   insert into cleanup_rule_skips values(t.id,'changed_revision');continue;
+  if v_target.kind='rules' and (v_row->>'updated_at')::timestamptz is distinct from v_target.expected_updated_at then
+   insert into cleanup_rule_skips values(v_target.id,'changed_revision');continue;
   end if;
-  if (r->>'created_at')::timestamptz < timestamptz '2026-10-13 16:00:00+00'
-    or (r->>'created_at')::timestamptz >= timestamptz '2026-10-14 16:00:00+00'
-    or r->>'created_at' is null
+  if (v_row->>'created_at')::timestamptz < timestamptz '2026-10-13 16:00:00+00'
+    or (v_row->>'created_at')::timestamptz >= timestamptz '2026-10-14 16:00:00+00'
+    or v_row->>'created_at' is null
   then raise exception 'CLEANUP_CREATION_OUTSIDE_RUN'; end if;
-  if t.kind in ('schedules','meals','training','weights','photos') then raise exception 'CLEANUP_OWNER_API_NOT_FINISHED'; end if;
-  if t.kind='jobs' then
-   if r->>'status' in ('queued','running','failed') then raise exception 'CLEANUP_GENERATION_STILL_ACTIVE'; end if;
-   if exists(select 1 from cleanup_baseline b where b.id=t.id) then raise exception 'CLEANUP_BASELINE_OVERLAP'; end if;
-   if not exists(select 1 from public.generation_input_snapshots s where s.job_id=t.id and s.user_id=t.user_id
-     and position(t.marker in s.source_snapshot::text)>0) then raise exception 'CLEANUP_JOB_SOURCE_MARKER_MISMATCH'; end if;
-  elsif t.kind='plans' and t.scope='daily' and not t.review_only and not exists(
+  if v_target.kind in ('schedules','meals','training','weights','photos') then raise exception 'CLEANUP_OWNER_API_NOT_FINISHED'; end if;
+  if v_target.kind='jobs' then
+   if v_row->>'status' in ('queued','running','failed') then raise exception 'CLEANUP_GENERATION_STILL_ACTIVE'; end if;
+   if exists(select 1 from cleanup_baseline b where b.id=v_target.id) then raise exception 'CLEANUP_BASELINE_OVERLAP'; end if;
+   if not exists(select 1 from public.generation_input_snapshots s where s.job_id=v_target.id and s.user_id=v_target.user_id
+     and position(v_target.marker in s.source_snapshot::text)>0) then raise exception 'CLEANUP_JOB_SOURCE_MARKER_MISMATCH'; end if;
+  elsif v_target.kind='plans' and v_target.scope='daily' and not v_target.review_only and not exists(
     select 1 from public.generation_jobs j join cleanup_targets x on x.kind='jobs' and x.id=j.id and x.user_id=j.user_id
-     where j.plan_id=t.id and j.user_id=t.user_id)
+     where j.plan_id=v_target.id and j.user_id=v_target.user_id)
     and not exists(select 1 from public.meal_adjustments a join cleanup_targets x
       on x.kind='adjustments' and x.id=a.id and x.user_id=a.user_id
-      where a.applied_plan_id=t.id and a.user_id=t.user_id)
+      where a.applied_plan_id=v_target.id and a.user_id=v_target.user_id)
    then raise exception 'CLEANUP_PLAN_PROVENANCE_UNCONFIRMED';
-  elsif t.kind='adjustments' and (position(t.marker in (r->'source_snapshot')::text)=0
-    or not exists(select 1 from cleanup_targets p where p.kind='plans' and p.id=(r->>'base_plan_id')::uuid and p.user_id=t.user_id))
-   then raise exception 'CLEANUP_ADJUSTMENT_SOURCE_UNCONFIRMED';
-  elsif t.kind='rules' and position(t.marker in (r->'rules')::text)=0 then raise exception 'CLEANUP_RULE_MARKER_MISMATCH';
-  elsif t.kind='plans' and t.scope='ui' and position(t.marker in (r->'content')::text)=0 then raise exception 'CLEANUP_UI_PLAN_MARKER_MISMATCH';
-  elsif t.kind='ai_requests' and r->>'status'='running' then raise exception 'CLEANUP_AI_STILL_ACTIVE';
-  elsif t.kind='ai_requests' and r->>'provider' is distinct from 'deepseek' then raise exception 'CLEANUP_AI_PROVIDER_MISMATCH';
-  elsif t.kind='adjustments' and r->>'status'='running' then raise exception 'CLEANUP_ADJUSTMENT_STILL_ACTIVE';
-  elsif t.kind='create_receipts' and t.scope='extra' and
-    (r->>'kind' is distinct from 'meal' or (r->>'record_id')::uuid is distinct from t.record_id or
-     exists(select 1 from public.meals m where m.id=t.record_id))
+  elsif v_target.kind='adjustments' and (
+    v_row->>'status' is distinct from 'reverted'
+    or md5((v_row->'source_snapshot')::text) is distinct from v_row->>'source_input_hash'
+    or not coalesce((v_row->'source_snapshot') ?& array['record_date','slot','plan','confirmed_meals','schedule','training_feedback','rules'],false)
+    or not exists(select 1 from public.daily_plans b
+      join cleanup_targets bt on bt.kind='plans' and bt.scope='daily' and not bt.review_only and bt.id=b.id and bt.user_id=b.user_id
+      join public.generation_jobs j on j.plan_id=b.id and j.user_id=b.user_id and j.space_id=b.space_id and j.target_date=b.target_date and j.status='succeeded'
+      join cleanup_targets jt on jt.kind='jobs' and jt.id=j.id and jt.user_id=j.user_id
+      join public.generation_input_snapshots s on s.job_id=j.id and s.input_version=j.input_version
+        and s.user_id=b.user_id and s.space_id=b.space_id and s.target_date=b.target_date and s.input_version=md5(s.source_snapshot::text)
+      join public.daily_plans p on p.id=(v_row->>'applied_plan_id')::uuid
+      join cleanup_targets pt on pt.kind='plans' and pt.scope='daily' and not pt.review_only and pt.id=p.id and pt.user_id=p.user_id
+      where b.id=(v_row->>'base_plan_id')::uuid and b.user_id=v_target.user_id
+        and b.space_id=(v_row->>'space_id')::uuid and b.target_date=(v_row->>'record_date')::date
+        and p.user_id=b.user_id and p.space_id=b.space_id and p.target_date=b.target_date
+        and p.source='manual' and p.status='published' and p.version=b.version+1
+        and v_row->'source_snapshot'->'plan'->>'id'=b.id::text
+        and v_row->'source_snapshot'->'plan'->>'user_id'=b.user_id::text
+        and v_row->'source_snapshot'->'plan'->>'space_id'=b.space_id::text
+        and v_row->'source_snapshot'->'plan'->>'target_date'=b.target_date::text
+        and v_row->'source_snapshot'->'plan'->'version'=to_jsonb(b.version)
+        and v_row->'source_snapshot'->'plan'->'content'=b.content
+        and v_row->'source_snapshot'->'plan'->>'is_current'='true')
+   ) then raise exception 'CLEANUP_ADJUSTMENT_SOURCE_UNCONFIRMED';
+  elsif v_target.kind='rules' and position(v_target.marker in (v_row->'rules')::text)=0 then raise exception 'CLEANUP_RULE_MARKER_MISMATCH';
+  elsif v_target.kind='plans' and v_target.scope='ui' and position(v_target.marker in (v_row->'content')::text)=0 then raise exception 'CLEANUP_UI_PLAN_MARKER_MISMATCH';
+  elsif v_target.kind='ai_requests' and v_row->>'status'='running' then raise exception 'CLEANUP_AI_STILL_ACTIVE';
+  elsif v_target.kind='ai_requests' and v_row->>'provider' is distinct from 'deepseek' then raise exception 'CLEANUP_AI_PROVIDER_MISMATCH';
+  elsif v_target.kind='adjustments' and v_row->>'status'='running' then raise exception 'CLEANUP_ADJUSTMENT_STILL_ACTIVE';
+  elsif v_target.kind='create_receipts' and v_target.scope='extra' and
+    (v_row->>'kind' is distinct from 'meal' or (v_row->>'record_id')::uuid is distinct from v_target.record_id or
+     exists(select 1 from public.meals m where m.id=v_target.record_id))
    then raise exception 'CLEANUP_EXTRA_RECEIPT_MAPPING_MISMATCH';
-  elsif t.kind='create_receipts' and t.scope<>'extra' and not exists(select 1 from cleanup_targets x where x.scope=t.scope and x.marker=t.marker
-    and x.user_id=t.user_id and x.id=(r->>'record_id')::uuid and x.kind=case r->>'kind' when 'meal' then 'meals' when 'training' then 'training' end)
+  elsif v_target.kind='create_receipts' and v_target.scope<>'extra' and not exists(select 1 from cleanup_targets x where x.scope=v_target.scope and x.marker=v_target.marker
+    and x.user_id=v_target.user_id and x.id=(v_row->>'record_id')::uuid and x.kind=case v_row->>'kind' when 'meal' then 'meals' when 'training' then 'training' end)
    then raise exception 'CLEANUP_RECEIPT_RECORD_NOT_LISTED'; end if;
  end loop;
  if exists(select 1 from pg_constraint c where c.contype='f' and c.confrelid in

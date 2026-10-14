@@ -27,16 +27,16 @@
   },
   "personal_consents_at_enable": 0,
   "fixed_accounts": 2,
-  "frontend_source_commit": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
+  "frontend_source_commit": "da20689ebe98e4815fbe0cf5b402f4d401e2fa40",
   "backend_source_commit": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
   "backend_source_commit_pending": false,
   "pages_release": "success",
-  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38522121912",
-  "pages_finished_at": "2026-10-14T06:26:26Z",
+  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38545984882",
+  "pages_finished_at": "2026-10-14T09:57:28Z",
   "pages_assets_match_local_build": true,
   "pages_asset_sha256": {
-    "js": "ef98bfcfc5d50f19adfc3e4d51ab1573f5f8e515c90b76a3abccf2197626caa5",
-    "css": "745446d964c886aa02edddb15188a026cc5bdff589ec4082809e794e5896b854"
+    "js": "1072a3623b642b364ffa92a4dd7e394212fac027bb222f53472af2dd5a55b0ce",
+    "css": "d83b1e0ef21a827eec5686643fd8678175656df58c391f297d52bf6bba781eed"
   },
   "anonymous_public_checks": {
     "passed": 8,
@@ -48,7 +48,7 @@
     "failed": 0,
     "notrun": 0
   },
-  "real_business_acceptance": "api_passed_ui_retest_pending",
+  "real_business_acceptance": "api_policy_passed_ui_six_passed_media_wait_race_independently_reproduced",
   "notes": [
     "No credentials or health contents recorded",
     "User authorized only synthetic calls up to 5 additional cents",
@@ -75,13 +75,64 @@
     "charged_cents": 4
   },
   "real_business_ui": {
-    "generated_at": "2026-10-14T07:26:53.022Z",
-    "passed": 2,
+    "generated_at": "2026-10-14T10:12:16.881Z",
+    "passed": 6,
     "failed": 1,
-    "blocked": 4,
+    "blocked": 0,
     "notrun": 0,
-    "cause": "duplicate_photo_view_locator_in_test",
-    "retest_pending": true
+    "source_commit": "da20689ebe98e4815fbe0cf5b402f4d401e2fa40",
+    "known_test_race": "naturalWidth appears before complete for progressive GIF loading; separately verified real GIF loads 3/0"
   },
-  "new_frontend_fix_pending_publication": true
+  "new_frontend_fix_pending_publication": false,
+  "real_business_policy": {
+    "generated_at": "2026-10-14T08:10:57.521Z",
+    "scope": "two-fixed-accounts-synthetic-negative-policy",
+    "passed": 3,
+    "failed": 0,
+    "blocked": 0,
+    "notrun": 0,
+    "cases": [
+      {
+        "id": "POLICY_CONSENT_REVOCATION",
+        "status": "passed"
+      },
+      {
+        "id": "POLICY_PERSONAL_BUDGET",
+        "status": "passed"
+      },
+      {
+        "id": "POLICY_RESTORE_ISOLATION",
+        "status": "passed"
+      }
+    ]
+  },
+  "exercise_media": {
+    "gif_count": 3,
+    "original_video_entry_count": 8,
+    "synthetic_browser": {
+      "passed": 6,
+      "failed": 0
+    },
+    "actual_iab_mobile": {
+      "passed": 7,
+      "failed": 0,
+      "viewport": [
+        390,
+        844
+      ],
+      "report": "test-results/exercise-gif-iab-results.json"
+    },
+    "headless_full_ui_retest_pending": false,
+    "real_headless_lifecycle": {
+      "passed": 3,
+      "failed": 0,
+      "verified_all_complete": true
+    }
+  },
+  "synthetic_cleanup": {
+    "known_targets_cleaned": true,
+    "all_test_metadata_removed": false,
+    "unattributed_receipts_preserved": 1,
+    "report": "test-results/final-synthetic-cleanup-results.json"
+  }
 }

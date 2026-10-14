@@ -1,0 +1,151 @@
+{
+  "checked_on": "2026-10-14",
+  "project_ref": "wnzbtitlvteptkvwhavw",
+  "verification": "Supabase SQL Editor read-back and downloaded deployed function ZIP SHA256 comparison",
+  "migration_md5": {
+    "202610140006": "387cc96e9854379726dec49837109f69",
+    "202610140007": "a5d069d7931d57a8c9c103d68de54b85",
+    "202610140008": "51fba87f159fb01a44d55920fc7d0891",
+    "202610140009": "dc32be5c3b0d7dd7539ee636001d7e74"
+  },
+  "capabilities": {
+    "daily_flow": 7,
+    "activities": 8,
+    "input_snapshots": 9,
+    "storage_upload_guard_count": 1
+  },
+  "function_sha256": {
+    "health-ai": "f74f3d888ba1b18429ff54503112b70fdd0607b2b0987952b555903ee77324dc",
+    "health-photo": "5c3bbd09fd54ad322d326963d14fb47d424b64b503dbaab2c439326c7adce984",
+    "health-cron": "69097fecab2020dc5da14b1e993315515505d5f2688e2180afe59f6a328105c0"
+  },
+  "all_function_downloads_match_local_bundles": true,
+  "deepseek_health_enabled": true,
+  "provider_limits_cents": {
+    "openai": 200,
+    "deepseek": 10
+  },
+  "personal_consents_at_enable": 0,
+  "fixed_accounts": 2,
+  "frontend_source_commit": "964aa91374e46959f1b0d33cf7a272e4a42dc1f6",
+  "backend_source_commit": "eea81bb3e82d3b1083285620c1400cbde00a4d43",
+  "backend_source_commit_pending": false,
+  "pages_release": "success",
+  "pages_run": "https://github.com/czechiuu/plans/actions/runs/38542034205",
+  "pages_finished_at": "2026-10-14T09:24:55Z",
+  "pages_assets_match_local_build": true,
+  "pages_asset_sha256": {
+    "js": "841d5166180870e17a0bfe2819295ed924c1cfabf0f1afe10facf381890445f4",
+    "css": "51a257c6c2a4b9703c45d945b9777ecf7488efaf9688513fa9a5b8b8f2cd963a"
+  },
+  "anonymous_public_checks": {
+    "passed": 8,
+    "failed": 0,
+    "notrun": 0
+  },
+  "anonymous_edge_checks": {
+    "passed": 14,
+    "failed": 0,
+    "notrun": 0
+  },
+  "real_business_acceptance": "api_and_policy_passed_new_gif_and_weight_ui_retest_pending",
+  "notes": [
+    "No credentials or health contents recorded",
+    "User authorized only synthetic calls up to 5 additional cents",
+    "No budget increase or personal consent created",
+    "Historical failures retained"
+  ],
+  "anonymous_edge_checked_at": "2026-10-14T06:27:33.119Z",
+  "real_business_preflight": {
+    "at": "2026-10-14T06:29:07.242Z",
+    "passed": 0,
+    "failed": 1,
+    "blocked": 9,
+    "paid_calls": 0,
+    "synthetic_writes": 0
+  },
+  "real_business_api": {
+    "generated_at": "2026-10-14T07:02:05.864Z",
+    "passed": 10,
+    "failed": 0,
+    "blocked": 0,
+    "notrun": 0,
+    "synthetic_only": true,
+    "deepseek_formal_calls": 4,
+    "charged_cents": 4
+  },
+  "real_business_ui": {
+    "generated_at": "2026-10-14T08:33:33.008Z",
+    "scope": "real-deployed-ui-two-isolated-browser-contexts-not-physical-devices",
+    "passed": 6,
+    "failed": 1,
+    "blocked": 0,
+    "notrun": 0,
+    "cases": [
+      {
+        "id": "UI_CLOUD_PREFLIGHT",
+        "status": "passed"
+      },
+      {
+        "id": "UI_CLOUD_PHOTO_CONFIRM",
+        "status": "passed"
+      },
+      {
+        "id": "UI_CLOUD_WEIGHT_REFRESH",
+        "status": "failed"
+      },
+      {
+        "id": "UI_CLOUD_MEDIA",
+        "status": "passed"
+      },
+      {
+        "id": "UI_CLOUD_TRAINING",
+        "status": "passed"
+      },
+      {
+        "id": "UI_CLOUD_FREE",
+        "status": "passed"
+      },
+      {
+        "id": "UI_CLOUD_CLEANUP",
+        "status": "passed"
+      }
+    ],
+    "cause": "weight_account_switch_timeout_unlocalized",
+    "retest_pending": true,
+    "source_commit": "78428fa203b2406aa5d7e33af14c5b9932036b80"
+  },
+  "new_frontend_fix_pending_publication": false,
+  "real_business_policy": {
+    "generated_at": "2026-10-14T08:10:57.521Z",
+    "scope": "two-fixed-accounts-synthetic-negative-policy",
+    "passed": 3,
+    "failed": 0,
+    "blocked": 0,
+    "notrun": 0,
+    "cases": [
+      {
+        "id": "POLICY_CONSENT_REVOCATION",
+        "status": "passed"
+      },
+      {
+        "id": "POLICY_PERSONAL_BUDGET",
+        "status": "passed"
+      },
+      {
+        "id": "POLICY_RESTORE_ISOLATION",
+        "status": "passed"
+      }
+    ]
+  },
+  "media": {
+    "gif_count": 3,
+    "source_video_entry_count": 8,
+    "synthetic_ui": {
+      "passed": 5,
+      "failed": 0
+    },
+    "real_website": "pending",
+    "third_party_gif_license": "personal noncommercial with AscendAPI / ExerciseDB attribution"
+  }
+}

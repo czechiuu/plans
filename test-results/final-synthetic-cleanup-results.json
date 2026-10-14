@@ -1,0 +1,35 @@
+{
+  "generated_at": "2026-10-14T10:38:56.094Z",
+  "scope": "production-exact-known-synthetic-record-cleanup",
+  "source": "Production SQL Editor guarded ROLLBACK preview, COMMIT and two read-backs; no health contents exported",
+  "known_targets_cleaned": true,
+  "all_test_metadata_removed": false,
+  "main_transaction_committed": true,
+  "restored_test_plan_transaction_committed": true,
+  "deleted": {
+    "daily_plans": 6,
+    "generation_jobs": 3,
+    "meal_adjustments": 1,
+    "ai_request_results": 4,
+    "health_rules": 1,
+    "record_create_requests": 4
+  },
+  "target_owner_api_records_remaining": 0,
+  "target_photo_storage_objects_remaining": 0,
+  "target_job_input_snapshots_remaining": 0,
+  "rule_deleted_only_when_updated_at_matched": true,
+  "protected_rows_compared_unchanged": true,
+  "old_baseline_jobs_preserved": true,
+  "usage_ledger_preserved": true,
+  "personal_consents_preserved": true,
+  "budgets_and_settings_preserved": true,
+  "unattributed_receipts_preserved": 1,
+  "production_preview_failures_retained": [
+    "cleanup-preview-20261014-failure.json",
+    "cleanup-preview-20261014-source-failure.json"
+  ],
+  "isolated_cleanup_regression": {
+    "passed": 7,
+    "failed": 0
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-10-14T09:17:04.486Z",
+  "generated_at": "2026-10-14T10:14:44.342Z",
   "scope": "synthetic-mobile-gif-and-video-controls",
-  "passed": 5,
+  "passed": 6,
   "failed": 0,
   "blocked": 0,
   "notrun": 0,
@@ -20,6 +20,10 @@
     },
     {
       "id": "MEDIA_VIDEOS",
+      "status": "passed"
+    },
+    {
+      "id": "MEDIA_CATALOG_WITH_PLAN",
       "status": "passed"
     },
     {

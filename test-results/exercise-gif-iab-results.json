@@ -1,0 +1,87 @@
+{
+  "generated_at": "2026-10-14T10:03:04.504Z",
+  "scope": "real-deployed-site-iab-mobile-viewport-not-physical-phone",
+  "source_commit": "da20689ebe98e4815fbe0cf5b402f4d401e2fa40",
+  "site": "https://czechiuu.github.io/plans/",
+  "passed": 7,
+  "failed": 0,
+  "blocked": 0,
+  "notrun": 0,
+  "cases": [
+    {
+      "id": "GIF_ROW_ACTUAL_LOAD",
+      "status": "passed"
+    },
+    {
+      "id": "GIF_CHEST_ACTUAL_LOAD",
+      "status": "passed"
+    },
+    {
+      "id": "GIF_LEG_CURL_ACTUAL_LOAD",
+      "status": "passed"
+    },
+    {
+      "id": "ORIGINAL_EIGHT_LINKS_PRESERVED",
+      "status": "passed"
+    },
+    {
+      "id": "GIF_COLLAPSE_REMOVES_IMAGES",
+      "status": "passed"
+    },
+    {
+      "id": "MOBILE_LAYOUT_NO_OVERFLOW",
+      "status": "passed"
+    },
+    {
+      "id": "EXISTING_PLAN_OTHER_EXERCISES_EXPAND",
+      "status": "passed"
+    }
+  ],
+  "gif_observations": [
+    {
+      "id": "machine_seated_row",
+      "url": "https://static.exercisedb.dev/media/7I6LNUG.gif",
+      "complete": true,
+      "natural_width": 180,
+      "natural_height": 180,
+      "rendered_width": 180,
+      "rendered_height": 180
+    },
+    {
+      "id": "machine_chest_press",
+      "url": "https://static.exercisedb.dev/media/DOoWcnA.gif",
+      "complete": true,
+      "natural_width": 180,
+      "natural_height": 180,
+      "rendered_width": 180,
+      "rendered_height": 180
+    },
+    {
+      "id": "machine_seated_leg_curl",
+      "url": "https://static.exercisedb.dev/media/Zg3XY7P.gif",
+      "complete": true,
+      "natural_width": 180,
+      "natural_height": 180,
+      "rendered_width": 180,
+      "rendered_height": 180
+    }
+  ],
+  "collapsed_gif_image_count": 0,
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "document_width": 375,
+  "third_party_assets_downloaded_or_rehosted": false,
+  "paid_ai_calls": 0,
+  "limitations": [
+    "Eight original video links checked against original URLs; playback on personal networks not tested",
+    "Viewport emulation, not a physical phone",
+    "Failure and retry rendering separately checked with synthetic browser requests"
+  ],
+  "existing_plan_catalog": {
+    "unique_ids": 11,
+    "gif_buttons": 3,
+    "original_video_links": 8
+  }
+}
