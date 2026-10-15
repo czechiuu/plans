@@ -4,6 +4,7 @@ const signature = [137, 80, 78, 71, 13, 10, 26, 10]
 const maxBytes = 4 * 1024 * 1024
 // 960² RGBA8 is 3,686,400 bytes, leaving over 0.5 MB for PNG encoding; actual bytes are still checked.
 const maxDimension = 960
+const arrayBufferByteLength = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength').get
 const processingCodes = new Set(['PHOTO_READ_FAILED', 'PHOTO_FILE_SIZE_INVALID', 'PHOTO_TOO_LARGE',
   'PHOTO_FILE_DATA_INVALID', 'PHOTO_FILE_SIZE_MISMATCH', 'INVALID_PNG', 'PHOTO_DIMENSIONS_INVALID',
   'PHOTO_CANVAS_UNAVAILABLE', 'PHOTO_SANITIZE_FAILED'])
@@ -46,8 +47,9 @@ async function assertPngFile(wx, path) {
     const fs = wx.getFileSystemManager()
     const file = await wxCall(fs.readFile.bind(fs), { filePath: path }, 'PHOTO_READ_FAILED')
     const data = file?.data
-    if (!(data instanceof ArrayBuffer)) throw Object.assign(fail('PHOTO_FILE_DATA_INVALID'), {
-      photoDataType: data === null ? 'null' : ArrayBuffer.isView(data) ? 'TypedArray' : typeof data })
+    try { arrayBufferByteLength.call(data) }
+    catch { throw Object.assign(fail('PHOTO_FILE_DATA_INVALID'), {
+      photoDataType: data === null ? 'null' : ArrayBuffer.isView(data) ? 'TypedArray' : typeof data }) }
     const bytes = new Uint8Array(data)
     if (bytes.length !== size) throw Object.assign(fail('PHOTO_FILE_SIZE_MISMATCH'), { photoReadBytes: bytes.length })
     if (signature.some((byte, index) => bytes[index] !== byte)) throw fail('INVALID_PNG')

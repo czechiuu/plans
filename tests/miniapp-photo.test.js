@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
+import { runInNewContext } from 'node:vm'
 
 const require = createRequire(import.meta.url)
 const { choosePhoto, sanitizePhoto, assertPngFile } = require('../miniprogram/lib/photo.js')
@@ -259,6 +260,21 @@ test('PNG validation distinguishes actual oversize, invalid metadata, mismatched
   })
   wx.getFileSystemManager = () => { throw Object.assign(new Error('secret path /private/photo.png'), { code: 'NATIVE_PRIVATE_FAILURE' }) }
   await assert.rejects(assertPngFile(wx, '/private.png'), error => error.code === 'PHOTO_READ_FAILED' && !errorText(error).includes('secret'))
+})
+
+test('PNG validation accepts a genuine cross-realm ArrayBuffer and rejects disguised objects and views', async () => {
+  let data = runInNewContext('Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0]).buffer')
+  assert.equal(data instanceof ArrayBuffer, false)
+  const wx = { getFileInfo: callback({ size: png.length }),
+    getFileSystemManager: () => ({ readFile(options) { options.success({ data }) } }) }
+  assert.deepEqual(await assertPngFile(wx, '/private.png'), { bytes: png.length })
+  for (data of [png, 'private-photo-data', { byteLength: png.length, [Symbol.toStringTag]: 'ArrayBuffer' }, Object.create(ArrayBuffer.prototype)]) {
+    await assert.rejects(assertPngFile(wx, '/private.png'), error => {
+      assert.equal(error.code, 'PHOTO_FILE_DATA_INVALID')
+      assert.doesNotMatch(errorText(error), /private-photo-data|private\.png/)
+      return true
+    })
+  }
 })
 
 test('PNG processing failures show only safe output dimensions and bytes and never upload', async () => {
