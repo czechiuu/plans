@@ -114,8 +114,12 @@ Page({
     if (result.ok) { pending.clear('meal'); this.setData({ id: result.value.id, pendingCreate: false, dirty: false }); if (this._photoPath) await this.uploadPending(result.value.id); await refresh(this) }
   },
   async choose() {
-    try { const path = await choosePhoto(wx, this); this._photoPath = await sanitizePhoto(wx, this, path); this.setData({ photoPending: true, notice: '照片已在本机净化；保存草稿或点击上传后才会发送', error: '' }) }
+    if (this._choosingPhoto || this._saving || this.data.busy) return
+    this._choosingPhoto = true
+    this.setData({ error: '', notice: '' })
+    try { const path = await choosePhoto(wx); this._photoPath = await sanitizePhoto(wx, this, path); this.setData({ photoPending: true, notice: '照片已在本机净化；保存草稿或点击上传后才会发送', error: '' }) }
     catch (error) { this.setData(error.code === 'CANCELLED' ? { error: '', notice: '已取消选择照片' } : { error: errorText(error) }) }
+    finally { this._choosingPhoto = false }
   },
   async uploadPending(mealId) {
     const path = this._photoPath

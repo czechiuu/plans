@@ -12,23 +12,45 @@ const space = '33333333-3333-4333-8333-333333333333'
 const png = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0])
 const callback = (value, method = 'success') => options => queueMicrotask(() => options[method](value))
 
-test('privacy gate precedes image choice and cancellation is explicit', async () => {
-  const events = []
-  const wx = {
-    requirePrivacyAuthorize(options) { events.push('privacy'); options.success({}) },
-    chooseMedia(options) { events.push('choose'); options.fail({ errMsg: 'chooseMedia:fail cancel' }) }
+const sourceChoice = (tapIndex = 0) => callback({ tapIndex })
+
+test('source menu precedes privacy and invokes only the selected native source', async () => {
+  for (const [tapIndex, expected] of [[0, 'camera'], [1, 'album']]) {
+    const events = []
+    const wx = {
+      showActionSheet(options) { events.push('source'); assert.deepEqual(options.itemList, ['现在拍照', '从手机相册选择']); options.success({ tapIndex }) },
+      requirePrivacyAuthorize(options) { events.push('privacy'); options.success({}) },
+      chooseMedia(options) {
+        events.push('choose'); assert.deepEqual(options.sourceType, [expected]); assert.deepEqual(options.mediaType, ['image']); assert.equal(options.count, 1)
+        options.success({ tempFiles: [{ tempFilePath: '/synthetic.jpg' }] })
+      }
+    }
+    assert.equal(await choosePhoto(wx), '/synthetic.jpg')
+    assert.deepEqual(events, ['source', 'privacy', 'choose'])
   }
-  await assert.rejects(choosePhoto(wx, {}), { code: 'CANCELLED' })
-  assert.deepEqual(events, ['privacy', 'choose'])
-  wx.chooseMedia = options => options.success({ tempFiles: [{ tempFilePath: '/synthetic.jpg' }] })
-  assert.equal(await choosePhoto(wx, {}), '/synthetic.jpg')
+})
+
+test('source menu cancellation or invalid response never opens privacy or image selection', async () => {
+  let opened = 0
+  const wx = { showActionSheet: callback({ errMsg: 'showActionSheet:fail cancel' }, 'fail'),
+    requirePrivacyAuthorize: () => { opened++ }, chooseMedia: () => { opened++ } }
+  await assert.rejects(choosePhoto(wx), { code: 'CANCELLED' })
+  wx.showActionSheet = callback({ tapIndex: 2 })
+  await assert.rejects(choosePhoto(wx), { code: 'PHOTO_SOURCE_FAILED' })
+  assert.equal(opened, 0)
+})
+
+test('privacy and native image cancellation remain explicit after source selection', async () => {
+  const wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({}), chooseMedia: callback({ errMsg: 'chooseMedia:fail cancel' }, 'fail') }
+  await assert.rejects(choosePhoto(wx), { code: 'CANCELLED' })
   wx.requirePrivacyAuthorize = callback({ errMsg: 'requirePrivacyAuthorize:fail cancel' }, 'fail')
-  await assert.rejects(choosePhoto(wx, {}), { code: 'CANCELLED' })
+  await assert.rejects(choosePhoto(wx), { code: 'CANCELLED' })
 })
 
 test('privacy failure is local, stops image choice and only displays a safe stage code', async () => {
   let chosen = 0
   const wx = {
+    showActionSheet: sourceChoice(),
     requirePrivacyAuthorize: callback({ errMsg: 'requirePrivacyAuthorize:fail synthetic-private-path https://private.invalid?token=synthetic' }, 'fail'),
     chooseMedia: () => { chosen++ }
   }
@@ -40,15 +62,44 @@ test('privacy failure is local, stops image choice and only displays a safe stag
     return true
   })
   assert.equal(chosen, 0)
+  wx.requirePrivacyAuthorize = callback({ errMsg: 'requirePrivacyAuthorize:fail auth deny' }, 'fail')
+  await assert.rejects(choosePhoto(wx), error => error.code === 'PHOTO_PRIVACY_FAILED' && error.photoStage === 'privacy')
+  assert.equal(chosen, 0)
 })
 
-test('camera permission denial and other selection failures have distinct Chinese explanations', async () => {
+test('native failures keep a safe stage, exact category and numeric code without copying private diagnostics', async () => {
   for (const [reason, code, text] of [
-    ['chooseMedia:fail auth deny', 'PHOTO_PERMISSION_DENIED', /相机或相册权限被拒绝/],
-    ['chooseMedia:fail unexpected', 'PHOTO_CHOOSE_FAILED', /未能选择照片/]
+    ['chooseMedia:fail auth deny', 'PHOTO_PERMISSION_DENIED', /权限被拒绝/],
+    ['chooseMedia:fail api scope is not declared in the privacy agreement', 'PHOTO_CHOOSE_FAILED', /隐私指引未声明此接口/],
+    ['chooseMedia:fail not supported', 'PHOTO_CHOOSE_FAILED', /当前微信环境不支持此接口/],
+    ['chooseMedia:fail unexpected', 'PHOTO_CHOOSE_FAILED', /原因尚未识别/]
   ]) {
-    const wx = { requirePrivacyAuthorize: callback({}), chooseMedia: callback({ errMsg: reason }, 'fail') }
-    await assert.rejects(choosePhoto(wx, {}), error => error.code === code && text.test(errorText(error)))
+    const wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({}),
+      chooseMedia: callback({ errMsg: `${reason} /private/person.jpg https://private.invalid?token=secret HEALTH_TEXT`, errCode: 123, errno: 456 }, 'fail') }
+    await assert.rejects(choosePhoto(wx), error => {
+      assert.equal(error.code, code)
+      assert.match(errorText(error), text)
+      assert.match(errorText(error), /阶段：微信选图/)
+      assert.match(errorText(error), /微信 errCode：123/)
+      assert.match(errorText(error), /微信 errno：456/)
+      assert.doesNotMatch(errorText(error), /private|person|https:|token|secret|HEALTH_TEXT/)
+      assert.equal(error.cause, undefined)
+      return true
+    })
+  }
+})
+
+test('missing native API is explicit and nonnumeric error codes never reach the page', async () => {
+  const wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({}) }
+  await assert.rejects(choosePhoto(wx), error => error.photoStage === 'choose' && error.photoReason === 'unsupported')
+  wx.chooseMedia = callback({ errMsg: 'chooseMedia:fail unexpected', errCode: 'secret-token', errno: 'secret-url' }, 'fail')
+  await assert.rejects(choosePhoto(wx), error => !errorText(error).includes('secret-token') && !errorText(error).includes('secret-url') && !errorText(error).includes('微信 err'))
+})
+
+test('native success without exactly one nonempty file path differs from native fail', async () => {
+  for (const result of [undefined, {}, { tempFiles: [] }, { tempFiles: [{}] }, { tempFiles: [{ tempFilePath: '' }] }, { tempFiles: [{ tempFilePath: '/a' }, { tempFilePath: '/b' }] }]) {
+    const wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({}), chooseMedia: callback(result) }
+    await assert.rejects(choosePhoto(wx), error => error.code === 'PHOTO_EMPTY_RESULT' && /微信返回成功/.test(errorText(error)))
   }
 })
 
@@ -68,16 +119,65 @@ test('meal page shows translated photo errors and cancellation does not claim an
     delete require.cache[require.resolve('../miniprogram/pages/meal/index.js')]
     require('../miniprogram/pages/meal/index.js')
     const page = { data: { photoPending: false }, setData(value) { Object.assign(this.data, value) } }
-    globalThis.wx = { requirePrivacyAuthorize: callback({ errMsg: 'requirePrivacyAuthorize:fail synthetic' }, 'fail') }
+    globalThis.wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({ errMsg: 'requirePrivacyAuthorize:fail synthetic' }, 'fail') }
     await definition.choose.call(page)
     assert.match(page.data.error, /隐私确认未完成/)
     assert.equal(page.data.photoPending, false)
-    globalThis.wx = { requirePrivacyAuthorize: callback({}), chooseMedia: callback({ errMsg: 'chooseMedia:fail cancel' }, 'fail') }
+    globalThis.wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({}), chooseMedia: callback({ errMsg: 'chooseMedia:fail cancel' }, 'fail') }
     await definition.choose.call(page)
     assert.equal(page.data.error, '')
     assert.equal(page.data.notice, '已取消选择照片')
     assert.equal(page.data.photoPending, false)
     assert.equal(page._photoPath, undefined)
+  } finally { globalThis.Page = oldPage; globalThis.wx = oldWx }
+})
+
+test('meal page rapid taps open one source menu and cancellation releases the lock without upload', async () => {
+  const oldPage = globalThis.Page, oldWx = globalThis.wx
+  let definition, menu, menus = 0, privateApis = 0
+  try {
+    globalThis.Page = value => { definition = value }
+    delete require.cache[require.resolve('../miniprogram/pages/meal/index.js')]
+    require('../miniprogram/pages/meal/index.js')
+    const page = { data: { photoPending: false }, setData(value) { Object.assign(this.data, value) } }
+    globalThis.wx = { showActionSheet(options) { menus++; menu = options }, requirePrivacyAuthorize() { privateApis++ }, chooseMedia() { privateApis++ }, uploadFile() { privateApis++ } }
+    const first = definition.choose.call(page), second = definition.choose.call(page)
+    assert.equal(menus, 1)
+    menu.fail({ errMsg: 'showActionSheet:fail cancel' })
+    await Promise.all([first, second])
+    assert.equal(page._choosingPhoto, false)
+    assert.equal(page.data.photoPending, false)
+    assert.equal(privateApis, 0)
+    assert.equal(page._photoPath, undefined)
+    const third = definition.choose.call(page)
+    assert.equal(menus, 2)
+    menu.fail({ errMsg: 'showActionSheet:fail cancel' })
+    await third
+  } finally { globalThis.Page = oldPage; globalThis.wx = oldWx }
+})
+
+test('a selected image becomes a local pending PNG and never uploads or sends an AI request', async () => {
+  const oldPage = globalThis.Page, oldWx = globalThis.wx
+  let definition, remote = 0
+  try {
+    globalThis.Page = value => { definition = value }
+    delete require.cache[require.resolve('../miniprogram/pages/meal/index.js')]
+    require('../miniprogram/pages/meal/index.js')
+    const canvas = { getContext: () => ({ clearRect() {}, drawImage() {} }),
+      createImage: () => ({ set src(value) { queueMicrotask(() => this.onload()) } }) }
+    const page = { data: { photoPending: false }, setData(value) { Object.assign(this.data, value) },
+      createSelectorQuery: () => ({ select() { return this }, fields() { return this }, exec(callback) { callback([{ node: canvas }]) } }) }
+    globalThis.wx = { showActionSheet: sourceChoice(1), requirePrivacyAuthorize: callback({}),
+      chooseMedia: callback({ tempFiles: [{ tempFilePath: '/synthetic.jpg' }] }), getImageInfo: callback({ width: 640, height: 480 }),
+      canvasToTempFilePath: callback({ tempFilePath: '/local-clean.png' }), getFileInfo: callback({ size: png.length }),
+      getFileSystemManager: () => ({ readFile: callback({ data: png.buffer }) }),
+      uploadFile() { remote++ }, request() { remote++ } }
+    await definition.choose.call(page)
+    assert.equal(page._photoPath, '/local-clean.png')
+    assert.equal(page.data.photoPending, true)
+    assert.equal(page._choosingPhoto, false)
+    assert.match(page.data.notice, /保存草稿或点击上传后才会发送/)
+    assert.equal(remote, 0)
   } finally { globalThis.Page = oldPage; globalThis.wx = oldWx }
 })
 

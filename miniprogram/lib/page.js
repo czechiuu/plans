@@ -8,7 +8,9 @@ const labels = {
   CANCELLED: '已取消', PHOTO_NOT_FOUND: '照片已删除或当前无权查看', PHOTO_UPLOAD_PENDING: '照片上传仍待确认，请刷新后检查',
   PHOTO_PRIVACY_FAILED: '微信隐私确认未完成，请重试并核对隐私指引状态（PHOTO_PRIVACY_FAILED）',
   PHOTO_PERMISSION_DENIED: '相机或相册权限被拒绝，请在微信设置中允许后重试（PHOTO_PERMISSION_DENIED）',
-  PHOTO_CHOOSE_FAILED: '未能选择照片，请重新拍照或选择图片（PHOTO_CHOOSE_FAILED）',
+  PHOTO_SOURCE_FAILED: '无法打开拍照或相册菜单，请重试（PHOTO_SOURCE_FAILED）',
+  PHOTO_CHOOSE_FAILED: '未能打开或完成微信选图，尚未上传（PHOTO_CHOOSE_FAILED）',
+  PHOTO_EMPTY_RESULT: '微信返回成功但未提供一张可读取的照片，尚未上传（PHOTO_EMPTY_RESULT）',
   PHOTO_READ_FAILED: '无法读取所选照片，请重新选择（PHOTO_READ_FAILED）',
   PHOTO_SANITIZE_FAILED: '照片处理失败，尚未上传，请重新选择（PHOTO_SANITIZE_FAILED）',
   PHOTO_CANVAS_UNAVAILABLE: '照片处理画布尚未就绪，请重新打开此页面（PHOTO_CANVAS_UNAVAILABLE）',
@@ -16,7 +18,13 @@ const labels = {
   CONFLICT: '记录已被更新，请刷新后再修改', SIGNOUT_UNCONFIRMED: '本机已退出；服务器注销未确认，请联网后再登录',
   PUBLIC_CONFIG_INVALID: '后端公开配置不正确，请重新构建项目'
 }
-function errorText(error) { return labels[error?.code] || labels[error?.message] || error?.message || '操作失败，请重试' }
+function errorText(error) {
+  const text = labels[error?.code] || labels[error?.message] || error?.message || '操作失败，请重试'
+  const stage = { source: '来源选择', privacy: '隐私确认', choose: '微信选图' }[error?.photoStage]
+  if (!stage) return text
+  const reason = { 'privacy-declaration': '隐私指引未声明此接口', 'permission-denied': '权限被拒绝', unsupported: '当前微信环境不支持此接口', unknown: '原因尚未识别' }[error?.photoReason] || '原因尚未识别'
+  return `${text}；阶段：${stage}；${reason}${Number.isSafeInteger(error.wxErrCode) ? `；微信 errCode：${error.wxErrCode}` : ''}${Number.isSafeInteger(error.wxErrno) ? `；微信 errno：${error.wxErrno}` : ''}`
+}
 function api() { return getApp().api }
 function authError(error) {
   if (['AUTH_REQUIRED','ACCOUNT_CHANGED','ACCOUNT_DENIED','ACCOUNT_CHECK_FAILED'].includes(error?.code) || !api().session()) {

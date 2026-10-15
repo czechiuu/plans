@@ -3,24 +3,31 @@ const { wxCall, fail } = require('./client.js')
 const signature = [137, 80, 78, 71, 13, 10, 26, 10]
 const maxBytes = 4 * 1024 * 1024
 
-async function choosePhoto(wx, page) {
-  try { await wxCall(options => wx.requirePrivacyAuthorize(options), {}, 'PHOTO_PRIVACY_FAILED') }
-  catch (error) {
-    if (/\bcancel\b/i.test(error.cause?.errMsg || '')) throw fail('CANCELLED')
-    throw error
-  }
+async function photoStep(wx, method, options, code, stage) {
+  if (typeof wx[method] !== 'function') throw Object.assign(fail(code), { photoStage: stage, photoReason: 'unsupported' })
   try {
-    const result = await wxCall(options => wx.chooseMedia(options), { count: 1, mediaType: ['image'],
-      sourceType: ['album', 'camera'], sizeType: ['original'] }, 'PHOTO_CHOOSE_FAILED')
-    const path = result.tempFiles?.[0]?.tempFilePath
-    if (!path || result.tempFiles.length !== 1) throw fail('PHOTO_CHOOSE_FAILED')
-    return path
+    return await wxCall(wx[method].bind(wx), options, code)
   } catch (error) {
-    const reason = error.cause?.errMsg || ''
-    if (/\bcancel\b/i.test(reason)) throw fail('CANCELLED')
-    if (/auth deny|permission denied|permission is denied/i.test(reason)) throw fail('PHOTO_PERMISSION_DENIED')
-    throw error
+    const cause = error.cause || {}, reason = typeof cause.errMsg === 'string' ? cause.errMsg : ''
+    if (/^(?:showActionSheet|requirePrivacyAuthorize|chooseMedia):fail cancel(?:led|ed)?(?:\s|$)/i.test(reason)) throw fail('CANCELLED')
+    const denied = /^(?:requirePrivacyAuthorize|chooseMedia):fail (?:auth deny|permission denied|permission is denied)\b/i.test(reason)
+    const category = denied ? 'permission-denied' : /(?:api|scope) (?:is )?not declared in (?:the )?privacy agreement/i.test(reason) ? 'privacy-declaration' :
+      /^(?:showActionSheet|requirePrivacyAuthorize|chooseMedia):fail (?:api )?not support(?:ed)?\b/i.test(reason) ? 'unsupported' : 'unknown'
+    throw Object.assign(fail(denied && stage === 'choose' ? 'PHOTO_PERMISSION_DENIED' : code), { photoStage: stage, photoReason: category,
+      ...(Number.isSafeInteger(cause.errCode) ? { wxErrCode: cause.errCode } : {}),
+      ...(Number.isSafeInteger(cause.errno) ? { wxErrno: cause.errno } : {}) })
   }
+}
+
+async function choosePhoto(wx) {
+  const source = await photoStep(wx, 'showActionSheet', { itemList: ['现在拍照', '从手机相册选择'] }, 'PHOTO_SOURCE_FAILED', 'source')
+  if (source?.tapIndex !== 0 && source?.tapIndex !== 1) throw Object.assign(fail('PHOTO_SOURCE_FAILED'), { photoStage: 'source', photoReason: 'unknown' })
+  await photoStep(wx, 'requirePrivacyAuthorize', {}, 'PHOTO_PRIVACY_FAILED', 'privacy')
+  const result = await photoStep(wx, 'chooseMedia', { count: 1, mediaType: ['image'],
+    sourceType: [source.tapIndex === 0 ? 'camera' : 'album'], sizeType: ['original'] }, 'PHOTO_CHOOSE_FAILED', 'choose')
+  const path = result?.tempFiles?.[0]?.tempFilePath
+  if (result?.tempFiles?.length !== 1 || typeof path !== 'string' || !path) throw fail('PHOTO_EMPTY_RESULT')
+  return path
 }
 
 async function assertPngFile(wx, path) {
