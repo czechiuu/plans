@@ -1,6 +1,12 @@
 # 项目状态
 
-## 0.1.1 手机反馈修复（2026-10-15 当前）
+## 0.1.2 照片来源菜单（2026-10-15 当前体验版）
+
+用户反馈 0.1.1 点击拍照后没有弹窗，直接出现 `PHOTO_CHOOSE_FAILED`。本次仅修来源菜单：先 `showActionSheet` 提供“现在拍照/从手机相册选择”，本人选后才进入隐私门禁及单一 `sourceType` 的 `chooseMedia`；取消不上传、连点保护，空返回与调用失败分开，错误保留安全 `errCode/errno` 和阶段。源码 [`187ffce808a8849d823e5fad60be7b586801aa4d`](https://github.com/czechiuu/plans/commit/187ffce808a8849d823e5fad60be7b586801aa4d)，[CI 38684258415](https://github.com/czechiuu/plans/actions/runs/38684258415)成功；本机完整单元 162/0、定向 17/0、静态 11/0，官方 preview 成功（187309 字节）。官方 upload 0.1.2 已成功（187309 字节），微信版本页已读回“版本号 0.1.2”及“体验版”标记，提交时间为上海 2026-10-15 13:10:07，原入口沿用。
+
+实际 SDK 点击后 `_choosingPhoto=true`，但官方页面截图只有变暗背景，没有微信原生菜单；Windows 整窗截图因应用授权超时未取得，没有绕过，也不再追加桌面权限要求。不能写两项菜单实际 UI 或真机选图已经通过，仍待本人确认。本轮无数据写入、AI 调用或授权变化，见[报告](test-results/native-photo-menu-20261015.json)；新包路径为 `dist-native/plans-native-experience-0.1.2-20261015.zip`。
+
+## 0.1.1 手机反馈修复（2026-10-15 历史）
 
 源码 [`32e84cf70e572c961b183851b6ec427e71504753`](https://github.com/czechiuu/plans/commit/32e84cf70e572c961b183851b6ec427e71504753)，[CI 38682468595](https://github.com/czechiuu/plans/actions/runs/38682468595)已 completed/success，网页 deploy 跳过。官方 preview 与 upload 均成功、包大小均 185294 字节；刷新微信后台实际显示开发版本 `0.1.1` 带“体验版”标记，沿用入口 `pages/login/index`。原体验标记随同开发者上传延续，没有重新改路径。真实完整二维码已核对私有保存，标注 10 月 22 日前有效；窄后台截断图不作交付。新版包路径为 `dist-native/plans-native-experience-0.1.1-20261015.zip`，证据见[本轮报告](test-results/native-feedback-20261015.json)。
 

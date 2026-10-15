@@ -1,0 +1,98 @@
+{
+  "scope": "native-photo-source-menu-0.1.2",
+  "recorded_at": "2026-10-15T05:13:35.547Z",
+  "source_commit": "187ffce808a8849d823e5fad60be7b586801aa4d",
+  "original_phone_failure": {
+    "version": "0.1.1",
+    "code": "PHOTO_CHOOSE_FAILED",
+    "user_confirmed_no_camera_or_album_window_appeared": true,
+    "exact_platform_cause": "not_captured",
+    "private_screenshot": "test-results/private/native-phone-feedback-20261015/phone-0.1.1-choose-failed.jpg"
+  },
+  "implemented_flow": [
+    "native source menu: 现在拍照 / 从手机相册选择",
+    "privacy gate after user chooses one source",
+    "chooseMedia with camera only or album only",
+    "bounded local PNG processing",
+    "user explicitly saves/uploads; no automatic AI"
+  ],
+  "changes": [
+    "cancel stops before privacy/choice/upload",
+    "synchronous guard prevents duplicate source menus",
+    "separate native call failure and native success with empty result",
+    "safe exact stage/category and integer errCode/errno; no raw diagnostics or private file paths on page"
+  ],
+  "tests": {
+    "full_unit": {
+      "passed": 162,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "private_log": "test-results/private/wechat-native-20261015/photo-menu-full-unit.log"
+    },
+    "targeted": {
+      "passed": 17,
+      "failed": 0
+    },
+    "static": {
+      "passed": 11,
+      "failed": 0
+    },
+    "ci": {
+      "id": 38684258415,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/czechiuu/plans/actions/runs/38684258415"
+    }
+  },
+  "runtime": {
+    "actual_sdk_button_tap": true,
+    "photo_choosing_guard_observed": true,
+    "file_selected": false,
+    "native_menu_items_visual_verification": "not_verified",
+    "page_screenshot": "test-results/private/wechat-native-20261015/photo-source-menu-0.1.2.jpg",
+    "screenshot_limitation": "page screenshot shows dimming only; native overlay is not captured; excluded as proof of the two visible choices",
+    "whole_window_capture": "Computer Use app approval timed out; no bypass or additional access requested",
+    "cleanup": "official simulator_refresh closed the test UI; no record/file cleanup needed"
+  },
+  "release": {
+    "version": "0.1.2",
+    "preview": {
+      "status": "success",
+      "exit_code": 0,
+      "bytes": 187309
+    },
+    "upload": {
+      "status": "success",
+      "exit_code": 0,
+      "bytes": 187309
+    },
+    "admin_readback": {
+      "version": "0.1.2",
+      "experience_marker": true,
+      "submitted_at_shanghai": "2026-10-15 13:10:07",
+      "entry": "pages/login/index"
+    },
+    "private_version_screenshot": "test-results/private/wechat-admin-20261015/experience-0.1.2-version-full.jpg",
+    "public_release_submitted": false
+  },
+  "harness_failures": [
+    {
+      "stage": "version-page observation",
+      "reason": "CUA execution timeout reset kernel; recovered existing tab and verified 0.1.2"
+    },
+    {
+      "stage": "narrow version screenshot",
+      "reason": "fixed-width admin contents clipped; excluded, replaced by full verified screenshot and restored default viewport"
+    }
+  ],
+  "physical_phone_0_1_2": "not_run",
+  "real_camera_album_upload_confirm": "not_run",
+  "privacy_status": "last verified under_review in 0.1.1 phase; not rechecked or changed here",
+  "production_health_data_writes": 0,
+  "production_health_data_deletes": 0,
+  "paid_ai_calls": 0,
+  "personal_ai_or_security_changes": 0,
+  "protected_web_backend_files_unchanged": 42,
+  "source_package": "dist-native/plans-native-experience-0.1.2-20261015.zip"
+}
