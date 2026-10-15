@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
-const { choosePhoto, sanitizePhoto } = require('../miniprogram/lib/photo.js')
+const { choosePhoto, sanitizePhoto, assertPngFile } = require('../miniprogram/lib/photo.js')
 const { errorText } = require('../miniprogram/lib/page.js')
 const { createApi } = require('../miniprogram/lib/api.js')
 const config = { url: 'https://synthetic.supabase.co', key: 'sb_publishable_SYNTHETIC_PUBLIC_KEY_123456' }
@@ -181,28 +181,111 @@ test('a selected image becomes a local pending PNG and never uploads or sends an
   } finally { globalThis.Page = oldPage; globalThis.wx = oldWx }
 })
 
-test('canvas produces bounded PNG and rejects oversized or false PNG results', async () => {
-  const drawn = [], canvas = { getContext: () => ({ clearRect() {}, drawImage: (...args) => drawn.push(args) }),
-    createImage: () => ({ set src(value) { queueMicrotask(() => this.onload()) } }) }
-  const page = { createSelectorQuery: () => ({ select() { return this }, fields() { return this }, exec(callback) { callback([{ node: canvas }]) } }) }
-  let size = png.length, bytes = png
-  const wx = {
-    getImageInfo: callback({ width: 4000, height: 2000 }),
-    canvasToTempFilePath(options) {
-      assert.equal(options.fileType, 'png')
-      assert.deepEqual([options.destWidth, options.destHeight], [1280, 640])
-      options.success({ tempFilePath: '/clean.png' })
-    },
-    getFileInfo(options) { options.success({ size }) },
-    getFileSystemManager: () => ({ readFile(options) { options.success({ data: bytes.buffer }) } })
+test('one PNG export bounds large square and portrait images to 960 and never enlarges small images', async () => {
+  for (const [source, expected] of [
+    [[4000, 4000], [960, 960]], [[4000, 2000], [960, 480]], [[3000, 6000], [480, 960]], [[640, 480], [640, 480]]
+  ]) {
+    const drawn = [], canvas = { getContext: () => ({ clearRect() {}, drawImage: (...args) => drawn.push(args) }),
+      createImage: () => ({ set src(value) { queueMicrotask(() => this.onload()) } }) }
+    const page = { createSelectorQuery: () => ({ select() { return this }, fields() { return this }, exec(callback) { callback([{ node: canvas }]) } }) }
+    let exports = 0
+    const wx = {
+      getImageInfo: callback({ width: source[0], height: source[1] }),
+      canvasToTempFilePath(options) {
+        exports++
+        assert.equal(options.fileType, 'png')
+        assert.deepEqual([options.destWidth, options.destHeight], expected)
+        options.success({ tempFilePath: '/clean.png' })
+      },
+      getFileInfo: callback({ size: png.length }),
+      getFileSystemManager: () => ({ readFile: callback({ data: png.buffer }) })
+    }
+    assert.equal(await sanitizePhoto(wx, page, '/camera.jpg'), '/clean.png')
+    assert.deepEqual([canvas.width, canvas.height], expected)
+    assert.equal(drawn.length, 1)
+    assert.equal(exports, 1)
+    assert.ok(canvas.width * canvas.height * 4 + canvas.height < 4 * 1024 * 1024 - 500000)
   }
-  assert.equal(await sanitizePhoto(wx, page, '/camera.jpg'), '/clean.png')
-  assert.equal(canvas.width, 1280); assert.equal(canvas.height, 640)
-  assert.equal(drawn.length, 1)
+})
+
+test('invalid source dimensions stop before the canvas and are not called a PNG size failure', async () => {
+  for (const dimensions of [{ width: 0, height: 4 }, { width: 4.5, height: 4 }, { width: 4 }, null]) {
+    const wx = { getImageInfo: callback(dimensions) }
+    await assert.rejects(sanitizePhoto(wx, {}, '/private.jpg'), error => {
+      assert.equal(error.code, 'PHOTO_DIMENSIONS_INVALID')
+      assert.match(errorText(error), /未返回有效的照片宽高/)
+      assert.doesNotMatch(errorText(error), /超过|private/)
+      return true
+    })
+  }
+})
+
+test('PNG validation distinguishes actual oversize, invalid metadata, mismatched bytes, data type and signature', async () => {
+  let size = png.length, data = png.buffer, reads = 0
+  const wx = { getFileInfo(options) { options.success({ size }) },
+    getFileSystemManager: () => ({ readFile(options) { reads++; options.success({ data }) } }) }
+  assert.deepEqual(await assertPngFile(wx, '/private.png'), { bytes: png.length })
+  for (size of [undefined, 0, -1, 1.5, '12']) {
+    await assert.rejects(assertPngFile(wx, '/private.png'), error => error.code === 'PHOTO_FILE_SIZE_INVALID' && !errorText(error).includes('超过'))
+  }
+  const priorReads = reads
   size = 4 * 1024 * 1024 + 1
-  await assert.rejects(sanitizePhoto(wx, page, '/camera.jpg'), { code: 'INVALID_PNG' })
-  size = png.length; bytes = Uint8Array.from([0, ...png.slice(1)])
-  await assert.rejects(sanitizePhoto(wx, page, '/camera.jpg'), { code: 'INVALID_PNG' })
+  await assert.rejects(assertPngFile(wx, '/private.png'), error => {
+    assert.equal(error.code, 'PHOTO_TOO_LARGE')
+    assert.match(errorText(error), /4194305 字节/)
+    return true
+  })
+  assert.equal(reads, priorReads)
+  size = png.length + 1
+  await assert.rejects(assertPngFile(wx, '/private.png'), error => {
+    assert.equal(error.code, 'PHOTO_FILE_SIZE_MISMATCH')
+    assert.match(errorText(error), /文件：13 字节/)
+    assert.match(errorText(error), /读取：12 字节/)
+    return true
+  })
+  size = png.length; data = 'secret-photo-path https://private.invalid?token=secret'
+  await assert.rejects(assertPngFile(wx, '/private.png'), error => {
+    assert.equal(error.code, 'PHOTO_FILE_DATA_INVALID')
+    assert.match(errorText(error), /数据类型：string/)
+    assert.doesNotMatch(errorText(error), /secret|https:|private|token=/)
+    return true
+  })
+  data = Uint8Array.from([0, ...png.slice(1)]).buffer
+  await assert.rejects(assertPngFile(wx, '/private.png'), error => {
+    assert.equal(error.code, 'INVALID_PNG')
+    assert.match(errorText(error), /文件头不是 PNG/)
+    assert.doesNotMatch(errorText(error), /超过|private/)
+    return true
+  })
+  wx.getFileSystemManager = () => { throw Object.assign(new Error('secret path /private/photo.png'), { code: 'NATIVE_PRIVATE_FAILURE' }) }
+  await assert.rejects(assertPngFile(wx, '/private.png'), error => error.code === 'PHOTO_READ_FAILED' && !errorText(error).includes('secret'))
+})
+
+test('PNG processing failures show only safe output dimensions and bytes and never upload', async () => {
+  const oldPage = globalThis.Page, oldWx = globalThis.wx
+  let definition, remote = 0
+  try {
+    globalThis.Page = value => { definition = value }
+    delete require.cache[require.resolve('../miniprogram/pages/meal/index.js')]
+    require('../miniprogram/pages/meal/index.js')
+    const canvas = { getContext: () => ({ clearRect() {}, drawImage() {} }),
+      createImage: () => ({ set src(value) { queueMicrotask(() => this.onload()) } }) }
+    const page = { data: { photoPending: false }, setData(value) { Object.assign(this.data, value) },
+      createSelectorQuery: () => ({ select() { return this }, fields() { return this }, exec(callback) { callback([{ node: canvas }]) } }) }
+    globalThis.wx = { showActionSheet: sourceChoice(), requirePrivacyAuthorize: callback({}),
+      chooseMedia: callback({ tempFiles: [{ tempFilePath: '/private-camera.jpg' }] }), getImageInfo: callback({ width: 6000, height: 6000 }),
+      canvasToTempFilePath: callback({ tempFilePath: '/private-clean.png' }), getFileInfo: callback({ size: 4194305 }),
+      uploadFile() { remote++ }, request() { remote++ } }
+    await definition.choose.call(page)
+    assert.match(page.data.error, /PHOTO_TOO_LARGE/)
+    assert.match(page.data.error, /输出：960×960/)
+    assert.match(page.data.error, /4194305 字节/)
+    assert.doesNotMatch(page.data.error, /private-camera|private-clean/)
+    assert.equal(page._photoPath, undefined)
+    assert.equal(page.data.photoPending, false)
+    assert.equal(page._choosingPhoto, false)
+    assert.equal(remote, 0)
+  } finally { globalThis.Page = oldPage; globalThis.wx = oldWx }
 })
 
 function photoApiFixture(existing = false, contentType = 'image/png', onRead = null, unauthorized = false, refreshUnauthorized = false) {

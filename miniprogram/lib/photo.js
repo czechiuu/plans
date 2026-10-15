@@ -2,6 +2,11 @@ const { wxCall, fail } = require('./client.js')
 
 const signature = [137, 80, 78, 71, 13, 10, 26, 10]
 const maxBytes = 4 * 1024 * 1024
+// 960² RGBA8 is 3,686,400 bytes, leaving over 0.5 MB for PNG encoding; actual bytes are still checked.
+const maxDimension = 960
+const processingCodes = new Set(['PHOTO_READ_FAILED', 'PHOTO_FILE_SIZE_INVALID', 'PHOTO_TOO_LARGE',
+  'PHOTO_FILE_DATA_INVALID', 'PHOTO_FILE_SIZE_MISMATCH', 'INVALID_PNG', 'PHOTO_DIMENSIONS_INVALID',
+  'PHOTO_CANVAS_UNAVAILABLE', 'PHOTO_SANITIZE_FAILED'])
 
 async function photoStep(wx, method, options, code, stage) {
   if (typeof wx[method] !== 'function') throw Object.assign(fail(code), { photoStage: stage, photoReason: 'unsupported' })
@@ -31,24 +36,37 @@ async function choosePhoto(wx) {
 }
 
 async function assertPngFile(wx, path) {
-  if (typeof path !== 'string' || !path) throw fail('INVALID_PNG')
-  const info = await wxCall(options => wx.getFileInfo(options), { filePath: path }, 'PHOTO_READ_FAILED')
-  if (!Number.isInteger(info.size) || info.size <= 0 || info.size > maxBytes) throw fail('INVALID_PNG')
-  const fs = wx.getFileSystemManager()
-  const file = await wxCall(fs.readFile.bind(fs), { filePath: path }, 'PHOTO_READ_FAILED')
-  const bytes = new Uint8Array(file.data)
-  if (bytes.length !== info.size || signature.some((byte, index) => bytes[index] !== byte)) throw fail('INVALID_PNG')
-  return { bytes: info.size }
+  let size
+  try {
+    if (typeof path !== 'string' || !path) throw fail('PHOTO_READ_FAILED')
+    const info = await wxCall(options => wx.getFileInfo(options), { filePath: path }, 'PHOTO_READ_FAILED')
+    size = info?.size
+    if (!Number.isSafeInteger(size) || size <= 0) throw fail('PHOTO_FILE_SIZE_INVALID')
+    if (size > maxBytes) throw fail('PHOTO_TOO_LARGE')
+    const fs = wx.getFileSystemManager()
+    const file = await wxCall(fs.readFile.bind(fs), { filePath: path }, 'PHOTO_READ_FAILED')
+    const data = file?.data
+    if (!(data instanceof ArrayBuffer)) throw Object.assign(fail('PHOTO_FILE_DATA_INVALID'), {
+      photoDataType: data === null ? 'null' : ArrayBuffer.isView(data) ? 'TypedArray' : typeof data })
+    const bytes = new Uint8Array(data)
+    if (bytes.length !== size) throw Object.assign(fail('PHOTO_FILE_SIZE_MISMATCH'), { photoReadBytes: bytes.length })
+    if (signature.some((byte, index) => bytes[index] !== byte)) throw fail('INVALID_PNG')
+    return { bytes: size }
+  } catch (error) {
+    throw Object.assign(processingCodes.has(error?.code) ? error : fail('PHOTO_READ_FAILED'), { photoStage: 'validate',
+      ...(Number.isSafeInteger(size) && size >= 0 ? { photoBytes: size } : {}) })
+  }
 }
 
 async function sanitizePhoto(wx, page, path) {
+  let width, height
   try {
     const source = await wxCall(options => wx.getImageInfo(options), { src: path }, 'PHOTO_READ_FAILED')
-    if (!Number.isFinite(source.width) || !Number.isFinite(source.height) || source.width <= 0 || source.height <= 0)
-      throw fail('INVALID_PNG')
-    const scale = Math.min(1, 1280 / Math.max(source.width, source.height))
-    const width = Math.max(1, Math.round(source.width * scale))
-    const height = Math.max(1, Math.round(source.height * scale))
+    if (!Number.isSafeInteger(source?.width) || !Number.isSafeInteger(source?.height) || source.width <= 0 || source.height <= 0)
+      throw fail('PHOTO_DIMENSIONS_INVALID')
+    const scale = Math.min(1, maxDimension / Math.max(source.width, source.height))
+    width = Math.max(1, Math.round(source.width * scale))
+    height = Math.max(1, Math.round(source.height * scale))
     const canvas = await new Promise((resolve, reject) => {
       page.createSelectorQuery().select('#photoCanvas').fields({ node: true, size: true }).exec(result => {
         if (!result?.[0]?.node) reject(fail('PHOTO_CANVAS_UNAVAILABLE'))
@@ -72,8 +90,9 @@ async function sanitizePhoto(wx, page, path) {
     await assertPngFile(wx, result.tempFilePath)
     return result.tempFilePath
   } catch (error) {
-    if (error.code) throw error
-    throw Object.assign(fail('PHOTO_SANITIZE_FAILED'), { cause: error })
+    throw Object.assign(processingCodes.has(error?.code) ? error : fail('PHOTO_SANITIZE_FAILED'), {
+      photoStage: ['validate', 'sanitize'].includes(error?.photoStage) ? error.photoStage : 'sanitize',
+      ...(width && height ? { photoWidth: width, photoHeight: height } : {}) })
   }
 }
 

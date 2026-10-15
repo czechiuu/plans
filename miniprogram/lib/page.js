@@ -14,16 +14,24 @@ const labels = {
   PHOTO_READ_FAILED: '无法读取所选照片，请重新选择（PHOTO_READ_FAILED）',
   PHOTO_SANITIZE_FAILED: '照片处理失败，尚未上传，请重新选择（PHOTO_SANITIZE_FAILED）',
   PHOTO_CANVAS_UNAVAILABLE: '照片处理画布尚未就绪，请重新打开此页面（PHOTO_CANVAS_UNAVAILABLE）',
-  INVALID_PNG: '处理后的照片无效或超过 4 MB，尚未上传，请重新选择（INVALID_PNG）',
+  PHOTO_TOO_LARGE: '照片实际超过 4 MiB 上限，未继续处理，请重新选择（PHOTO_TOO_LARGE）',
+  PHOTO_FILE_SIZE_INVALID: '微信未返回有效的照片文件大小，未继续处理（PHOTO_FILE_SIZE_INVALID）',
+  PHOTO_FILE_SIZE_MISMATCH: '照片读取字节与文件大小不一致，未继续处理（PHOTO_FILE_SIZE_MISMATCH）',
+  PHOTO_FILE_DATA_INVALID: '微信未返回二进制照片数据，未继续处理（PHOTO_FILE_DATA_INVALID）',
+  PHOTO_DIMENSIONS_INVALID: '微信未返回有效的照片宽高，尚未上传（PHOTO_DIMENSIONS_INVALID）',
+  INVALID_PNG: '照片文件头不是 PNG，未继续处理（INVALID_PNG）',
   CONFLICT: '记录已被更新，请刷新后再修改', SIGNOUT_UNCONFIRMED: '本机已退出；服务器注销未确认，请联网后再登录',
   PUBLIC_CONFIG_INVALID: '后端公开配置不正确，请重新构建项目'
 }
 function errorText(error) {
   const text = labels[error?.code] || labels[error?.message] || error?.message || '操作失败，请重试'
-  const stage = { source: '来源选择', privacy: '隐私确认', choose: '微信选图' }[error?.photoStage]
+  const stage = { source: '来源选择', privacy: '隐私确认', choose: '微信选图', sanitize: '本机照片处理', validate: 'PNG 文件校验' }[error?.photoStage]
   if (!stage) return text
-  const reason = { 'privacy-declaration': '隐私指引未声明此接口', 'permission-denied': '权限被拒绝', unsupported: '当前微信环境不支持此接口', unknown: '原因尚未识别' }[error?.photoReason] || '原因尚未识别'
-  return `${text}；阶段：${stage}；${reason}${Number.isSafeInteger(error.wxErrCode) ? `；微信 errCode：${error.wxErrCode}` : ''}${Number.isSafeInteger(error.wxErrno) ? `；微信 errno：${error.wxErrno}` : ''}`
+  const reason = { 'privacy-declaration': '隐私指引未声明此接口', 'permission-denied': '权限被拒绝', unsupported: '当前微信环境不支持此接口', unknown: '原因尚未识别' }[error?.photoReason]
+  return `${text}；阶段：${stage}${reason ? `；${reason}` : ''}${Number.isSafeInteger(error.wxErrCode) ? `；微信 errCode：${error.wxErrCode}` : ''}${Number.isSafeInteger(error.wxErrno) ? `；微信 errno：${error.wxErrno}` : ''}` +
+    `${Number.isSafeInteger(error.photoWidth) && error.photoWidth > 0 && Number.isSafeInteger(error.photoHeight) && error.photoHeight > 0 ? `；输出：${error.photoWidth}×${error.photoHeight}` : ''}` +
+    `${Number.isSafeInteger(error.photoBytes) && error.photoBytes >= 0 ? `；文件：${error.photoBytes} 字节` : ''}${Number.isSafeInteger(error.photoReadBytes) && error.photoReadBytes >= 0 ? `；读取：${error.photoReadBytes} 字节` : ''}` +
+    `${['null', 'undefined', 'string', 'number', 'boolean', 'object', 'function', 'symbol', 'bigint', 'TypedArray'].includes(error.photoDataType) ? `；数据类型：${error.photoDataType}` : ''}`
 }
 function api() { return getApp().api }
 function authError(error) {
