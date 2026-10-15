@@ -1,0 +1,53 @@
+{
+  "scope": "native-phone-0.1.2-privacy-declaration-readback",
+  "recorded_at_utc": "2026-10-15T05:25:25Z",
+  "source_commit": "187ffce808a8849d823e5fad60be7b586801aa4d",
+  "experience_version": "0.1.2",
+  "physical_phone_before_approval": {
+    "source": "user-provided actual phone screenshot",
+    "displayed_shanghai_time": "2026-10-15 13:15",
+    "code": "PHOTO_CHOOSE_FAILED",
+    "stage": "微信选图",
+    "reason": "隐私指引未声明此接口",
+    "wechat_errno": 112,
+    "upload_started": false,
+    "result": "blocked_by_platform_privacy_declaration",
+    "private_screenshot": "test-results/private/native-phone-feedback-20261015/phone-0.1.2-privacy-errno112.jpg"
+  },
+  "privacy_revision_2": {
+    "prior_status": "under_review",
+    "latest_admin_settings_status": "已更新",
+    "latest_official_notification": "你好，你提交的小程序“汪汪饼饼”用户隐私保护指引已审核通过。",
+    "review_result": "approved",
+    "approval_observed_date_shanghai": "2026-10-15",
+    "private_notification_screenshot": "test-results/private/wechat-admin-20261015/privacy-revision2-approved.jpg",
+    "full_effective_content_verified": false,
+    "content_readback_limitation": "pending detail showed a blank template; after status changed, editing entry still defaulted to no user information. Neither establishes the effective photo API declaration. No edit or new submission performed."
+  },
+  "post_approval_physical_phone": {
+    "source": "explicit user report after the approval notification",
+    "camera_opens_and_captures": true,
+    "album_opens_and_selects": true,
+    "image_processing": "user reports invalid-or-over-4MB message; old INVALID_PNG combined size and format causes, so actual byte excess is not established",
+    "upload_confirm": "not_passed"
+  },
+  "readonly_developer_tool": {
+    "getPrivacySetting": "success",
+    "needAuthorization": false,
+    "hasPrivacyContractName": true,
+    "openPrivacyContract": "success",
+    "effective_categories_readback": "not_verified_native_overlay_not_available_to_page_sdk",
+    "consent_changes": 0
+  },
+  "full_photo_upload_confirm_flow": "not_passed",
+  "client_or_backend_source_changed": false,
+  "new_client_release_uploaded": false,
+  "new_agreement_submitted": false,
+  "production_health_data_writes": 0,
+  "production_health_data_deletes": 0,
+  "paid_ai_calls": 0,
+  "personal_ai_or_security_changes": 0,
+  "automated_tests_rerun": false,
+  "prior_automated_evidence": "native-photo-menu-20261015.json",
+  "next_step": "camera and album opening are now user-reported passed; independently fix and verify image processing size/format diagnostics without raising server limits"
+}
