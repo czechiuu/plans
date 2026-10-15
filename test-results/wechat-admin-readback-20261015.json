@@ -1,0 +1,118 @@
+{
+  "scope": "authenticated-wechat-admin-ui-readback",
+  "shanghai_date": "2026-10-15",
+  "source": "visible official WeChat admin UI; no hidden state or credential extraction",
+  "appid": "wxa45b1a88790a49ec",
+  "appid_matches_project": true,
+  "account": {
+    "subject_type": "personal",
+    "filing": "not_filed",
+    "wechat_certification": "not_certified",
+    "service_category_displayed": "工具 > 日历"
+  },
+  "privacy_guide": {
+    "displayed_status": "updated",
+    "actual_content_reviewed": true,
+    "initial_declaration": "developer does not process any user information",
+    "initial_declaration_matches_native_data_use": false,
+    "matches_native_data_use": "pending_review_and_full_persisted_content_verification",
+    "platform_explanation_agreement": "accepted after separate explicit user confirmation",
+    "prepared_categories": [
+      "selected_photos_or_videos_image_only",
+      "camera_for_meal_photos",
+      "user_entered_account_and_health_records"
+    ],
+    "public_contact_provided_by_user": true,
+    "supplement_uploaded_after_specific_user_approval": true,
+    "submitted_after_final_preview_approval": true,
+    "current_status": "under_review",
+    "latest_revision": 2,
+    "review_history": [
+      {
+        "revision": 1,
+        "status": "rejected",
+        "source": "user-provided official safety assistant notification and admin UI",
+        "reason": "【收集你选中的照片或视频信息接口】说明内容不符合接口使用场景"
+      },
+      {
+        "revision": 2,
+        "status": "under_review",
+        "photo_purpose": "上传餐食照片，记录本人的每日饮食。",
+        "final_preview_separately_approved_by_user": true,
+        "submitted_and_status_read_back": true
+      }
+    ],
+    "full_persisted_content_readback_verified": false,
+    "readback_issue": "pending-review view did not display submitted category details or contact; no repeat submission performed",
+    "required_next_step": "verify current version after review; do not equate submitted with approved or effective"
+  },
+  "members": {
+    "administrator_present": true,
+    "project_members": 0,
+    "experience_members": 0,
+    "member_permissions_changed": false
+  },
+  "server_domains": {
+    "initial_state": "not_configured",
+    "proposed": {
+      "request": [
+        "https://wnzbtitlvteptkvwhavw.supabase.co"
+      ],
+      "uploadFile": [
+        "https://wnzbtitlvteptkvwhavw.supabase.co"
+      ],
+      "downloadFile": [
+        "https://wnzbtitlvteptkvwhavw.supabase.co"
+      ]
+    },
+    "user_approval": "explicitly approved these three entries",
+    "save_clicked": true,
+    "administrator_scan_completed": true,
+    "current_status": "saved",
+    "persisted_readback_verified": true,
+    "domain_eligibility": "accepted_by_wechat_admin_registration_only",
+    "physical_device_connectivity": "administrator_phone_open_and_login_user_reported_only; upload_download_and_full_flows_not_run",
+    "other_network_entries_added": false
+  },
+  "secret_or_upload_key_generated": false,
+  "backend_auth_or_data_permissions_changed": false,
+  "production_health_data_writes": 0,
+  "paid_ai_calls": 0,
+  "native_compilation": "official_preview_succeeded",
+  "physical_devices": {
+    "source": "explicit user report in current conversation",
+    "administrator_phone": "opened_experience_and_logged_in",
+    "full_workflow": "not_run",
+    "W": "pending_user_later_validation",
+    "two_physical_phones": "not_run"
+  },
+  "developer_version": "0.1.0_uploaded",
+  "experience_release": "0.1.0_selected_in_wechat_admin",
+  "experience_entry": "pages/login/index",
+  "experience_qr": {
+    "generated_by_wechat": true,
+    "displayed_expiry": "2026-10-22",
+    "local_artifact_saved": true,
+    "artifact_kind": "actual_admin_popup_screenshot",
+    "private_artifact": "test-results/private/wechat-admin-20261015/experience-0.1.0-qr-verified.jpg",
+    "pixel_content_visually_verified": true
+  },
+  "private_evidence": [
+    "test-results/private/wechat-admin-20261015/server-domain-pending.jpg",
+    "test-results/private/wechat-admin-20261015/server-domain-admin-verification.jpg",
+    "test-results/private/wechat-admin-20261015/server-domain-saved.jpg",
+    "test-results/private/wechat-admin-20261015/privacy-platform-agreement.jpg",
+    "test-results/private/wechat-admin-20261015/privacy-current-mismatch.jpg",
+    "test-results/private/wechat-admin-20261015/privacy-final-preview.jpg",
+    "test-results/private/wechat-admin-20261015/privacy-review-status.jpg",
+    "test-results/private/wechat-admin-20261015/privacy-revision1-rejected.png",
+    "test-results/private/wechat-admin-20261015/privacy-revision2-preview.jpg",
+    "test-results/private/wechat-admin-20261015/privacy-revision2-under-review.jpg"
+  ],
+  "failed_capture_preserved": {
+    "private_artifact": "test-results/private/wechat-admin-20261015/experience-0.1.0-qr-context.jpg",
+    "reason": "cropped export omitted QR popup; excluded from delivery evidence"
+  },
+  "production_health_data_writes_scope": "admin UI operations only; synthetic free-flow writes and exact cleanup separately reported",
+  "native_free_flow_report": "native-free-flow-20261015.json"
+}

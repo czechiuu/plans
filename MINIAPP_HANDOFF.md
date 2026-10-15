@@ -1,8 +1,10 @@
-# 原生微信小程序交接（源码与 AppID 已配置，体验发布待完成）
+# 原生微信小程序交接（体验版已设置，双人真机待验收）
 
 2026-10-14 新增独立 `miniprogram/`，原生五主页面及六个次级页面复用下列接口。用户确认尚未注册：AppID、后台域名登记、微信开发工具编译、实体手机和体验二维码均未验证。导入及使用见 [项目说明](miniprogram/README.md)，实际执行/阻塞/双人手机清单见 [本轮验收](docs/MINIAPP-ACCEPTANCE.md)。保留下面的服务端契约，不另造 API。小程序当前仅接受 publishable 公共 key，不接受管理密钥。
 
-2026-10-15 后续：用户已提供公开 AppID `wxa45b1a88790a49ec`，现已写入项目配置，合法域名校验保持开启。尚未确认主体/备案、开发权限、后台合法域名、隐私指引和体验成员；也未进行微信编译、真机或体验上传。上段保留 10 月 14 日历史，不作为当前缺少 AppID 的结论。
+2026-10-15 后续：项目配置的 AppID `wxa45b1a88790a49ec` 与后台“汪汪饼饼”一致。个人主体未备案、未认证；管理员存在，项目成员 0、体验成员 0。三类 Supabase 服务器域名已经保存、读回，合法域名校验保持开启。官方工具安装、登录及 CLI 端口均已完成；preview 编译成功（182707 字节），开发版 `0.1.0` 上传后已设为体验版，入口 `pages/login/index`。真实体验二维码已从后台核对保存、私有交付，标注 10 月 22 日前有效，不公开提交二维码；先前漏弹窗的失败截图不作为交付。管理员手机本人反馈扫码打开与登录成功；没有代理采集的手机网络或完整业务证据，W 尚未验收。工具授权成功、官方登录页截图（363×785）、MCP 自动化超时和官方 Automator 探针成功分别保留。本人在模拟器登录“我”后，[免费原生合成验收](test-results/native-free-flow-20261015.json)最终 20 通过、0 业务失败，另 1 阻塞、5 未运行；3 条本轮合成记录经精确来源和版本守卫清理、回读不存在。双人真机及跨端一致性仍未验收。见[后台读回](test-results/wechat-admin-readback-20261015.json)和[官方工具执行](test-results/wechat-native-build-20261015.json)。
+
+隐私首轮已被拒，原因仅为选中照片或视频接口的用途说明不符合接口场景。第二版仅将该字段改为“上传餐食照片，记录本人的每日饮食。”，保留其余用途、联系渠道、补充说明和模板；本人再次审阅真实预览并逐次批准后已提交，后台重新读回审核中。首轮拒绝保留，第二版最终有效内容、审核通过与生效待核。[提交事实稿](docs/MINIAPP-PRIVACY-DRAFT.md)不是审核通过证明；照片流程仍受其阻塞。本轮 AI 调用和费用均为 0，不改 AI 授权限额、规则或本人真实资料。仅 3 条已核对来源、版本和整行内容的本轮合成记录被清理。新版导入包路径为 `dist-native/plans-native-experience-0.1.0-20261015.zip`。上方 10 月 14 日为历史，不作为当前缺 AppID、域名未登记或编译未运行的结论。
 
 本清单按当前 `src/api.js`、`src/fixed-account.js`、001–010 迁移及 `health-ai`/`health-photo` 函数整理。010 增加的是服务端生成发布关联与预算计算，不改客户端 RPC 签名、返回或版本探针。目标是让原生微信前端接入**同一个 Supabase 项目、同两个密码账号、同一套记录和权限**。不接微信登录，不开放注册、建空间或邀请，不新增服务端接口。本文件不是小程序可用或真机通过的证明；部署状态仍以实际回读为准。
 
@@ -41,7 +43,7 @@
 
 ## 小程序网络域名与密钥边界
 
-`src/domain.js` 限定项目 URL 为 `https://<项目编号>.supabase.co`；本项目当前公开 API 主机是 `https://wnzbtitlvteptkvwhavw.supabase.co`。项目编号和域名是公开地址，密钥值仍不写本文。原生小程序若沿用现有路径，在微信后台须分别核对并登记该主机：
+`src/domain.js` 限定项目 URL 为 `https://<项目编号>.supabase.co`；本项目当前公开 API 主机是 `https://wnzbtitlvteptkvwhavw.supabase.co`。项目编号和域名是公开地址，密钥值仍不写本文。下列三类主机已于 2026-10-15 在微信后台分别保存并读回；此结果不代替正式校验开启的真机请求、上传和下载：
 
 | 小程序能力 | 当前代码对应路径 | 主机 |
 |---|---|---|
@@ -53,7 +55,7 @@
 
 客户端不直访 Supabase Storage 对象路径：`health-photo` 服务端按当前权限代理，不能使用公开桶或长期签名链接。`health-cron`、service_role/secret、AI 密钥、预算管理员接口只在服务端，绝不放小程序包。浏览器的 `HEALTH_ALLOWED_ORIGINS` 是有 `Origin` 时的精确来源校验；原生请求是否带 `Origin` 以真机核对，不能为了接入放宽现有站点来源列表。
 
-微信官方[小程序网络说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)及 [`wx.request`](https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html)、[`wx.uploadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/upload/wx.uploadFile.html)、[`wx.downloadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html)是上线核对入口；腾讯官方的[小程序域名配置说明](https://cloud.tencent.com/document/product/269/68378)也区分 request、uploadFile、downloadFile 白名单。当前已配置用户提供的 AppID，仍未确认 Supabase 默认域名能否登记或满足主体/备案要求，也未做原生真机网络测试，**不能据此宣称可发布**。开发工具放宽域名校验不能代替正式版真机。三个外部 GIF 组件已实现但原生媒体验收待办；八个原视频保持来源且不下载/重新托管。逐项状态见 [媒体说明](miniprogram/MEDIA.md)。
+微信官方[小程序网络说明](https://developers.weixin.qq.com/miniprogram/dev/framework/ability/network.html)及 [`wx.request`](https://developers.weixin.qq.com/miniprogram/dev/api/network/request/wx.request.html)、[`wx.uploadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/upload/wx.uploadFile.html)、[`wx.downloadFile`](https://developers.weixin.qq.com/miniprogram/dev/api/network/download/wx.downloadFile.html)是上线核对入口；腾讯官方的[小程序域名配置说明](https://cloud.tencent.com/document/product/269/68378)也区分 request、uploadFile、downloadFile 白名单。当前微信后台已接受并保存三类 Supabase 主机登记，没有另购域名或部署代理的必要证据。个人主体仍未备案、未认证，体验版已设置；**体验版与二维码的存在不能代替正式校验开启的双人真机网络、媒体和业务验收**，这些项目仍未执行。开发工具放宽域名校验不能代替正式版真机。三个 GIF 组件已有实现，八个视频保持来源、不下载或重新托管；逐项状态见[媒体说明](miniprogram/MEDIA.md)。
 
 接入后按[双人真机清单](docs/DEVICE-ACCEPTANCE.md)验证两台物理设备、两份会话、共享撤销、照片私有下载、冲突和退出。测试只用精确标记的合成记录，清理按回执 ID 与所有者执行。
 
@@ -73,6 +75,6 @@
 
 ## 仍需本人准备的最少资料
 
-- AppID 已提供；仍需本人核对对应主体/备案状态、开发者和管理员权限，在后台登记合法域名、发布隐私指引并添加“我 / W”体验成员。核对现有 Supabase 主机能否登记，尚未确认前不假定可发布，也不为此新注册或购买。
+- AppID、域名、工具登录、编译、上传和体验版设置均已核对，真实体验二维码已私有交付。免费原生验收和 3 条精确合成记录清理已经完成，结果与未完成项见[验收说明](docs/MINIAPP-ACCEPTANCE.md)。管理员手机仅反馈扫码打开、登录成功，W 和两台手机完整业务尚未验收。主体未备案、未认证，体验成员 0。隐私首轮拒绝保留，第二版审核中；待最终内容及审核生效核对后复验照片流程，再按实际需要添加体验成员并做双人真机和跨端一致性验收。不重复已完成设置；备案、认证、成员权限或正式发布另行确认，不购买服务。
 - 两台真实手机与“我 / W”两位固定账号由本人分别安全登录；密码仅在各自设备输入，不发送到聊天或文档。
 - 如需配置既有后端或发布体验版，由现有后端运营管理员使用自己的权限操作；service_role、cron secret 与 AI 密钥始终只在服务端。付费供应商用途只有本人明确授权且现有预算允许才启用，不代替 W 授权、不提高额度。

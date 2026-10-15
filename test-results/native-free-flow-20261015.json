@@ -1,0 +1,308 @@
+{
+  "scope": "official-WeChat-DevTools-real-backend-free-UI",
+  "created_at": "2026-10-15T03:51:44.947Z",
+  "runtime": "official bundled Automator connected to existing logged-in DevTools",
+  "account": "me",
+  "physical_devices": 0,
+  "paid_ai_actions": 0,
+  "provider_consent_or_limits_modified": false,
+  "results": [
+    {
+      "id": "today-real-server-render",
+      "status": "passed",
+      "at": "2026-10-15T03:53:38.611Z",
+      "credentials_entered_by": "user",
+      "account": "me",
+      "real_backend": true,
+      "empty_state": true
+    },
+    {
+      "id": "weight-ui-save-and-server-readback",
+      "status": "passed",
+      "at": "2026-10-15T03:54:02.736Z",
+      "default_date": "2026-10-15",
+      "unit": "kg",
+      "default_private": true,
+      "single_record": true
+    },
+    {
+      "id": "weight-trend-and-visible-entry",
+      "status": "passed",
+      "at": "2026-10-15T03:55:18.842Z",
+      "synthetic_only": true,
+      "missing_days_not_zero": true,
+      "observed_button_text": "记录或修改体重"
+    },
+    {
+      "id": "tomorrow-manual-ui-save-and-server-readback",
+      "status": "passed",
+      "at": "2026-10-15T03:55:43.173Z",
+      "ai_parse_called": false,
+      "plan_generation_called": false,
+      "unknown_times_preserved": true
+    },
+    {
+      "id": "manual-meal-draft-and-double-tap",
+      "status": "passed",
+      "at": "2026-10-15T03:56:18.600Z",
+      "single_record": true,
+      "excluded_from_intake": true,
+      "photo_selected": false,
+      "ai_called": false
+    },
+    {
+      "id": "manual-meal-confirm-intake-once",
+      "status": "passed",
+      "at": "2026-10-15T03:57:25.937Z",
+      "synthetic_interval": true,
+      "fraction_applied_once": true
+    },
+    {
+      "id": "manual-meal-edit-recalculates-without-duplicate",
+      "status": "passed",
+      "at": "2026-10-15T03:57:54.753Z",
+      "same_id": true,
+      "intake_recomputed": true
+    },
+    {
+      "id": "manual-meal-unconfirm-removes-intake",
+      "status": "passed",
+      "at": "2026-10-15T03:58:22.370Z",
+      "record_preserved_as_draft": true
+    },
+    {
+      "id": "records-real-backend-read",
+      "status": "passed",
+      "at": "2026-10-15T03:58:51.950Z"
+    },
+    {
+      "id": "training-read-separates-catalog-from-today",
+      "status": "passed",
+      "at": "2026-10-15T03:58:57.735Z",
+      "optional_exercises": 11,
+      "recommended": 0,
+      "session_created": false
+    },
+    {
+      "id": "paid-ai-and-adjustment-accept-undo",
+      "status": "not_run",
+      "at": "2026-10-15T03:58:57.735Z",
+      "reason": "本轮仅免费UI验收；不生成付费建议，未制造或修改已有计划。"
+    },
+    {
+      "id": "two-fixed-account-isolation-and-physical-devices",
+      "status": "not_run",
+      "at": "2026-10-15T03:58:57.743Z",
+      "reason": "保留用户已登录的我；本轮未登录W，开发工具模拟器不等于两台实体手机。"
+    },
+    {
+      "id": "photo-permission-selection-upload-download",
+      "status": "blocked",
+      "at": "2026-10-15T03:58:57.753Z",
+      "reason": "微信照片隐私用途审核正在修订；不伪造选图、权限或上传成功。"
+    },
+    {
+      "id": "gif-machine_seated_row",
+      "status": "passed",
+      "at": "2026-10-15T04:00:50.643Z",
+      "runtime": "WeChat DevTools simulator",
+      "actual_component_load": true,
+      "size": {
+        "width": 180,
+        "height": 180
+      },
+      "mode": "aspectFit",
+      "physical_phone": "not_run"
+    },
+    {
+      "id": "gif-close-machine_seated_row",
+      "status": "passed",
+      "at": "2026-10-15T04:00:50.890Z",
+      "image_removed_after_real_view_render": true
+    },
+    {
+      "id": "gif-machine_chest_press",
+      "status": "passed",
+      "at": "2026-10-15T04:01:35.648Z",
+      "runtime": "WeChat DevTools simulator",
+      "actual_component_load": true,
+      "size": {
+        "width": 180,
+        "height": 180
+      },
+      "mode": "aspectFit",
+      "physical_phone": "not_run"
+    },
+    {
+      "id": "gif-close-machine_chest_press",
+      "status": "passed",
+      "at": "2026-10-15T04:01:35.890Z",
+      "image_removed_after_real_view_render": true
+    },
+    {
+      "id": "gif-machine_seated_leg_curl",
+      "status": "passed",
+      "at": "2026-10-15T04:02:01.126Z",
+      "runtime": "WeChat DevTools simulator",
+      "actual_component_load": true,
+      "size": {
+        "width": 180,
+        "height": 180
+      },
+      "mode": "aspectFit",
+      "physical_phone": "not_run"
+    },
+    {
+      "id": "gif-close-machine_seated_leg_curl",
+      "status": "passed",
+      "at": "2026-10-15T04:02:01.415Z",
+      "image_removed_after_real_view_render": true
+    },
+    {
+      "id": "source-video-machine_leg_press",
+      "status": "passed",
+      "at": "2026-10-15T04:03:02.717Z",
+      "original_source_preserved": true,
+      "explicitly_unavailable": true,
+      "native_player_not_claimed": true
+    },
+    {
+      "id": "source-video-machine_lat_pulldown",
+      "status": "passed",
+      "at": "2026-10-15T04:03:11.851Z",
+      "original_source_preserved": true,
+      "explicitly_unavailable": true,
+      "native_player_not_claimed": true
+    },
+    {
+      "id": "source-video-machine_hip_abduction",
+      "status": "passed",
+      "at": "2026-10-15T04:03:21.952Z",
+      "original_source_preserved": true,
+      "explicitly_unavailable": true,
+      "native_player_not_claimed": true
+    },
+    {
+      "id": "test-data-cleanup",
+      "status": "passed",
+      "at": "2026-10-15T04:06:22.926Z",
+      "items": [
+        {
+          "status": "deleted",
+          "id": "9e10cb1f-a7d5-42a1-80b1-6ae6f72338e6",
+          "checked_updated_at": "2026-10-15T03:53:53.764346+00:00",
+          "source_marker_matched": true,
+          "exact_snapshot_matched": true
+        },
+        {
+          "status": "deleted",
+          "id": "c22f3d59-d95c-4ed2-bdfa-438279bae6bb",
+          "checked_updated_at": "2026-10-15T03:55:35.869522+00:00",
+          "source_marker_matched": true,
+          "exact_snapshot_matched": true
+        },
+        {
+          "status": "deleted",
+          "id": "aa403e22-232f-4f3d-bab3-99b7d3e08e65",
+          "checked_updated_at": "2026-10-15T03:58:12.469853+00:00",
+          "source_marker_matched": true,
+          "exact_snapshot_matched": true
+        }
+      ],
+      "guarded_by": [
+        "exact_id",
+        "current_owner",
+        "unique_test_marker",
+        "created_at",
+        "updated_at",
+        "exact_generated_row_snapshot"
+      ],
+      "user_rules_or_consents_changed": false
+    },
+    {
+      "id": "source-video-remaining-five",
+      "status": "not_run",
+      "reason": "前三项真实UI来源/不可用状态已通过；后五项保留既有静态与历史证据，本轮SDK批次超时后未重复扩大测试。"
+    },
+    {
+      "id": "training-session-write-with-existing-plan",
+      "status": "not_run",
+      "reason": "本人当前无训练计划；不为验收制造或修改计划，保留既有训练单元证据。"
+    },
+    {
+      "id": "offline-and-session-expiry-native-live",
+      "status": "not_run",
+      "reason": "保留本人现有登录和联机状态，本轮未切断设备网络或修改会话凭据；既有独立测试证据不冒充原生实时验收。"
+    }
+  ],
+  "updated_at": "2026-10-15T04:06:49.016Z",
+  "counts": {
+    "passed": 20,
+    "failed": 0,
+    "blocked": 1,
+    "not_run": 5
+  },
+  "harness_attempts": [
+    {
+      "stage": "weight-preflight",
+      "error": "TODAY_WEIGHT_ENTRY_MISSING",
+      "cause": "Compiled WXML omits bindtap attributes; locator corrected to actual button text.",
+      "recorded_at": "2026-10-15T04:07:18.666Z",
+      "event_time": "not captured; historical tool result retained"
+    },
+    {
+      "id": "stage-weight",
+      "status": "failed",
+      "at": "2026-10-15T03:52:39.748Z",
+      "error": "timeout waiting for automator response"
+    },
+    {
+      "stage": "weight",
+      "at": "2026-10-15T03:54:08.156Z",
+      "error": "TRENDS_WEIGHT_ENTRY_MISSING",
+      "cause": "Observed native label is 记录或修改体重; locator corrected."
+    },
+    {
+      "stage": "mealConfirm",
+      "at": "2026-10-15T03:56:48.273Z",
+      "error": "ELEMENT_MISSING:input[data-field=\"energy_min_kcal\"]",
+      "cause": "Conditional input view not yet rendered; wait on actual selector replaced immediate assertion."
+    },
+    {
+      "stage": "gif",
+      "at": "2026-10-15T03:59:39.778Z",
+      "error": "PAGE_LOAD_TIMEOUT",
+      "cause": "Exercise page has no backend loading flag; readiness corrected without bypassing actual GIF load state."
+    },
+    {
+      "stage": "gif",
+      "at": "2026-10-15T04:00:12.278Z",
+      "error": "GIF_CLOSE_FAILED",
+      "cause": "State update precedes view removal; now waits for actual image removal."
+    },
+    {
+      "stage": "videos",
+      "at": "2026-10-15T04:04:08.187Z",
+      "error": "timeout waiting for automator response"
+    },
+    {
+      "stage": "videos-batch-0",
+      "error": "NATIVE_FREE_FLOW_STAGE_TIMEOUT",
+      "cause": "Four-entry UI batch reached the 30-second process limit after three completed assertions; remaining entries not claimed as tested.",
+      "recorded_at": "2026-10-15T04:07:18.667Z",
+      "event_time": "not captured; historical tool result retained"
+    }
+  ],
+  "screenshot_status": {
+    "status": "failed",
+    "reason": "官方 Automator captureScreenshot 在首轮真实调用等待响应超时；数据流程不以截图冒充验证。"
+  },
+  "evidence": {
+    "script": "private/native-free-flow.cjs",
+    "script_sha256": "eb4717acdb74e9e0c9b46279301659c5dac58d39e1f4d85284bf132b568fa2ae",
+    "private_record_snapshots": "private/native-free-flow-records-20261015.json",
+    "paid_actions_observation": "This test script never invoked parseSchedule, requestPlanGeneration, generatePlan, estimateMeal or requestMealAdjustment; no claim about unrelated server activity."
+  },
+  "domain_validation_disabled_by_this_test": false,
+  "domain_validation_runtime_state": "not independently reread by this worker; no setting changed"
+}

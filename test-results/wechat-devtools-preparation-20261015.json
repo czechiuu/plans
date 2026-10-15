@@ -1,0 +1,47 @@
+{
+  "scope": "official-devtools-installer-preparation-only",
+  "shanghai_date": "2026-10-15",
+  "version": "2.02.2608080",
+  "official_stable_release_date": "2026-09-30",
+  "official_page": "https://developers.weixin.qq.com/miniprogram/dev/devtools/stable.html",
+  "official_version_configuration": "https://devtools.wxqcloud.qq.com.cn/WechatWebDev/nightly/versions/config.json",
+  "installer_url": "https://devtools.wxqcloud.qq.com.cn/WechatWebDev/release/be1ec64cf6184b0fa64091919793f068/wechat_devtools_2.02.2608080_win32_x64.exe",
+  "private_local_path": "private/tools/wechat-devtools/wechat_devtools_2.02.2608080_win32_x64.exe",
+  "downloaded_bytes": 190935184,
+  "matches_http_content_length": true,
+  "sha256": "8A3255FE7626879B472DC5145E1B29D797F86D0A6BD9D775097F2BA5F9BB7467",
+  "authenticode": {
+    "status": "Valid",
+    "signer": "Tencent Technology (Shenzhen) Company Limited"
+  },
+  "installer_executed": true,
+  "user_approved_interactive_launch": true,
+  "launch_history": [
+    {
+      "environment": "sandbox",
+      "result": "failed_windows_dll_relocation"
+    },
+    {
+      "environment": "approved_unsandboxed",
+      "result": "interactive_process_started",
+      "pid": 33828
+    }
+  ],
+  "software_installed": true,
+  "installation_evidence": "Windows uninstall registry and official cli.bat found; version 2.02.2608080",
+  "user_reported_devtools_logged_in": true,
+  "license_accepted_by_agent": false,
+  "devtools_login": "verified_by_official_cli_islogin_true",
+  "initial_islogin_result": "IDE service port disabled; no login result returned",
+  "official_islogin_result": {
+    "login": true
+  },
+  "service_port_changed": true,
+  "service_port_approval": "explicit user permission, enabled by user in IDE settings",
+  "upload_key_generated": false,
+  "native_compilation": "official_preview_succeeded",
+  "preview_qr_generated": true,
+  "experience_qr_generated": true,
+  "latest_build_report": "wechat-native-build-20261015.json",
+  "experience_qr_evidence": "wechat-admin-readback-20261015.json"
+}

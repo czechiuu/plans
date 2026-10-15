@@ -1,0 +1,86 @@
+{
+  "scope": "official-wechat-devtools-build-and-developer-upload",
+  "shanghai_date": "2026-10-15",
+  "appid": "wxa45b1a88790a49ec",
+  "devtools_version": "2.02.2608080",
+  "source_config_commit": "7abbed8e89331576df6dcd66429650439e935050",
+  "legal_domain_validation_enabled": true,
+  "official_cli_login": true,
+  "official_preview": {
+    "status": "success",
+    "exit_code": 0,
+    "package_bytes": 182707,
+    "qr_generated": true,
+    "qr_kind": "development_preview_not_experience",
+    "private_log": "test-results/private/wechat-native-20261015/preview-cli.log"
+  },
+  "developer_upload": {
+    "status": "success",
+    "exit_code": 0,
+    "version": "0.1.0",
+    "package_bytes": 182707,
+    "private_log": "test-results/private/wechat-native-20261015/upload-cli.log"
+  },
+  "official_runtime_test_client": {
+    "name": "Codex",
+    "status": "authorized_by_user_in_devtools",
+    "new_dependency_installed": false
+  },
+  "page_runtime_tests": {
+    "status": "completed_with_explicit_gaps",
+    "report": "native-free-flow-20261015.json",
+    "passed": 20,
+    "failed": 0,
+    "blocked": 1,
+    "not_run": 5,
+    "synthetic_records_cleaned": 3,
+    "business_failed_count_excludes_preserved_harness_failures": true
+  },
+  "tool_failures_preserved": [
+    "initial console check without window: winId undefined",
+    "MCP runtime currentPage: Timeout",
+    "selector screenshot: waitForAutomatorReady timeout",
+    "MCP runtime after auto: timeout waiting for automator response"
+  ],
+  "official_bundled_client_probe": {
+    "status": "success",
+    "current_page": "pages/today/index",
+    "health_data_or_credentials_logged": false
+  },
+  "native_page_screenshots": {
+    "diagnostic_login": "test-results/private/wechat-native-20261015/simulator-diagnostic.jpg",
+    "width": 363,
+    "height": 785,
+    "functional_assertion": false
+  },
+  "physical_device_workflows": {
+    "source": "explicit user report in current conversation",
+    "administrator_phone": "opened_experience_and_logged_in",
+    "full_workflow": "not_run",
+    "W": "pending_user_later_validation",
+    "two_physical_phones": "not_run"
+  },
+  "experience_version_selected": true,
+  "experience_version": "0.1.0",
+  "experience_qr_generated": true,
+  "experience_qr_file_saved": true,
+  "experience_qr_artifact_kind": "actual_wechat_admin_popup_screenshot",
+  "experience_qr_private_artifact": "test-results/private/wechat-admin-20261015/experience-0.1.0-qr-verified.jpg",
+  "public_release_submitted": false,
+  "production_health_data_writes_during_build_upload": 0,
+  "synthetic_business_flow_writes": "separately_reported_in_native-free-flow-20261015.json",
+  "paid_ai_calls": 0,
+  "personal_ai_consent_or_limit_changes": 0,
+  "previous_unit_tests": {
+    "passed": 143,
+    "failed": 0,
+    "rerun": false,
+    "report": "miniapp-acceptance-20261014.json"
+  },
+  "experience_qr_pixel_content_visually_verified": true,
+  "failed_qr_capture": {
+    "private_artifact": "test-results/private/wechat-admin-20261015/experience-0.1.0-qr-context.jpg",
+    "excluded_from_delivery": true
+  },
+  "source_package": "dist-native/plans-native-experience-0.1.0-20261015.zip"
+}
