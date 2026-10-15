@@ -72,8 +72,9 @@
     }
   },
   "unchanged": {
-    "protectedFiles": 82,
+    "protectedCodeFiles": 81,
     "changed": 0,
+    "documentationOnlyChange": "miniprogram/README.md",
     "aiCalls": 0,
     "accountOrPrivacyOrBudgetSettingsChanged": false,
     "realRecordsChangedByAgent": 0
@@ -93,3 +94,4 @@
   ],
   "independentRuntimeReport": "native-sbit-runtime-20261015.json"
 }
+
