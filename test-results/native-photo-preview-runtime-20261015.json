@@ -1,0 +1,150 @@
+{
+  "scope": "real-native-synthetic-photo-upload-private-preview",
+  "device": "WeChat DevTools simulator; not physical phone",
+  "aiCalls": 0,
+  "personalConsentsOrLimitsChanged": false,
+  "userPhotosRead": 0,
+  "checks": [
+    {
+      "id": "one-private-synthetic-meal-draft-created",
+      "status": "passed",
+      "fixedClientRequestId": true,
+      "fullReceiptPersistedPrivately": true
+    },
+    {
+      "id": "upload",
+      "status": "failed",
+      "code": "SDK_OR_STAGE_FAILED",
+      "category": "harness_failure",
+      "detail": "Original SDK wrapper message was not retained; cannot reconstruct historical cause"
+    },
+    {
+      "id": "recover",
+      "status": "failed",
+      "code": "SDK_OR_STAGE_FAILED",
+      "category": "harness_failure",
+      "detail": "Original SDK wrapper message was not retained; cannot reconstruct historical cause"
+    },
+    {
+      "id": "server-photo-completion-confirmed-by-exact-private-readback",
+      "status": "passed",
+      "apiUploadAcknowledgementReceived": false,
+      "bytes": 3160752,
+      "width": 960,
+      "height": 960,
+      "realServerAssetReady": true
+    },
+    {
+      "id": "preview",
+      "status": "failed",
+      "code": "SDK_OR_STAGE_FAILED",
+      "category": "harness_failure",
+      "detail": "timeout waiting for automator response"
+    },
+    {
+      "id": "actual-image-load-completed-after-sdk-navigation-timeout",
+      "status": "passed",
+      "actualImageLoadEvent": true,
+      "nativeRectangles": {
+        "status": "read",
+        "values": [
+          {
+            "width": 338,
+            "height": 240
+          }
+        ]
+      }
+    },
+    {
+      "id": "reopened-meal-actual-private-image-load",
+      "status": "passed",
+      "navigationAcknowledged": true,
+      "actualImageLoadEvent": true
+    },
+    {
+      "id": "exact-synthetic-photo-cleanup-with-fullrow-version-guard",
+      "status": "passed",
+      "photoAbsent": true,
+      "mealVersionUnchanged": true
+    },
+    {
+      "id": "exact-synthetic-meal-cleanup-and-final-absence-readback",
+      "status": "passed",
+      "photoAndMealAbsent": true,
+      "realUserRecordsTouched": 0
+    }
+  ],
+  "cleanup": "exact_photo_then_meal_deleted_after_owner_marker_hash_fullrow_version_guard_and_absence_readback",
+  "status": "completed",
+  "diagnosis": {
+    "currentAccountIsMe": true,
+    "sessionOwnerMatches": true,
+    "localPng": {
+      "status": "passed",
+      "bytes": 3160752
+    },
+    "readback": {
+      "status": "passed",
+      "relatedPhotoRows": 1
+    }
+  },
+  "previewInspection": {
+    "route": "pages/meal/index",
+    "syntheticMealMatches": true,
+    "methodAvailable": true,
+    "loading": false,
+    "pageError": false,
+    "photoCount": 1,
+    "photoFound": true,
+    "ready": true,
+    "hasPreviewPath": true,
+    "photoState": "ready",
+    "rectangles": {
+      "status": "read",
+      "values": [
+        {
+          "width": 338,
+          "height": 240
+        }
+      ]
+    }
+  },
+  "realUploadOutcome": "No original SDK acknowledgement; unique owner/meal/hash active server metadata and subsequent authenticated download with actual image load confirmed",
+  "counts": {
+    "passed": 6,
+    "business_failed": 0,
+    "harness_failed": 3
+  },
+  "not_run": [
+    "full-screen native overlay verification",
+    "physical phone 0.1.4 photo upload and preview",
+    "W physical phone"
+  ],
+  "cleanupSource": "Exact synthetic photo and meal IDs, owner, marker, hash, created/updated timestamps and complete snapshots retained privately; photo then meal deleted only after full equality guards; final readback absent",
+  "sourceUnderTest": "aec2ad8",
+  "finishedAtShanghai": "2026-10-15T16:22:16+08:00",
+  "realBackend": true,
+  "serverCompletedPhotoUploads": 1,
+  "initialSdkUploadAcknowledgementReceived": false,
+  "reopenedActualImageLoad": true,
+  "screenshots": [
+    {
+      "artifact": "test-results/private/native-photo-preview-20261015/meal-private-photo.jpg",
+      "tool": "official simulator_screenshot",
+      "width": 363,
+      "height": 785,
+      "visuallyReviewed": true,
+      "syntheticOnly": true
+    },
+    {
+      "artifact": "private/native-photo-preview-flow-20261015-simulator.jpg",
+      "tool": "official simulator_screenshot",
+      "width": 363,
+      "height": 785,
+      "visuallyReviewed": true,
+      "syntheticOnly": true,
+      "sameActualPageAsRootScreenshot": true,
+      "additionalTestCount": 0
+    }
+  ]
+}
