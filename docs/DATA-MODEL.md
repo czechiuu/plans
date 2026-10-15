@@ -1,6 +1,6 @@
 # 数据结构与权限
 
-原生微信阶段没有新增或修改生产表、迁移或服务端业务。客户端复用现有 001–010 契约；010 实际版本见稳定版独立报告。`plans-mini:session` 仅在本设备存 Auth 会话，`plans-mini:pending:<本人ID>:<类型>` 存发送结果未确认的原 payload 与提交 UUID，不是第二套云端健康数据。退出清本机，所有云端读取仍由本人 JWT 和 RLS 决定。原生接口及限制见 [交接](../MINIAPP_HANDOFF.md)。
+原生微信阶段没有新增或修改生产表、迁移及账号权限；2026-10-15餐照兼容修复仅更新health-photo的PNG校验与固定原因日志，见[native-sbit报告](../test-results/native-sbit-20261015.json)。客户端复用现有 001–010 契约；010 实际版本见稳定版独立报告。`plans-mini:session` 仅在本设备存 Auth 会话，`plans-mini:pending:<本人ID>:<类型>` 存发送结果未确认的原 payload 与提交 UUID，不是第二套云端健康数据。退出清本机，所有云端读取仍由本人 JWT 和 RLS 决定。原生接口及限制见 [交接](../MINIAPP_HANDOFF.md)。
 
 截至 2026-10-14，生产已应用 001–009；006–009 的迁移摘要及能力回读见[发布记录](../test-results/daily-flow-release.json)。结构部署不等于真人业务验收。旧字段细节见 [HEALTH-API](HEALTH-API.md)，新增契约见 [DAILY-FLOW-CHANGES](DAILY-FLOW-CHANGES.md)，有差异时以迁移源为准。
 

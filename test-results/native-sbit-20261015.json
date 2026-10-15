@@ -1,0 +1,95 @@
+{
+  "scope": "native-0.1.4-photo-upload-sbit-backend-fix",
+  "recordedAt": "2026-10-15T08:56:55.495Z",
+  "sourceCommit": "0f386e65c55a2d3dae1b8a7736517434b6e5dfa7",
+  "feedback": {
+    "before": "2026-10-15 16:32 Shanghai screenshot: local preview visible, upload INVALID_PNG",
+    "after": "User explicitly confirmed: 上传成功，能看到已上传照片",
+    "evidenceType": "user physical-phone report after backend deployment; not agent-operated phone",
+    "failedPhotoBytesInspected": false,
+    "originalFailureReasonNotRetrospectivelyProven": true
+  },
+  "knownDefect": {
+    "previousValidatorRejectedLegalSBIT": true,
+    "identicalSyntheticRejectedBeforeAcceptedAfter": true,
+    "checks": [
+      "sBIT appears once after IHDR and before IDAT",
+      "RGB length 3 / RGBA length 4",
+      "each value 1 through 8",
+      "existing CRC/size/format/deflate/filter checks retained"
+    ],
+    "sources": [
+      "https://www.w3.org/TR/png-3/#11sBIT",
+      "https://android.googlesource.com/platform/external/skia/+/5fbe8292250af134fdb87f9aedc6b246333bbe05/src/encode/SkPngEncoderImpl.cpp"
+    ]
+  },
+  "backend": {
+    "function": "health-photo",
+    "deployed": true,
+    "bytes": 230451,
+    "sha256": "c2efd8bd8580c5d04f2b544fc8170d05c52705bfb92f52a313ff883591136419",
+    "downloadedExactMatch": true,
+    "verifiedAt": "2026-10-15T16:47:45.8388008+08:00",
+    "logFields": [
+      "fixed event",
+      "fixed revision",
+      "allowlisted reason"
+    ],
+    "noPhotoContentsInDiagnosticLogs": true
+  },
+  "versions": {
+    "nativeExperience": "0.1.4 unchanged",
+    "webFrontend": "44a1762 unchanged",
+    "aiAndCron": "1c3444d unchanged",
+    "migrations": "001-010 unchanged"
+  },
+  "tests": {
+    "fullUnit": {
+      "passed": 187,
+      "failed": 0,
+      "skipped": 0
+    },
+    "targeted": {
+      "passed": 12,
+      "failed": 0,
+      "subsetOfFullUnit": true
+    },
+    "ci": {
+      "id": 38707775851,
+      "conclusion": "success",
+      "url": "https://github.com/czechiuu/plans/actions/runs/38707775851"
+    },
+    "realNativeSynthetic": {
+      "passed": 3,
+      "business_failed": 0,
+      "harness_failed": 2
+    },
+    "userPhoneUploadAndDisplay": "passed by user report",
+    "WPhone": "not_run",
+    "localIdenticalFileRegression": {
+      "passed": 1,
+      "failed": 0
+    }
+  },
+  "unchanged": {
+    "protectedFiles": 82,
+    "changed": 0,
+    "aiCalls": 0,
+    "accountOrPrivacyOrBudgetSettingsChanged": false,
+    "realRecordsChangedByAgent": 0
+  },
+  "cleanup": {
+    "cloudPhotos": 1,
+    "meals": 0,
+    "exactOwnerHashFullRowVersionGuard": true,
+    "absentReadback": true,
+    "nativeSourceTemporaryFile": "already absent",
+    "nativeDownloadTemporaryFile": "platform denied unlink; remains in app-managed temporary storage"
+  },
+  "preservedToolFailures": [
+    "Automator timeout before upload request",
+    "native downloaded temporary-file unlink failed after successful cloud cleanup",
+    "runtime-info initial call missing required action parameter; corrected after reading official help"
+  ],
+  "independentRuntimeReport": "native-sbit-runtime-20261015.json"
+}

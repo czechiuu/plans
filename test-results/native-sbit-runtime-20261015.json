@@ -1,0 +1,82 @@
+{
+  "scope": "real-wechat-api-synthetic-sbit-photo-contract",
+  "device": "WeChat DevTools, not physical phone",
+  "userPhotosRead": 0,
+  "aiCalls": 0,
+  "settingsChanged": false,
+  "checks": [
+    {
+      "id": "identical-sbit-png-rejected-before-and-accepted-after",
+      "status": "passed",
+      "width": 128,
+      "height": 96,
+      "bytes": 34479,
+      "IDATChunks": 386,
+      "evidence": "local_contract_regression"
+    },
+    {
+      "id": "upload",
+      "status": "failed",
+      "code": "TOOL_OR_ASSERTION_FAILED",
+      "category": "harness_failure",
+      "detail": "Automator timeout before uploadAttempted; no upload sent. Original failure preserved; official runtime read and connection probe succeeded before one later upload.",
+      "evidence": "real_devtools_and_backend"
+    },
+    {
+      "id": "actual-wechat-upload-ack-and-private-server-readback",
+      "status": "passed",
+      "width": 128,
+      "height": 96,
+      "bytes": 34479,
+      "mealCreated": false,
+      "evidence": "real_devtools_and_backend"
+    },
+    {
+      "id": "actual-authenticated-download-and-native-decode",
+      "status": "passed",
+      "width": 128,
+      "height": 96,
+      "evidence": "real_devtools_and_backend"
+    },
+    {
+      "id": "exact-synthetic-cleanup",
+      "status": "passed",
+      "photos": 1,
+      "meals": 0,
+      "realRecordsTouched": 0,
+      "evidence": "real_devtools_and_backend"
+    },
+    {
+      "id": "cleanup",
+      "status": "failed",
+      "code": "TOOL_OR_ASSERTION_FAILED",
+      "category": "harness_failure",
+      "detail": "Cloud photo cleanup and absence readback had passed; subsequent native temporary-file unlink raised a wrapper error. Source file later confirmed absent; downloaded temp file remains platform-managed.",
+      "evidence": "real_devtools_and_backend"
+    }
+  ],
+  "cleanup": "one_exact_private_synthetic_photo_deleted_after_owner_hash_fullrow_and_version_match_and_absence_readback",
+  "counts": {
+    "passed": 4,
+    "business_failed": 0,
+    "harness_failed": 2,
+    "localPassed": 1,
+    "realBackendPassed": 3
+  },
+  "localTemporaryFileCleanup": [
+    {
+      "status": "unavailable",
+      "reason": "already_absent"
+    },
+    {
+      "status": "unlink_failed",
+      "reason": "platform_denied_or_other"
+    }
+  ],
+  "status": "completed_with_platform_managed_temporary_download",
+  "sourceCommit": "0f386e65c55a2d3dae1b8a7736517434b6e5dfa7",
+  "notRun": [
+    "W phone",
+    "reopening the uploaded real meal on a physical phone"
+  ]
+}
