@@ -254,12 +254,17 @@ test('PNG validation distinguishes actual oversize, invalid metadata, mismatched
   data = Uint8Array.from([0, ...png.slice(1)]).buffer
   await assert.rejects(assertPngFile(wx, '/private.png'), error => {
     assert.equal(error.code, 'INVALID_PNG')
-    assert.match(errorText(error), /文件头不是 PNG/)
+    assert.match(errorText(error), /照片校验未通过/)
     assert.doesNotMatch(errorText(error), /超过|private/)
     return true
   })
   wx.getFileSystemManager = () => { throw Object.assign(new Error('secret path /private/photo.png'), { code: 'NATIVE_PRIVATE_FAILURE' }) }
   await assert.rejects(assertPngFile(wx, '/private.png'), error => error.code === 'PHOTO_READ_FAILED' && !errorText(error).includes('secret'))
+})
+
+test('a server PNG validation error does not falsely claim its signature was invalid', () => {
+  assert.match(errorText({ code: 'INVALID_PNG' }), /照片校验未通过/)
+  assert.doesNotMatch(errorText({ code: 'INVALID_PNG' }), /文件头|超过|阶段/)
 })
 
 test('PNG validation accepts a genuine cross-realm ArrayBuffer and rejects disguised objects and views', async () => {

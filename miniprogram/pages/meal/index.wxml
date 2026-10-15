@@ -3,8 +3,24 @@
   <view wx:if="{{loading}}" class="hint">正在从服务器读取餐食与照片状态…</view><view wx:if="{{offline}}" class="error">当前离线，提交结果可能尚未确认。<button class="secondary" bindtap="retryRefresh">重试连接</button></view><view wx:if="{{error}}" class="error">{{error}}<button class="secondary" bindtap="retryRefresh">刷新核对</button></view><view wx:if="{{notice}}" class="success">{{notice}}</view>
   <view wx:if="{{pendingCreate}}" class="card stack"><view class="error">上次保存结果尚未确认；只能用同一请求重试。先刷新服务器记录，避免重复新建。</view><button class="button" disabled="{{busy}}" bindtap="retryPending">按原内容重试</button></view>
   <view class="card stack"><view class="section-title">照片（可选）</view><view class="hint">只选本人照片。本机先净化为 PNG；上传也不会自动发送给 AI。照片默认私有。</view>
-    <button class="button" disabled="{{busy}}" bindtap="choose">拍照／选图记餐</button><view wx:if="{{photoPending}}" class="row"><text>净化照片待上传；可不填写食物先存草稿</text><button wx:if="{{id}}" class="secondary" bindtap="uploadPhoto">上传照片</button><button wx:else class="secondary" bindtap="savePhotoDraft">保存照片草稿并上传</button><button class="secondary" bindtap="cancelPhoto">取消</button></view>
-    <view wx:for="{{photos}}" wx:key="id" class="photo-row"><text>{{item.deleting ? '待清理，可重试删除' : item.uploading ? '上传中断，可清理' : '已上传的私人照片'}}</text><button wx:if="{{!item.deleting && !item.uploading}}" class="secondary" data-id="{{item.id}}" bindtap="viewPhoto">查看</button><button class="secondary" data-id="{{item.id}}" bindtap="deletePhoto">{{item.deleting || item.uploading ? '重试删除' : '删除'}}</button></view>
+    <button class="button" disabled="{{busy || loading || photoPreparing || photoUploading}}" bindtap="choose">拍照／选图记餐</button>
+    <view wx:if="{{photoPath}}" class="photo-row stack">
+      <view class="hint">{{photoUploading ? '正在上传，本机预览保留' : photoPreparing ? '本机照片 · 未上传，正在处理' : '本机照片 · 未上传'}}</view>
+      <image wx:if="{{!localPhotoError}}" class="photo-preview" src="{{photoPath}}" mode="aspectFit" bindtap="viewLocalPhoto" binderror="localPhotoFailed" />
+      <view wx:if="{{localPhotoError}}" class="error">{{localPhotoError}}</view><text wx:else class="hint">点照片查看大图</text>
+      <view wx:if="{{photoPending}}" class="row"><text>可不填写食物先存草稿</text><button wx:if="{{id}}" class="secondary" disabled="{{busy || photoUploading}}" bindtap="uploadPhoto">上传照片</button><button wx:else class="secondary" disabled="{{busy || photoUploading}}" bindtap="savePhotoDraft">保存照片草稿并上传</button></view>
+      <button class="secondary" disabled="{{busy || photoUploading}}" bindtap="cancelPhoto">取消本机照片</button>
+    </view>
+    <view wx:for="{{photos}}" wx:key="id" class="photo-row stack">
+      <text>{{item.deleteRequested ? '删除待确认，可重试' : item.deleting ? '待清理，可重试删除' : item.uploading ? '上传中断，可清理' : '已上传的私人照片'}}</text>
+      <block wx:if="{{!item.deleting && !item.uploading}}">
+        <image wx:if="{{item.previewPath}}" class="photo-preview" src="{{item.previewPath}}" mode="aspectFit" data-id="{{item.id}}" data-attempt="{{item.previewAttempt}}" bindload="photoLoaded" binderror="photoFailed" bindtap="viewPhoto" />
+        <view wx:if="{{item.previewState == 'loading'}}" class="hint">正在加载私人照片…</view>
+        <view wx:if="{{item.previewState == 'error'}}" class="error">私人照片加载失败：{{item.previewError}}<button class="secondary" disabled="{{busy}}" data-id="{{item.id}}" bindtap="retryPhoto">重试加载照片</button></view>
+        <text wx:if="{{item.previewState == 'ready'}}" class="hint">点照片查看大图</text>
+      </block>
+      <button class="secondary" disabled="{{busy}}" data-id="{{item.id}}" bindtap="deletePhoto">{{item.deleting || item.uploading ? '重试删除' : '删除'}}</button>
+    </view>
   </view>
   <view class="card stack"><view class="section-title">实际吃了什么</view><view class="hint">草稿不计入摄入；确认后仍可修正。份量、油酱、剩余由本人核对。</view><view wx:if="{{aiDraft}}" class="success">AI 草稿：{{aiDraft.status}}。{{aiDraft.uncertainty}} {{aiDraft.assumptions}}；尚未保存到实际餐食。{{aiDraft.usable ? '请核对区间后保存' : '无法可靠识别，热量不计入已知区间'}}</view>
     <view class="grid"><view><text class="label">用餐日期</text><picker mode="date" value="{{recordDate}}" bindchange="changeDate"><view class="field">{{recordDate}}</view></picker></view><view><text class="label">用餐时刻</text><picker mode="time" value="{{recordTime}}" bindchange="changeTime"><view class="field">{{recordTime}}</view></picker></view></view>

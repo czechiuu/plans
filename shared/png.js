@@ -17,12 +17,13 @@ export async function validateSanitizedPng(input){
   if(bytes.length<45 || bytes.length>4194304 || !signature.every((x,i)=>bytes[i]===x))
     throw new Error('INVALID_PNG')
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength)
-  let at=8,ihdr=false,idat=false,ended=false,width=0,height=0,chunks=0,colorType=0
-  const imageChunks=[]
+  let at=8,ihdr=false,idat=false,ended=false,width=0,height=0,colorType=0,imageLength=0
+  const imageData=new Uint8Array(bytes.length)
   while(at<bytes.length){
-    if(++chunks>100 || at+12>bytes.length) throw new Error('INVALID_PNG')
+    // Each chunk consumes at least 12 bytes; the 4 MiB file limit bounds parsing work.
+    if(at+12>bytes.length) throw new Error('INVALID_PNG')
     const length=view.getUint32(at)
-    const type=String.fromCharCode(...bytes.slice(at+4,at+8))
+    const type=String.fromCharCode(bytes[at+4],bytes[at+5],bytes[at+6],bytes[at+7])
     const data=at+8,end=data+length
     if(!allowed.has(type) || end+4>bytes.length || crc32(bytes,at+4,end)!==view.getUint32(end))
       throw new Error('INVALID_PNG')
@@ -35,10 +36,11 @@ export async function validateSanitizedPng(input){
     } else if(type==='IDAT'){
       if(!ihdr||ended) throw new Error('INVALID_PNG')
       idat=true
-      imageChunks.push(bytes.subarray(data,end))
+      if(length){imageData.set(bytes.subarray(data,end),imageLength);imageLength+=length}
     } else if(type==='IEND'){
       if(!ihdr||!idat||length!==0||end+4!==bytes.length) throw new Error('INVALID_PNG')
       ended=true
+    // The permitted ancillary chunks must precede IDAT, so the IDAT sequence stays consecutive.
     } else if(!ihdr||idat||ended) throw new Error('INVALID_PNG')
     at=end+4
   }
@@ -47,7 +49,7 @@ export async function validateSanitizedPng(input){
   const expected=scanlineBytes*height
   let count=0
   try{
-    const stream=new Blob(imageChunks).stream().pipeThrough(new DecompressionStream('deflate'))
+    const stream=new Blob([imageData.subarray(0,imageLength)]).stream().pipeThrough(new DecompressionStream('deflate'))
     for await(const block of stream){
       for(const value of block){
         if(count>=expected || (count%scanlineBytes===0 && value>4)) throw new Error('INVALID_PNG')

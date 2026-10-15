@@ -15,6 +15,7 @@ function fromRow(row) {
   const d = row.data || {}, estimate = d.estimate || {}, method = estimate.method === 'confirmed_nutrition' ? 'confirmed_nutrition' : d.estimate ? 'existing' : 'none'
   return { recorded_at: instantToLocalDateTime(d.recorded_at).slice(0, 16), kind: d.kind || 'other', eaten_fraction: String(d.eaten_fraction ?? 1), items: (d.items?.length ? d.items : [emptyItem()]).map(item => ({ ...emptyItem(), ...item, grams_min: item.grams_min ?? '', grams_max: item.grams_max ?? '', kcal_per_100g: item.kcal_per_100g ?? '' })), cooking: d.cooking || '', oil: d.oil || '', leftover: d.leftover || '', estimate_method: method, additions_status: estimate.nutrition_additions_status || 'unmeasured', energy_min_kcal: estimate.energy_min_kcal ?? '', energy_max_kcal: estimate.energy_max_kcal ?? '', estimate_source: estimate.source || '', uncertainty: estimate.uncertainty || '', status: row.status, is_shared: !!row.is_shared }
 }
+const currentChoice = (page, attempt, owner) => !page._unloaded && page._photoChoice === attempt && page.ownerUserId === owner
 function mealPayload(form, row, photos, estimateBasis, allowEmptyDraft = false) {
   const fraction = Number(form.eaten_fraction)
   if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1 || !/^(0(\.\d{1,3})?|1(\.0{1,3})?)$/.test(String(form.eaten_fraction))) throw new Error('实际吃掉比例须在 0 到 1 之间，最多三位小数')
@@ -52,21 +53,76 @@ function mealPayload(form, row, photos, estimateBasis, allowEmptyDraft = false) 
 }
 
 Page({
-  data: { ...baseData, id: '', row: null, form: emptyForm(), recordDate: today(), recordTime: instantToLocalDateTime(new Date().toISOString()).slice(11, 16), dirty: false, photos: [], photoPath: '', photoVisible: '', photoPending: false, pendingCreate: false, nutritionOpen: false, nutritionPreview: '', adjustments: [], planLocked: false, estimateProviderIndex: 0, adjustProviderIndex: 0, kinds, kindLabels, methods, methodLabels, additions, additionLabels, providers, kindIndex: 4, methodIndex: 0, additionIndex: 0 },
-  onLoad(options) { this.setData({ id: options.id || '' }) },
-  onShow() { refresh(this) },
+  data: { ...baseData, id: '', row: null, form: emptyForm(), recordDate: today(), recordTime: instantToLocalDateTime(new Date().toISOString()).slice(11, 16), dirty: false, photos: [], photoPath: '', photoPending: false, photoPreparing: false, photoUploading: false, localPhotoError: '', pendingCreate: false, nutritionOpen: false, nutritionPreview: '', adjustments: [], planLocked: false, estimateProviderIndex: 0, adjustProviderIndex: 0, kinds, kindLabels, methods, methodLabels, additions, additionLabels, providers, kindIndex: 4, methodIndex: 0, additionIndex: 0 },
+  onLoad(options) { this._unloaded = false; this.setData({ id: options.id || '' }) },
+  onShow() {
+    if (api().session()?.user?.id !== this._photoOwner) this.clearPhotoPreviews()
+    this._photoRequests = new Map()
+    this.setData({ photos: this.data.photos.map(photo => ({ ...photo, previewPath: '', previewState: '', previewError: '' })) })
+    return refresh(this)
+  },
+  onUnload() { this._unloaded = true; this.clearPhotoPreviews() },
   onPullDownRefresh() { refresh(this).finally(() => wx.stopPullDownRefresh()) },
   receive(data) {
+    if (this._photoOwner !== data.user.id) this.clearPhotoPreviews()
+    this._photoOwner = data.user.id
+    this.ownerUserId = data.user.id
     this._source = data
     const row = (data.meals || []).find(item => item.id === this.data.id && item.user_id === data.user.id) || null
-    const photos = (data.photo_assets || []).filter(photo => photo.meal_id === row?.id && photo.user_id === data.user.id)
+    const previous = new Map(this.data.photos.map(photo => [photo.id, photo]))
+    const photos = (data.photo_assets || []).filter(photo => photo.meal_id === row?.id && photo.user_id === data.user.id).map(photo => {
+      const old = previous.get(photo.id), deleting = !!photo.deleting || !!old?.deleteRequested, active = !deleting && !photo.uploading
+      return { ...photo, deleting, deleteRequested: !!old?.deleteRequested, previewPath: active ? old?.previewPath || '' : '', previewState: active ? old?.previewState || '' : '', previewError: active ? old?.previewError || '' : '', previewAttempt: old?.previewAttempt || 0 }
+    })
+    for (const id of this._photoRequests?.keys() || []) if (!photos.some(photo => photo.id === id && !photo.deleting && !photo.uploading)) this._photoRequests.delete(id)
     const day = row?.data?.recorded_at ? instantToLocalDateTime(row.data.recorded_at).slice(0, 10) : today()
     const adjustments = (data.meal_adjustments || []).filter(item => item.user_id === data.user.id && item.record_date === day).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || '')).map(item => ({ ...item, changeViews: (item.content?.meal_changes || []).map((change, index) => ({ key: index, index: change.meal_index, reason: change.reason || '', title: change.meal?.title || '', time: change.meal?.time || '', foods: (change.meal?.foods || []).map(food => `${food.name || ''} ${food.portion || ''}${food.unit || ''}`).join('、'), prep: change.meal?.prep_method || '', purchase: change.meal?.purchase_or_prep || '', alternative: change.meal?.alternative || '', notes: change.meal?.notes || '', snackReason: change.meal?.snack_reason || '' })) }))
     const plan = (data.daily_plans || []).filter(item => item.user_id === data.user.id && item.target_date === day).sort((a, b) => b.version - a.version)[0]
     const form = row ? fromRow(row) : emptyForm()
     this.setData({ row, photos, adjustments, planLocked: !!plan?.is_locked, dailyFlowReady: !!data.dailyFlowAvailable, aiReady: !!data.providerAiAvailable, pendingCreate: !!pending.get('meal'), ...(!this.data.dirty ? { form, recordDate: form.recorded_at.slice(0, 10), recordTime: form.recorded_at.slice(11, 16), kindIndex: kinds.indexOf(form.kind), methodIndex: methods.indexOf(form.estimate_method), additionIndex: additions.indexOf(form.additions_status) } : {}) })
     if (!this.data.dirty) this._estimateBasis = row?.data ? { items: row.data.items || [], cooking: row.data.cooking, oil: row.data.oil, leftover: row.data.leftover } : null
+    for (const photo of photos) if (!photo.deleting && !photo.uploading && !photo.previewState) this.loadPhotoPreview(photo.id)
   },
+  clearPhotoPreviews() {
+    this._photoChoice = null; this._photoPath = null; this._localPhotoOwner = null; this._photoOwner = null
+    this._photoRequests = new Map()
+    this.setData({ photos: [], photoPath: '', photoPending: false, photoPreparing: false, photoUploading: false, localPhotoError: '' })
+  },
+  setPhotoPreview(id, patch) { this.setData({ photos: this.data.photos.map(photo => photo.id === id ? { ...photo, ...patch } : photo) }) },
+  photoRequestCurrent(id, attempt, owner) {
+    const photo = this.data.photos.find(item => item.id === id)
+    return !this._unloaded && this._photoOwner === owner && this.ownerUserId === owner && api().session()?.user?.id === owner && this._photoRequests?.get(id) === attempt && photo && !photo.deleting && !photo.uploading
+  },
+  async loadPhotoPreview(id) {
+    const photo = this.data.photos.find(item => item.id === id), owner = this._photoOwner
+    if (!photo || photo.deleting || photo.uploading || this._unloaded) return
+    if (!owner || api().session()?.user?.id !== owner) { this.clearPhotoPreviews(); return }
+    this._photoRequests ||= new Map()
+    if (this._photoRequests.has(id)) return
+    const attempt = {}, number = (photo.previewAttempt || 0) + 1
+    this._photoRequests.set(id, attempt)
+    this.setPhotoPreview(id, { previewPath: '', previewState: 'loading', previewError: '', previewAttempt: number })
+    try {
+      const path = await api().downloadPhoto(id)
+      if (this.photoRequestCurrent(id, attempt, owner)) this.setPhotoPreview(id, { previewPath: path })
+      else if (!this._unloaded && this._photoOwner === owner && api().session()?.user?.id !== owner) this.clearPhotoPreviews()
+    } catch (error) {
+      if (this.photoRequestCurrent(id, attempt, owner)) this.setPhotoPreview(id, { previewPath: '', previewState: 'error', previewError: errorText(error) })
+      else if (!this._unloaded && this._photoOwner === owner && api().session()?.user?.id !== owner) this.clearPhotoPreviews()
+    } finally { if (this._photoRequests.get(id) === attempt) this._photoRequests.delete(id) }
+  },
+  photoLoaded(event) {
+    const photo = this.data.photos.find(item => item.id === event.currentTarget.dataset.id)
+    if (!photo || photo.deleting || photo.uploading || photo.previewAttempt !== Number(event.currentTarget.dataset.attempt)) return
+    if (api().session()?.user?.id !== this._photoOwner) { this.clearPhotoPreviews(); return }
+    this.setPhotoPreview(photo.id, event.detail.width > 0 && event.detail.height > 0 ? { previewState: 'ready' } : { previewPath: '', previewState: 'error', previewError: '照片未能完整显示，请重试' })
+  },
+  photoFailed(event) {
+    const photo = this.data.photos.find(item => item.id === event.currentTarget.dataset.id)
+    if (photo && !photo.deleting && !photo.uploading && photo.previewAttempt === Number(event.currentTarget.dataset.attempt)) this.setPhotoPreview(photo.id, { previewPath: '', previewState: 'error', previewError: '照片显示失败，请重试加载私人照片' })
+  },
+  retryPhoto(event) { return this.loadPhotoPreview(event.currentTarget.dataset.id) },
+  localPhotoFailed() { this.setData({ localPhotoError: '本机照片预览失败，请重新选择照片；尚未上传' }) },
   settings: openSettings,
   retryRefresh() { refresh(this) },
   clearAiDraft(patch) { return this.data.aiDraft ? { ...patch, 'form.estimate_method': 'none', 'form.energy_min_kcal': '', 'form.energy_max_kcal': '', methodIndex: 0, aiDraft: null, notice: '食物或油酱已修改，AI 旧区间已清除，请重新估算或填写明确来源' } : patch },
@@ -116,29 +172,60 @@ Page({
   async choose() {
     if (this._choosingPhoto || this._saving || this.data.busy) return
     this._choosingPhoto = true
+    const attempt = {}, owner = this.ownerUserId
+    this._photoChoice = attempt
     this.setData({ error: '', notice: '' })
-    try { const path = await choosePhoto(wx); this._photoPath = await sanitizePhoto(wx, this, path); this.setData({ photoPending: true, notice: '照片已在本机净化；保存草稿或点击上传后才会发送', error: '' }) }
-    catch (error) { this.setData(error.code === 'CANCELLED' ? { error: '', notice: '已取消选择照片' } : { error: errorText(error) }) }
-    finally { this._choosingPhoto = false }
+    try {
+      const path = await choosePhoto(wx)
+      if (!currentChoice(this, attempt, owner)) return
+      this._photoPath = undefined; this._localPhotoOwner = owner
+      this.setData({ photoPath: path, photoPending: false, photoPreparing: true, localPhotoError: '', notice: '本机照片 · 未上传，正在处理' })
+      const clean = await sanitizePhoto(wx, this, path)
+      if (!currentChoice(this, attempt, owner)) return
+      this._photoPath = clean
+      this.setData({ photoPath: clean, photoPending: true, notice: '本机照片 · 未上传；保存草稿或点击上传后才会发送', error: '' })
+    } catch (error) {
+      if (currentChoice(this, attempt, owner)) this.setData(error.code === 'CANCELLED' ? { error: '', notice: '已取消选择照片' } : { error: errorText(error) })
+    } finally {
+      if (currentChoice(this, attempt, owner)) this.setData({ photoPreparing: false })
+      this._choosingPhoto = false
+    }
   },
   async uploadPending(mealId) {
     const path = this._photoPath
-    if (!path || !mealId) return
+    if (!path || !mealId || this.data.busy || this.data.photoUploading) return
+    const owner = this.ownerUserId
+    this.setData({ photoUploading: true })
     const result = await perform(this, () => api().uploadPhoto(path, mealId, false), '照片已上传，未自动交给 AI', { reload: false })
-    if (result.ok) { this._photoPath = null; this.setData({ photoPending: false }); await refresh(this) }
-    else this.setData({ photoPending: true, notice: '餐食已保存，照片未上传；可重试或取消本机照片' })
+    if (this._unloaded) return
+    if (api().session()?.user?.id !== owner) { this.clearPhotoPreviews(); return }
+    this.setData({ photoUploading: false })
+    if (result.ok) { this._photoPath = null; this.setData({ photoPending: false, photoPath: '', localPhotoError: '' }); await refresh(this) }
+    else this.setData({ photoPending: true, notice: '照片上传未确认，本机预览已保留；可重试或取消本机照片' })
   },
-  uploadPhoto() { if (this.data.id) this.uploadPending(this.data.id); else this.setData({ error: '请先保存这餐草稿' }) },
-  cancelPhoto() { this._photoPath = null; this.setData({ photoPending: false, notice: '未上传的本机照片已取消' }) },
+  uploadPhoto() { if (this.data.id) return this.uploadPending(this.data.id); else this.setData({ error: '请先保存这餐草稿' }) },
+  cancelPhoto() { this._photoChoice = null; this._photoPath = null; this._localPhotoOwner = null; this.setData({ photoPending: false, photoPath: '', photoPreparing: false, localPhotoError: '', notice: '未上传的本机照片已取消' }) },
+  viewLocalPhoto() {
+    if (!this.data.photoPath || this.data.localPhotoError || this._unloaded) return
+    if (this._localPhotoOwner !== this.ownerUserId || api().session()?.user?.id !== this.ownerUserId) { this.clearPhotoPreviews(); return }
+    wx.previewImage({ current: this.data.photoPath, urls: [this.data.photoPath] })
+  },
   async viewPhoto(event) {
     const photo = this.data.photos.find(item => item.id === event.currentTarget.dataset.id)
-    if (!photo || photo.deleting || photo.uploading) return
-    const result = await perform(this, () => api().downloadPhoto(photo.id), '', { reload: false })
-    if (result.ok) wx.previewImage({ urls: [result.value] })
+    if (!photo || photo.deleting || photo.uploading || this._unloaded) return
+    const result = await perform(this, () => api().downloadPhoto(photo.id), '私人照片已读取', { reload: false })
+    if (this._unloaded) return
+    const current = this.data.photos.find(item => item.id === photo.id)
+    if (!current || current.deleting || current.uploading) return
+    if (api().session()?.user?.id !== this._photoOwner) { this.clearPhotoPreviews(); return }
+    if (result.ok) wx.previewImage({ current: result.value, urls: [result.value] })
+    else this.setPhotoPreview(photo.id, { previewPath: '', previewState: 'error', previewError: errorText(result.error) })
   },
   async deletePhoto(event) {
     const photo = this.data.photos.find(item => item.id === event.currentTarget.dataset.id)
-    if (!photo) return
+    if (!photo || this.data.busy) return
+    this._photoRequests?.delete(photo.id)
+    this.setPhotoPreview(photo.id, { deleting: true, deleteRequested: true, previewPath: '', previewState: '', previewError: '' })
     await perform(this, () => api().deletePhoto(photo.id), '照片已删除；若待清理可重试')
   },
   async estimate() {

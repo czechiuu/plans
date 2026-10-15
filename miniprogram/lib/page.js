@@ -19,7 +19,7 @@ const labels = {
   PHOTO_FILE_SIZE_MISMATCH: '照片读取字节与文件大小不一致，未继续处理（PHOTO_FILE_SIZE_MISMATCH）',
   PHOTO_FILE_DATA_INVALID: '微信未返回二进制照片数据，未继续处理（PHOTO_FILE_DATA_INVALID）',
   PHOTO_DIMENSIONS_INVALID: '微信未返回有效的照片宽高，尚未上传（PHOTO_DIMENSIONS_INVALID）',
-  INVALID_PNG: '照片文件头不是 PNG，未继续处理（INVALID_PNG）',
+  INVALID_PNG: '照片校验未通过，请重试（INVALID_PNG）',
   CONFLICT: '记录已被更新，请刷新后再修改', SIGNOUT_UNCONFIRMED: '本机已退出；服务器注销未确认，请联网后再登录',
   PUBLIC_CONFIG_INVALID: '后端公开配置不正确，请重新构建项目'
 }
