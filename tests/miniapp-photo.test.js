@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const { choosePhoto, sanitizePhoto } = require('../miniprogram/lib/photo.js')
+const { errorText } = require('../miniprogram/lib/page.js')
 const { createApi } = require('../miniprogram/lib/api.js')
 const config = { url: 'https://synthetic.supabase.co', key: 'sb_publishable_SYNTHETIC_PUBLIC_KEY_123456' }
 const owner = '11111111-1111-4111-8111-111111111111'
@@ -21,6 +22,63 @@ test('privacy gate precedes image choice and cancellation is explicit', async ()
   assert.deepEqual(events, ['privacy', 'choose'])
   wx.chooseMedia = options => options.success({ tempFiles: [{ tempFilePath: '/synthetic.jpg' }] })
   assert.equal(await choosePhoto(wx, {}), '/synthetic.jpg')
+  wx.requirePrivacyAuthorize = callback({ errMsg: 'requirePrivacyAuthorize:fail cancel' }, 'fail')
+  await assert.rejects(choosePhoto(wx, {}), { code: 'CANCELLED' })
+})
+
+test('privacy failure is local, stops image choice and only displays a safe stage code', async () => {
+  let chosen = 0
+  const wx = {
+    requirePrivacyAuthorize: callback({ errMsg: 'requirePrivacyAuthorize:fail synthetic-private-path https://private.invalid?token=synthetic' }, 'fail'),
+    chooseMedia: () => { chosen++ }
+  }
+  await assert.rejects(choosePhoto(wx, {}), error => {
+    assert.equal(error.code, 'PHOTO_PRIVACY_FAILED')
+    assert.match(errorText(error), /隐私确认未完成/)
+    assert.match(errorText(error), /PHOTO_PRIVACY_FAILED/)
+    assert.doesNotMatch(errorText(error), /https:|token=|synthetic-private-path/)
+    return true
+  })
+  assert.equal(chosen, 0)
+})
+
+test('camera permission denial and other selection failures have distinct Chinese explanations', async () => {
+  for (const [reason, code, text] of [
+    ['chooseMedia:fail auth deny', 'PHOTO_PERMISSION_DENIED', /相机或相册权限被拒绝/],
+    ['chooseMedia:fail unexpected', 'PHOTO_CHOOSE_FAILED', /未能选择照片/]
+  ]) {
+    const wx = { requirePrivacyAuthorize: callback({}), chooseMedia: callback({ errMsg: reason }, 'fail') }
+    await assert.rejects(choosePhoto(wx, {}), error => error.code === code && text.test(errorText(error)))
+  }
+})
+
+test('unreadable image and unavailable canvas report the actual processing stage', async () => {
+  const unreadable = { getImageInfo: callback({ errMsg: 'getImageInfo:fail /private-photo.jpg' }, 'fail') }
+  await assert.rejects(sanitizePhoto(unreadable, {}, '/private-photo.jpg'), error =>
+    error.code === 'PHOTO_READ_FAILED' && /无法读取所选照片/.test(errorText(error)) && !errorText(error).includes('/private-photo.jpg'))
+  const page = { createSelectorQuery: () => ({ select() { return this }, fields() { return this }, exec(callback) { callback([]) } }) }
+  await assert.rejects(sanitizePhoto({ getImageInfo: callback({ width: 640, height: 480 }) }, page, '/synthetic.jpg'), { code: 'PHOTO_CANVAS_UNAVAILABLE' })
+})
+
+test('meal page shows translated photo errors and cancellation does not claim an upload', async () => {
+  const oldPage = globalThis.Page, oldWx = globalThis.wx
+  let definition
+  try {
+    globalThis.Page = value => { definition = value }
+    delete require.cache[require.resolve('../miniprogram/pages/meal/index.js')]
+    require('../miniprogram/pages/meal/index.js')
+    const page = { data: { photoPending: false }, setData(value) { Object.assign(this.data, value) } }
+    globalThis.wx = { requirePrivacyAuthorize: callback({ errMsg: 'requirePrivacyAuthorize:fail synthetic' }, 'fail') }
+    await definition.choose.call(page)
+    assert.match(page.data.error, /隐私确认未完成/)
+    assert.equal(page.data.photoPending, false)
+    globalThis.wx = { requirePrivacyAuthorize: callback({}), chooseMedia: callback({ errMsg: 'chooseMedia:fail cancel' }, 'fail') }
+    await definition.choose.call(page)
+    assert.equal(page.data.error, '')
+    assert.equal(page.data.notice, '已取消选择照片')
+    assert.equal(page.data.photoPending, false)
+    assert.equal(page._photoPath, undefined)
+  } finally { globalThis.Page = oldPage; globalThis.wx = oldWx }
 })
 
 test('canvas produces bounded PNG and rejects oversized or false PNG results', async () => {

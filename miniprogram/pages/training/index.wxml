@@ -1,6 +1,6 @@
 <view class="page stack">
   <view wx:if="{{offline}}" class="offline">当前离线，训练记录尚未同步。请联网后刷新或重试；不会自动重复提交。</view>
-  <view class="row"><text class="title">训练</text><button class="secondary" bindtap="settings">设置</button></view>
+  <view class="row top"><text class="title">训练</text><button class="secondary settings" bindtap="settings">设置</button></view>
   <view wx:if="{{error}}" class="error">{{error}}</view><view wx:if="{{notice}}" class="success">{{notice}}</view>
   <view wx:if="{{loading}}" class="hint">正在读取记录…</view>
   <view class="card"><text class="hint">计划不是完成记录。每组次数、重量与不适由本人保存。</text><button class="secondary" bindtap="refreshPage">刷新</button></view>

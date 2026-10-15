@@ -22,17 +22,17 @@ function createSession(wx, config, onInvalidated = async () => {}) {
       expires_at: Date.now() + data.expires_in * 1000, slot }
   }
   async function verify(token, slot, expectedEpoch, previous = null) {
-    const user = await requestJson(wx, { url: `${base}/auth/v1/user`, method: 'GET', header: headers(token) })
+    const user = await requestJson(wx, { url: `${base}/auth/v1/user`, method: 'GET', header: headers(token) }, () => assert(expectedEpoch))
     assert(expectedEpoch)
     if (!user?.id || user.email !== emails[slot] || (previous?.userId && previous.userId !== user.id)) throw fail('ACCOUNT_DENIED')
-    const account = await requestJson(wx, { url: `${base}/rest/v1/rpc/current_account`, method: 'POST', data: {}, header: headers(token) })
+    const account = await requestJson(wx, { url: `${base}/rest/v1/rpc/current_account`, method: 'POST', data: {}, header: headers(token) }, () => assert(expectedEpoch))
     assert(expectedEpoch)
     if (account !== slot) throw fail('ACCOUNT_DENIED')
-    const spaceId = await requestJson(wx, { url: `${base}/rest/v1/rpc/current_space_id`, method: 'POST', data: {}, header: headers(token) })
+    const spaceId = await requestJson(wx, { url: `${base}/rest/v1/rpc/current_space_id`, method: 'POST', data: {}, header: headers(token) }, () => assert(expectedEpoch))
     assert(expectedEpoch)
     if (!spaceId || typeof spaceId !== 'string' || (previous?.spaceId && previous.spaceId !== spaceId)) throw fail('ACCOUNT_DENIED')
     const members = await requestJson(wx, { url: `${base}/rest/v1/members?select=space_id&user_id=${encodeURIComponent(`eq.${user.id}`)}&space_id=${encodeURIComponent(`eq.${spaceId}`)}&limit=2`,
-      method: 'GET', header: headers(token) })
+      method: 'GET', header: headers(token) }, () => assert(expectedEpoch))
     assert(expectedEpoch)
     if (!Array.isArray(members) || members.length !== 1 || members[0]?.space_id !== spaceId) throw fail('ACCOUNT_DENIED')
     return { user, account, spaceId, userId: user.id }
@@ -44,7 +44,7 @@ function createSession(wx, config, onInvalidated = async () => {}) {
     const current = credential
     const work = (async () => {
       const data = await requestJson(wx, { url: `${base}/auth/v1/token?grant_type=refresh_token`, method: 'POST',
-        data: { refresh_token: current.refresh_token }, header: headers() })
+        data: { refresh_token: current.refresh_token }, header: headers() }, () => assert(at))
       assert(at)
       const next = parseCredential(data, current.slot)
       credential = { ...next, ...previous }
@@ -79,7 +79,7 @@ function createSession(wx, config, onInvalidated = async () => {}) {
     const at = epoch
     try {
       const data = await requestJson(wx, { url: `${base}/auth/v1/token?grant_type=password`, method: 'POST',
-        data: { email: emails[slot], password }, header: headers() })
+        data: { email: emails[slot], password }, header: headers() }, () => assert(at))
       assert(at)
       const next = parseCredential(data, slot)
       const verified = await verify(next.access_token, slot, at)

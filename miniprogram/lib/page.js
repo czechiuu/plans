@@ -6,6 +6,13 @@ const labels = {
   AI_BUDGET_EXCEEDED: 'AI 额度不足，手动记录仍可使用', AI_HEALTH_DISABLED: '此服务健康用途未启用',
   PENDING_CONFLICT: '有一条结果未确认的提交，请先重试或刷新核对原记录', RANDOM_UNAVAILABLE: '无法生成提交编号，请更新微信后重试',
   CANCELLED: '已取消', PHOTO_NOT_FOUND: '照片已删除或当前无权查看', PHOTO_UPLOAD_PENDING: '照片上传仍待确认，请刷新后检查',
+  PHOTO_PRIVACY_FAILED: '微信隐私确认未完成，请重试并核对隐私指引状态（PHOTO_PRIVACY_FAILED）',
+  PHOTO_PERMISSION_DENIED: '相机或相册权限被拒绝，请在微信设置中允许后重试（PHOTO_PERMISSION_DENIED）',
+  PHOTO_CHOOSE_FAILED: '未能选择照片，请重新拍照或选择图片（PHOTO_CHOOSE_FAILED）',
+  PHOTO_READ_FAILED: '无法读取所选照片，请重新选择（PHOTO_READ_FAILED）',
+  PHOTO_SANITIZE_FAILED: '照片处理失败，尚未上传，请重新选择（PHOTO_SANITIZE_FAILED）',
+  PHOTO_CANVAS_UNAVAILABLE: '照片处理画布尚未就绪，请重新打开此页面（PHOTO_CANVAS_UNAVAILABLE）',
+  INVALID_PNG: '处理后的照片无效或超过 4 MB，尚未上传，请重新选择（INVALID_PNG）',
   CONFLICT: '记录已被更新，请刷新后再修改', SIGNOUT_UNCONFIRMED: '本机已退出；服务器注销未确认，请联网后再登录',
   PUBLIC_CONFIG_INVALID: '后端公开配置不正确，请重新构建项目'
 }

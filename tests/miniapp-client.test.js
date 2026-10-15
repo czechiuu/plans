@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 
 const require = createRequire(import.meta.url)
 const { createApi } = require('../miniprogram/lib/api.js')
+const { createClient, requestJson, fail } = require('../miniprogram/lib/client.js')
 const config = { url: 'https://synthetic.supabase.co', key: 'sb_publishable_SYNTHETIC_PUBLIC_KEY_123456' }
 const owner = '11111111-1111-4111-8111-111111111111'
 const space = '33333333-3333-4333-8333-333333333333'
@@ -191,4 +192,123 @@ test('refresh verification offline preserves rotated token and never resends the
   await f.api.saveWeight({ user_id: owner })
   assert.equal(f.calls.filter(x => x.url.endsWith('/save_weight')).length, 1)
   assert.equal(f.refreshes, 1)
+})
+
+function limitedTransport(wx) {
+  let active = 0, peak = 0, rejected = 0
+  for (const name of ['request', 'uploadFile', 'downloadFile']) {
+    if (!wx[name]) continue
+    const original = wx[name].bind(wx)
+    wx[name] = options => {
+      if (active === 10) { rejected++; options.fail({ errMsg: `${name}:fail maximum concurrent requests` }); return }
+      active++; peak = Math.max(peak, active)
+      const finish = callback => value => { active--; callback(value) }
+      original({ ...options, success: finish(options.success), fail: finish(options.fail) })
+    }
+  }
+  return { get active() { return active }, get peak() { return peak }, get rejected() { return rejected } }
+}
+
+test('13-table load stays within the shared transport limit and a failed load can refresh', async () => {
+  let failing = false
+  const f = fixture({ request: options => {
+    if (failing && new URL(options.url).pathname === '/rest/v1/weights') throw new Error('offline')
+  } })
+  const transport = limitedTransport(f.wx)
+  await f.api.signIn('me', 'synthetic-password')
+  assert.equal((await f.api.load()).account, 'me')
+  failing = true
+  await assert.rejects(f.api.load(), { code: 'NETWORK_ERROR' })
+  failing = false
+  assert.equal((await f.api.load()).account, 'me')
+  assert.equal(transport.peak, 10)
+  assert.equal(transport.rejected, 0)
+  assert.equal(transport.active, 0)
+})
+
+test('requests, uploads and downloads on one wx instance share the same ten slots', async () => {
+  const sent = []
+  const wx = Object.fromEntries(['request', 'uploadFile', 'downloadFile'].map(method => [method, options => {
+    sent.push(method)
+    setImmediate(() => options.success(method === 'downloadFile' ?
+      { statusCode: 200, tempFilePath: '/synthetic.png', header: { 'Content-Type': 'image/png' } } :
+      { statusCode: 200, data: method === 'uploadFile' ? '{"photo_id":"synthetic"}' : [] }))
+  }]))
+  const transport = limitedTransport(wx)
+  const session = { capture: async () => ({ token: 'synthetic-token', epoch: 1 }), assert: () => {} }
+  const client = createClient(wx, config, session)
+  const secondClient = createClient(wx, config, session)
+  const work = [
+    ...Array.from({ length: 12 }, () => client.rows('weights')),
+    ...Array.from({ length: 3 }, () => secondClient.upload('/synthetic.png', 'synthetic-meal', false)),
+    ...Array.from({ length: 3 }, (_, i) => secondClient.download(`synthetic-${i}`))
+  ]
+  await Promise.all(work)
+  assert.equal(sent.length, 18)
+  assert.equal(sent.filter(method => method === 'uploadFile').length, 3)
+  assert.equal(sent.filter(method => method === 'downloadFile').length, 3)
+  assert.equal(transport.peak, 10)
+  assert.equal(transport.rejected, 0)
+  assert.equal(transport.active, 0)
+})
+
+test('failed uploads and downloads release their shared slots without retrying', async () => {
+  const sent = []
+  const wx = Object.fromEntries(['request', 'uploadFile', 'downloadFile'].map(method => [method, options => {
+    sent.push(method)
+    setImmediate(() => method === 'request' ? options.success({ statusCode: 200, data: [] }) : options.fail({ errMsg: `${method}:fail offline` }))
+  }]))
+  const transport = limitedTransport(wx)
+  const session = { capture: async () => ({ token: 'synthetic-token', epoch: 1 }), assert: () => {} }
+  const client = createClient(wx, config, session)
+  const outcomes = await Promise.allSettled([
+    client.upload('/synthetic.png', 'synthetic-meal', false), client.download('synthetic-photo'),
+    ...Array.from({ length: 16 }, () => client.rows('weights'))
+  ])
+  assert.equal(outcomes.filter(result => result.status === 'fulfilled').length, 16)
+  assert.deepEqual(outcomes.filter(result => result.status === 'rejected').map(result => result.reason.code), ['NETWORK_ERROR', 'NETWORK_ERROR'])
+  assert.equal(sent.filter(method => method === 'uploadFile').length, 1)
+  assert.equal(sent.filter(method => method === 'downloadFile').length, 1)
+  assert.deepEqual(await client.rows('weights'), [])
+  assert.equal(transport.peak, 10)
+  assert.equal(transport.rejected, 0)
+  assert.equal(transport.active, 0)
+})
+
+test('sign-out while requests are queued prevents old reads, uploads and downloads from sending', async () => {
+  let epoch = 1
+  const sent = []
+  const wx = Object.fromEntries(['request', 'uploadFile', 'downloadFile'].map(method => [method, options => { sent.push({ method, options }) }]))
+  const session = {
+    capture: async () => ({ token: 'synthetic-token', epoch }),
+    assert: expected => { if (expected !== epoch) throw fail('ACCOUNT_CHANGED') }
+  }
+  const client = createClient(wx, config, session)
+  const active = Array.from({ length: 10 }, () => client.rows('weights'))
+  const queued = [client.rows('meals'), client.upload('/synthetic.png', 'synthetic-meal', false), client.download('synthetic-photo')]
+  const results = Promise.allSettled([...active, ...queued])
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(sent.length, 10)
+  epoch++ // 本机退出立即改变 epoch，排队工作尚未发送。
+  for (const { options } of sent) options.success({ statusCode: 200, data: [] })
+  assert.ok((await results).every(result => result.reason?.code === 'ACCOUNT_CHANGED'))
+  assert.equal(sent.length, 10)
+  assert.ok(sent.every(item => item.method === 'request'))
+})
+
+test('a queued login request is cancelled after local sign-out before sending its password', async () => {
+  let release
+  const pending = new Promise(resolve => { release = resolve })
+  const f = fixture({ request: options => new URL(options.url).pathname === '/block' ? pending : undefined })
+  const blockers = Array.from({ length: 10 }, () => requestJson(f.wx, { url: `${config.url}/block` }))
+  await new Promise(resolve => setImmediate(resolve))
+  const signingIn = f.api.signIn('me', 'synthetic-password')
+  const result = assert.rejects(signingIn, { code: 'ACCOUNT_CHANGED' })
+  await new Promise(resolve => setImmediate(resolve))
+  await f.api.signOut()
+  release([])
+  await Promise.all(blockers)
+  await result
+  assert.equal(f.calls.some(options => options.url.includes('grant_type=password')), false)
+  assert.equal(f.api.session(), null)
 })

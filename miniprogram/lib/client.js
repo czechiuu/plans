@@ -1,10 +1,27 @@
 const fail = (code, status, message = code) => Object.assign(new Error(message), { code, ...(status ? { status } : {}) })
 
-function wxCall(method, options) {
+function wxCall(method, options, errorCode = 'NETWORK_ERROR') {
   return new Promise((resolve, reject) => {
     try {
-      method({ ...options, success: resolve, fail: error => reject(Object.assign(fail('NETWORK_ERROR'), { cause: error })) })
-    } catch (error) { reject(Object.assign(fail('NETWORK_ERROR'), { cause: error })) }
+      method({ ...options, success: resolve, fail: error => reject(Object.assign(fail(errorCode), { cause: error })) })
+    } catch (error) { reject(Object.assign(fail(errorCode), { cause: error })) }
+  })
+}
+
+const networkQueues = new WeakMap()
+function networkCall(wx, method, options, beforeSend = () => {}) {
+  let queue = networkQueues.get(wx)
+  if (!queue) { queue = { active: 0, pending: [] }; networkQueues.set(wx, queue) }
+  const drain = () => {
+    while (queue.active < 10 && queue.pending.length) queue.pending.shift()()
+  }
+  return new Promise((resolve, reject) => {
+    queue.pending.push(() => {
+      queue.active++
+      Promise.resolve().then(() => { beforeSend(); return wxCall(wx[method].bind(wx), options) })
+        .then(resolve, reject).finally(() => { queue.active--; drain() })
+    })
+    drain()
   })
 }
 
@@ -23,8 +40,8 @@ function checked(response) {
   return data
 }
 
-async function requestJson(wx, options) {
-  return checked(await wxCall(wx.request.bind(wx), { timeout: 30000, ...options }))
+async function requestJson(wx, options, beforeSend) {
+  return checked(await networkCall(wx, 'request', { timeout: 30000, ...options }, beforeSend))
 }
 
 function one(data, optional = false) {
@@ -42,7 +59,7 @@ function createClient(wx, config, session) {
     if (expectedEpoch !== null) session.assert(expectedEpoch)
     try {
       const result = await requestJson(wx, { url: base + path, method, data,
-        header: { ...common, Authorization: `Bearer ${token}`, ...extraHeader } })
+        header: { ...common, Authorization: `Bearer ${token}`, ...extraHeader } }, () => session.assert(epoch))
       session.assert(epoch)
       return result
     } catch (error) {
@@ -77,9 +94,9 @@ function createClient(wx, config, session) {
     if (expectedEpoch !== null) session.assert(expectedEpoch)
     let response
     try {
-      response = await wxCall(wx.uploadFile.bind(wx), { url: `${base}/functions/v1/health-photo?action=upload`,
+      response = await networkCall(wx, 'uploadFile', { url: `${base}/functions/v1/health-photo?action=upload`,
         filePath: path, name: 'file', formData: { ...(mealId ? { meal_id: mealId } : {}), is_shared: String(isShared) },
-        header: { apikey: config.key, Authorization: `Bearer ${token}` }, timeout: 30000 })
+        header: { apikey: config.key, Authorization: `Bearer ${token}` }, timeout: 30000 }, () => session.assert(epoch))
       session.assert(epoch)
       return checked(response)
     } catch (error) {
@@ -93,8 +110,8 @@ function createClient(wx, config, session) {
     if (expectedEpoch !== null) session.assert(expectedEpoch)
     let response
     try {
-      response = await wxCall(wx.downloadFile.bind(wx), { url: `${base}/functions/v1/health-photo?action=download&photo_id=${encodeURIComponent(id)}`,
-        header: { apikey: config.key, Authorization: `Bearer ${token}` }, timeout: 30000 })
+      response = await networkCall(wx, 'downloadFile', { url: `${base}/functions/v1/health-photo?action=download&photo_id=${encodeURIComponent(id)}`,
+        header: { apikey: config.key, Authorization: `Bearer ${token}` }, timeout: 30000 }, () => session.assert(epoch))
       session.assert(epoch)
       if (response.statusCode < 200 || response.statusCode >= 300) throw fail('PHOTO_DOWNLOAD_FAILED', response.statusCode)
       const contentType = Object.entries(response.header || {}).find(([name]) => name.toLowerCase() === 'content-type')?.[1]

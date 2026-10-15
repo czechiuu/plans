@@ -1,4 +1,4 @@
-const { baseData, refresh, perform, api, openSettings } = require('../../lib/page')
+const { baseData, refresh, perform, api, openSettings, errorText } = require('../../lib/page')
 const { today, instantToLocalDateTime, localDateTimeToInstant } = require('../../lib/dates')
 const { calculateMealNutrition } = require('../../lib/shared')
 const pending = require('../../lib/pending')
@@ -115,7 +115,7 @@ Page({
   },
   async choose() {
     try { const path = await choosePhoto(wx, this); this._photoPath = await sanitizePhoto(wx, this, path); this.setData({ photoPending: true, notice: '照片已在本机净化；保存草稿或点击上传后才会发送', error: '' }) }
-    catch (error) { this.setData({ error: error.message || '照片处理失败' }) }
+    catch (error) { this.setData(error.code === 'CANCELLED' ? { error: '', notice: '已取消选择照片' } : { error: errorText(error) }) }
   },
   async uploadPending(mealId) {
     const path = this._photoPath
