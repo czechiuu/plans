@@ -1,0 +1,190 @@
+{
+  "scope": "native-0.1.1-phone-feedback-hotfix",
+  "recorded_at": "2026-10-15T04:44:41.195Z",
+  "shanghai_date": "2026-10-15",
+  "source_commit": "32e84cf70e572c961b183851b6ec427e71504753",
+  "user_observation": {
+    "version": "0.1.0",
+    "physical_phone": true,
+    "after_tapping_photo_button": true,
+    "visible_error": "NETWORK_ERROR",
+    "specific_privacy_or_chooser_platform_failure": "not_captured",
+    "original_screenshots": "preserved privately; excluded from Git and package"
+  },
+  "findings": {
+    "photo_error_classification": "confirmed: privacy/chooser failures were incorrectly mapped to NETWORK_ERROR",
+    "load_concurrency": "confirmed with isolated callback limit: 13 parallel reads had no shared network scheduler; not attributed as the actual phone photo failure",
+    "loading_stuck": "not established; original refresh finally already cleared loading; implementation unchanged"
+  },
+  "changes": [
+    "shared per-runtime network queue for request/upload/download, at most 10 in flight, no automatic retries",
+    "recheck identity epoch immediately before queued request dispatch",
+    "separate privacy, permission, chooser, read and processing errors; translated photo messages and cancellation",
+    "shared picker border-box and inner spacing; keep settings beside shrinking title"
+  ],
+  "tests": {
+    "full_unit": {
+      "passed": 156,
+      "failed": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "private_log": "test-results/private/wechat-native-20261015/feedback-full-unit.log"
+    },
+    "targeted": {
+      "passed": 29,
+      "failed": 0
+    },
+    "static_pages": {
+      "passed": 11,
+      "failed": 0
+    },
+    "real_devtools_read_and_layout": {
+      "passed": 2,
+      "failed": 0,
+      "results": [
+        {
+          "route": "pages/meal/index",
+          "at": "2026-10-15T04:34:54.609Z",
+          "status": "passed",
+          "realBackend": true,
+          "dataWrites": 0,
+          "paidAiCalls": 0,
+          "state": {
+            "loading": false,
+            "errorPresent": false,
+            "loadingHintPresent": false
+          },
+          "measure": {
+            "windowWidth": 390,
+            "cardCount": 2,
+            "fieldCount": 11,
+            "fieldsContained": true,
+            "pageFieldsContained": true,
+            "headerSameRow": true,
+            "settingsHeight": 45,
+            "pickerCount": 4,
+            "pickersContained": true
+          }
+        },
+        {
+          "route": "pages/tomorrow/index",
+          "at": "2026-10-15T04:36:34.182Z",
+          "status": "passed",
+          "realBackend": true,
+          "dataWrites": 0,
+          "paidAiCalls": 0,
+          "state": {
+            "loading": false,
+            "errorPresent": false,
+            "loadingHintPresent": false
+          },
+          "measure": {
+            "windowWidth": 390,
+            "cardCount": 4,
+            "fieldCount": 17,
+            "fieldsContained": true,
+            "pageFieldsContained": true,
+            "headerSameRow": true,
+            "settingsHeight": 45,
+            "pickerCount": 6,
+            "pickersContained": true
+          }
+        }
+      ]
+    },
+    "ci": {
+      "id": 38682468595,
+      "source_commit": "32e84cf70e572c961b183851b6ec427e71504753",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/czechiuu/plans/actions/runs/38682468595",
+      "website_deploy": "skipped_by_push_workflow"
+    }
+  },
+  "official_devtools": {
+    "version": "2.02.2608080",
+    "legal_domain_check_enabled": true,
+    "preview": {
+      "status": "success",
+      "exit_code": 0,
+      "bytes": 185294
+    },
+    "upload": {
+      "status": "success",
+      "exit_code": 0,
+      "version": "0.1.1",
+      "bytes": 185294
+    },
+    "admin_readback": {
+      "developer_version": "0.1.1",
+      "experience_marker_visible": true,
+      "entry": "pages/login/index",
+      "upload_time_shanghai": "2026-10-15 12:39:27"
+    },
+    "experience_qr": {
+      "full_pixels_visually_verified": true,
+      "private_artifact": "test-results/private/wechat-admin-20261015/experience-0.1.1-full-verified.jpg",
+      "displayed_expiry": "2026-10-22"
+    },
+    "screenshots": [
+      {
+        "page": "meal",
+        "private_artifact": "test-results/private/wechat-native-20261015/feedback-0.1.1-meal.jpg",
+        "width": 363,
+        "height": 785
+      },
+      {
+        "page": "tomorrow",
+        "private_artifact": "test-results/private/wechat-native-20261015/feedback-0.1.1-tomorrow.jpg",
+        "width": 363,
+        "height": 785
+      }
+    ],
+    "public_release_submitted": false
+  },
+  "privacy": {
+    "latest_readback": "under_review",
+    "revision": 2,
+    "photo_flow_verified": false,
+    "first_rejection_preserved_in": "wechat-admin-readback-20261015.json"
+  },
+  "excluded_harness_attempts": [
+    {
+      "stage": "initial navigation",
+      "status": "failed",
+      "reason": "SDK called with object instead of documented string URL; corrected; not a product failure"
+    },
+    {
+      "stage": "initial control measurement",
+      "status": "invalid",
+      "reason": "combined tag selector returned zero controls; rejected, replaced with positive field counts and actual picker size/offset; not counted as pass"
+    },
+    {
+      "stage": "narrow admin QR screenshot",
+      "status": "failed",
+      "reason": "fixed-width popup clipped by sidebar viewport; excluded from delivery; full actual pixels captured after temporary viewport expansion"
+    },
+    {
+      "stage": "privacy row locator after reload",
+      "status": "failed",
+      "reason": "locator deadline; current visible AX table then verified under_review"
+    }
+  ],
+  "physical_phone_hotfix_retest": "not_run",
+  "W_hotfix_retest": "not_run",
+  "full_photo_choose_upload_confirm": "not_run",
+  "paid_ai_flow": "not_run",
+  "production_health_data_writes": 0,
+  "production_health_data_deletes": 0,
+  "paid_ai_calls": 0,
+  "personal_ai_consent_or_budget_changes": 0,
+  "protected_web_shared_backend_files_unchanged": 42,
+  "backend_versions": {
+    "website": "44a176234aac6498dc1f6736ff873834e075a26a",
+    "ai_cron": "1c3444d",
+    "photo": "eea81bb",
+    "migrations": "001-010"
+  },
+  "previous_business_report": "native-free-flow-20261015.json; historical 0.1.0 results retained, not rerun or relabeled",
+  "source_package": "dist-native/plans-native-experience-0.1.1-20261015.zip"
+}
