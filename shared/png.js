@@ -1,5 +1,8 @@
 const signature = [137,80,78,71,13,10,26,10]
-const allowed = new Set(['IHDR','IDAT','IEND','sRGB','gAMA','pHYs'])
+const allowed = new Set(['IHDR','IDAT','IEND','sRGB','gAMA','pHYs','sBIT'])
+export const pngFailureReasons = Object.freeze(['FILE_SIZE','SIGNATURE','CHUNK_BOUNDS','CHUNK_TYPE','CHUNK_CRC',
+  'IHDR','IMAGE_FORMAT','IDAT_ORDER','IEND','ANCILLARY_ORDER','SBIT','DEFLATE','SCANLINE_LENGTH','FILTER','REQUEST_SIZE','UNKNOWN'])
+const invalidPng = reason => Object.assign(new Error('INVALID_PNG'),{pngReason:reason})
 const table = Uint32Array.from({length:256},(_,i)=>{
   let n=i
   for(let j=0;j<8;j++) n=(n&1)?0xedb88320^(n>>>1):n>>>1
@@ -14,37 +17,45 @@ function crc32(bytes,start,end){
 
 export async function validateSanitizedPng(input){
   const bytes=input instanceof Uint8Array?input:new Uint8Array(input)
-  if(bytes.length<45 || bytes.length>4194304 || !signature.every((x,i)=>bytes[i]===x))
-    throw new Error('INVALID_PNG')
+  if(bytes.length<45 || bytes.length>4194304) throw invalidPng('FILE_SIZE')
+  if(!signature.every((x,i)=>bytes[i]===x)) throw invalidPng('SIGNATURE')
   const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength)
-  let at=8,ihdr=false,idat=false,ended=false,width=0,height=0,colorType=0,imageLength=0
+  let at=8,ihdr=false,idat=false,ended=false,sbit=false,width=0,height=0,colorType=0,imageLength=0
   const imageData=new Uint8Array(bytes.length)
   while(at<bytes.length){
     // Each chunk consumes at least 12 bytes; the 4 MiB file limit bounds parsing work.
-    if(at+12>bytes.length) throw new Error('INVALID_PNG')
+    if(at+12>bytes.length) throw invalidPng('CHUNK_BOUNDS')
     const length=view.getUint32(at)
     const type=String.fromCharCode(bytes[at+4],bytes[at+5],bytes[at+6],bytes[at+7])
     const data=at+8,end=data+length
-    if(!allowed.has(type) || end+4>bytes.length || crc32(bytes,at+4,end)!==view.getUint32(end))
-      throw new Error('INVALID_PNG')
+    if(!allowed.has(type)) throw invalidPng('CHUNK_TYPE')
+    if(end+4>bytes.length) throw invalidPng('CHUNK_BOUNDS')
+    if(crc32(bytes,at+4,end)!==view.getUint32(end)) throw invalidPng('CHUNK_CRC')
     if(type==='IHDR'){
-      if(ihdr || at!==8 || length!==13) throw new Error('INVALID_PNG')
+      if(ihdr || at!==8 || length!==13) throw invalidPng('IHDR')
       ihdr=true;width=view.getUint32(data);height=view.getUint32(data+4);colorType=bytes[data+9]
       if(width<1||height<1||width>4096||height>4096||bytes[data+8]!==8||
         ![2,6].includes(bytes[data+9])||bytes[data+10]!==0||bytes[data+11]!==0||bytes[data+12]!==0)
-        throw new Error('INVALID_PNG')
+        throw invalidPng('IMAGE_FORMAT')
     } else if(type==='IDAT'){
-      if(!ihdr||ended) throw new Error('INVALID_PNG')
+      if(!ihdr||ended) throw invalidPng('IDAT_ORDER')
       idat=true
       if(length){imageData.set(bytes.subarray(data,end),imageLength);imageLength+=length}
     } else if(type==='IEND'){
-      if(!ihdr||!idat||length!==0||end+4!==bytes.length) throw new Error('INVALID_PNG')
+      if(!ihdr||!idat||length!==0||end+4!==bytes.length) throw invalidPng('IEND')
       ended=true
     // The permitted ancillary chunks must precede IDAT, so the IDAT sequence stays consecutive.
-    } else if(!ihdr||idat||ended) throw new Error('INVALID_PNG')
+    } else {
+      if(!ihdr||idat||ended) throw invalidPng('ANCILLARY_ORDER')
+      if(type==='sBIT'){
+        if(sbit||length!==(colorType===6?4:3)||bytes.subarray(data,end).some(value=>value<1||value>8))
+          throw invalidPng('SBIT')
+        sbit=true
+      }
+    }
     at=end+4
   }
-  if(!ended) throw new Error('INVALID_PNG')
+  if(!ended) throw invalidPng('IEND')
   const scanlineBytes=1+width*(colorType===6?4:3)
   const expected=scanlineBytes*height
   let count=0
@@ -52,12 +63,16 @@ export async function validateSanitizedPng(input){
     const stream=new Blob([imageData.subarray(0,imageLength)]).stream().pipeThrough(new DecompressionStream('deflate'))
     for await(const block of stream){
       for(const value of block){
-        if(count>=expected || (count%scanlineBytes===0 && value>4)) throw new Error('INVALID_PNG')
+        if(count>=expected) throw invalidPng('SCANLINE_LENGTH')
+        if(count%scanlineBytes===0 && value>4) throw invalidPng('FILTER')
         count++
       }
     }
-  }catch{throw new Error('INVALID_PNG')}
-  if(count!==expected) throw new Error('INVALID_PNG')
+  }catch(error){
+    if(error?.pngReason==='SCANLINE_LENGTH'||error?.pngReason==='FILTER') throw error
+    throw invalidPng('DEFLATE')
+  }
+  if(count!==expected) throw invalidPng('SCANLINE_LENGTH')
   const digest=await crypto.subtle.digest('SHA-256',bytes)
   const sha256=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('')
   return {width,height,bytes:bytes.length,sha256,mime:'image/png'}

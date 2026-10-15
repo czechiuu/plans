@@ -1,4 +1,4 @@
-import { validateSanitizedPng } from '../../../shared/png.js'
+import { validateSanitizedPng, pngFailureReasons } from '../../../shared/png.js'
 import { allowedOrigin, preflight, authenticate, json, safeError } from '../_shared/runtime.js'
 
 const bucket='health-photos'
@@ -12,7 +12,7 @@ async function boundedForm(request){
     const {done,value}=await reader.read()
     if(done) break
     length+=value.length
-    if(length>5*1024*1024){await reader.cancel();throw new Error('INVALID_PNG')}
+    if(length>5*1024*1024){await reader.cancel();throw Object.assign(new Error('INVALID_PNG'),{pngReason:'REQUEST_SIZE'})}
     parts.push(value)
   }
   const bytes=new Uint8Array(length);let at=0
@@ -27,7 +27,7 @@ async function handle(request){
   const action=new URL(request.url).searchParams.get('action')
   if(request.method==='POST'&&action==='upload'){
     const size=Number(request.headers.get('content-length')||0)
-    if(size>5*1024*1024) throw new Error('INVALID_PNG')
+    if(size>5*1024*1024) throw Object.assign(new Error('INVALID_PNG'),{pngReason:'REQUEST_SIZE'})
     const form=await boundedForm(request)
     const file=form.get('file'),mealId=form.get('meal_id'),share=form.get('is_shared')??'false'
     if(!(file instanceof Blob)||file.type!=='image/png'||file.size>4194304||
@@ -84,5 +84,11 @@ async function handle(request){
 Deno.serve(async request=>{
   let origin=null
   try{origin=allowedOrigin(request);return await handle(request)}
-  catch(error){return safeError(error,origin)}
+  catch(error){
+    if(error instanceof Error&&error.message==='INVALID_PNG') console.warn(JSON.stringify({
+      event:'photo_png_rejected',revision:'2026-10-15-sbit',
+      reason:pngFailureReasons.includes(error.pngReason)?error.pngReason:'UNKNOWN',
+    }))
+    return safeError(error,origin)
+  }
 })
